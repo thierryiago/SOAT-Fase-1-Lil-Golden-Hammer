@@ -15,7 +15,7 @@ public sealed class CustomersController : ControllerBase
         _customers = customers;
     }
 
-    [HttpGet]
+    [HttpGet(Name = "ListCustomers")]
     [ProducesResponseType(typeof(IReadOnlyCollection<Customer>), StatusCodes.Status200OK)]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
@@ -23,7 +23,7 @@ public sealed class CustomersController : ControllerBase
         return Ok(customers);
     }
 
-    [HttpGet("{id:guid}")]
+    [HttpGet("{id:guid}", Name = "GetCustomerById")]
     [ProducesResponseType(typeof(Customer), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
@@ -32,7 +32,7 @@ public sealed class CustomersController : ControllerBase
         return customer is null ? NotFound() : Ok(customer);
     }
 
-    [HttpPost]
+    [HttpPost(Name = "CreateCustomer")]
     [ProducesResponseType(typeof(Customer), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create(CreateCustomerRequest request, CancellationToken cancellationToken)

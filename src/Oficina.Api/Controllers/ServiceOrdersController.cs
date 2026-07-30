@@ -15,7 +15,7 @@ public sealed class ServiceOrdersController : ControllerBase
         _serviceOrders = serviceOrders;
     }
 
-    [HttpGet]
+    [HttpGet(Name = "ListServiceOrders")]
     [ProducesResponseType(typeof(IReadOnlyCollection<ServiceOrder>), StatusCodes.Status200OK)]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
@@ -23,7 +23,7 @@ public sealed class ServiceOrdersController : ControllerBase
         return Ok(serviceOrders);
     }
 
-    [HttpGet("{id:guid}")]
+    [HttpGet("{id:guid}", Name = "GetServiceOrderById")]
     [ProducesResponseType(typeof(ServiceOrder), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
@@ -32,7 +32,7 @@ public sealed class ServiceOrdersController : ControllerBase
         return serviceOrder is null ? NotFound() : Ok(serviceOrder);
     }
 
-    [HttpPost]
+    [HttpPost(Name = "OpenServiceOrder")]
     [ProducesResponseType(typeof(ServiceOrder), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Open(OpenServiceOrderRequest request, CancellationToken cancellationToken)
@@ -41,7 +41,7 @@ public sealed class ServiceOrdersController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = serviceOrder.Id }, serviceOrder);
     }
 
-    [HttpPost("{id:guid}/parts")]
+    [HttpPost("{id:guid}/parts", Name = "AddPartToServiceOrder")]
     [ProducesResponseType(typeof(ServiceOrder), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> AddPart(
