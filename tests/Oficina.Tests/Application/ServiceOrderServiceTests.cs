@@ -113,7 +113,17 @@ public sealed class ServiceOrderServiceTests
         public Task<Part?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
             Task.FromResult(_parts.GetValueOrDefault(id));
 
+        public Task<Part?> GetByCodeAsync(string code, CancellationToken cancellationToken) =>
+            Task.FromResult(_parts.Values.FirstOrDefault(part =>
+                string.Equals(part.Code, code, StringComparison.OrdinalIgnoreCase)));
+
         public Task AddAsync(Part part, CancellationToken cancellationToken)
+        {
+            _parts[part.Id] = part;
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(Part part, CancellationToken cancellationToken)
         {
             _parts[part.Id] = part;
             return Task.CompletedTask;

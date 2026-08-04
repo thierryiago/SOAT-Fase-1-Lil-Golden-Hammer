@@ -1,18 +1,57 @@
+using Oficina.Application.Common;
 using Oficina.Application.Customers;
 using Oficina.Application.Vehicles;
-using Oficina.Domain.Customers;
+using Oficina.Infrastructure.Persistence;
 
 namespace Oficina.Tests.Application;
 
 public sealed class VehicleServiceTests
 {
     [Fact]
+    public async Task Vehicle_crud_should_require_customer_and_enforce_unique_plate()
+    {
+        var customerRepository = new InMemoryCustomerRepository();
+        var vehicleRepository = new InMemoryVehicleRepository();
+        var customerService = new CustomerService(customerRepository);
+        var vehicleService = new VehicleService(customerRepository, vehicleRepository);
+        var customer = await customerService.CreateAsync(
+            new CreateCustomerRequest("Joao Silva", "joao@email.com", "987.654.321-00"),
+            CancellationToken.None);
+
+        var created = await vehicleService.CreateAsync(
+            new CreateVehicleRequest(customer.Id, "abc1d23", "Honda", "Civic", 2021),
+            CancellationToken.None);
+        var updated = await vehicleService.UpdateAsync(
+            created.Id,
+            new UpdateVehicleRequest("ABC1D23", "Honda", "Civic Touring", 2022),
+            CancellationToken.None);
+        var page = await vehicleService.ListAsync(
+            new PageRequest("Touring", 1, 20),
+            customer.Id,
+            CancellationToken.None);
+
+        var duplicateAct = () => vehicleService.CreateAsync(
+            new CreateVehicleRequest(customer.Id, "ABC1D23", "Toyota", "Corolla", 2020),
+            CancellationToken.None);
+
+        Assert.Equal("ABC1D23", created.Plate);
+        Assert.Equal("Civic Touring", updated.Model);
+        Assert.Single(page.Items);
+        await Assert.ThrowsAsync<ConflictException>(duplicateAct);
+        Assert.True(await vehicleService.DeleteAsync(created.Id, CancellationToken.None));
+        Assert.Null(await vehicleService.GetByIdAsync(created.Id, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task IdentifyCustomerAndRegisterVehicleAsync_should_find_customer_by_document_and_register_vehicle()
     {
-        var customers = new FakeCustomerRepository();
-        var customer = Customer.Create("Ana Customer", "ana@email.com", "123.456.789-00");
-        await customers.AddAsync(customer, CancellationToken.None);
-        var service = new VehicleService(customers);
+        var customers = new InMemoryCustomerRepository();
+        var vehicles = new InMemoryVehicleRepository();
+        var customerService = new CustomerService(customers);
+        var customer = await customerService.CreateAsync(
+            new CreateCustomerRequest("Ana Customer", "ana@email.com", "123.456.789-00"),
+            CancellationToken.None);
+        var service = new VehicleService(customers, vehicles);
 
         var response = await service.IdentifyCustomerAndRegisterVehicleAsync(
             new IdentifyCustomerAndRegisterVehicleRequest(
@@ -35,8 +74,9 @@ public sealed class VehicleServiceTests
     [Fact]
     public async Task IdentifyCustomerAndRegisterVehicleAsync_should_reject_unknown_document()
     {
-        var customers = new FakeCustomerRepository();
-        var service = new VehicleService(customers);
+        var service = new VehicleService(
+            new InMemoryCustomerRepository(),
+            new InMemoryVehicleRepository());
 
         var act = () => service.IdentifyCustomerAndRegisterVehicleAsync(
             new IdentifyCustomerAndRegisterVehicleRequest(
@@ -47,38 +87,6 @@ public sealed class VehicleServiceTests
                 2022),
             CancellationToken.None);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(act);
-    }
-
-    private sealed class FakeCustomerRepository : ICustomerRepository
-    {
-        private readonly Dictionary<Guid, Customer> _customers = new();
-
-        public Task<IReadOnlyCollection<Customer>> ListAsync(CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyCollection<Customer>>(_customers.Values.ToList());
-
-        public Task<Customer?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
-            Task.FromResult(_customers.GetValueOrDefault(id));
-
-        public Task<Customer?> GetByDocumentAsync(string document, CancellationToken cancellationToken)
-        {
-            var normalizedDocument = new string(document.Where(char.IsDigit).ToArray());
-            var customer = _customers.Values.FirstOrDefault(existingCustomer =>
-                new string(existingCustomer.Document.Where(char.IsDigit).ToArray()) == normalizedDocument);
-
-            return Task.FromResult(customer);
-        }
-
-        public Task AddAsync(Customer customer, CancellationToken cancellationToken)
-        {
-            _customers[customer.Id] = customer;
-            return Task.CompletedTask;
-        }
-
-        public Task UpdateAsync(Customer customer, CancellationToken cancellationToken)
-        {
-            _customers[customer.Id] = customer;
-            return Task.CompletedTask;
-        }
+        await Assert.ThrowsAsync<KeyNotFoundException>(act);
     }
 }
