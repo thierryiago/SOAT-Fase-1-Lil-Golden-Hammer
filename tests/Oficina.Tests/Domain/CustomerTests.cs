@@ -31,7 +31,7 @@ public sealed class CustomerTests
 
         Assert.Equal(customer.Id, vehicle.CustomerId);
         Assert.Equal("ABC1D23", vehicle.Plate);
-        Assert.Equal("Honda", vehicle.Make);
+        Assert.Equal("Honda", vehicle.Brand);
         Assert.Equal("Civic", vehicle.Model);
         Assert.Equal(2021, vehicle.Year);
     }

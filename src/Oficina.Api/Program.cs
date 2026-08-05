@@ -41,7 +41,7 @@ app.UseExceptionHandler(errorApp =>
         context.Response.ContentType = "application/problem+json";
         await context.Response.WriteAsJsonAsync(new
         {
-            title = "Nao foi possivel processar a requisicao.",
+            title = "It was not possible to process the request.",
             status = statusCode,
             detail = statusCode == StatusCodes.Status500InternalServerError
                 ? null

@@ -12,32 +12,49 @@ serviços, peças, orçamento e movimentações de estoque.
 
 ## 2. Diagnóstico do estado atual
 
+
 | Requisito | Estado | Evidência ou lacuna |
 |---|---|---|
-| Monólito em camadas | Feito | Projetos `Domain`, `Application`, `Infrastructure` e `Api` |
-| Swagger | Parcial | Swagger existe, mas faltam autenticação, contratos completos e todos os endpoints |
-| Dockerfile | Feito | Build e runtime multi-stage configurados |
-| Docker Compose | Parcial | API e PostgreSQL estão declarados, mas a aplicação ainda não usa o banco |
-| Persistência PostgreSQL | Não iniciado | Repositórios são `InMemory` |
-| CRUD de clientes | Parcial | Existem criação, listagem e busca por ID; faltam atualização e exclusão |
-| CRUD de veículos | Parcial | Existe apenas cadastro a partir do documento do cliente; veículo não possui ID |
-| CRUD de serviços | Não iniciado | Não há entidade nem endpoints para serviços de oficina |
-| CRUD de peças e insumos | Parcial | Existem criação, listagem e busca; faltam atualização, exclusão e movimentações |
-| Controle de estoque | Parcial | Há baixa em memória, sem persistência, transação, entrada ou auditoria |
-| Criação completa de OS | Parcial | OS não referencia veículo e aceita apenas descrição e peças |
-| Orçamento automático | Não iniciado | Não há cálculo de serviços + peças nem entidade de orçamento |
-| Envio e aprovação | Não iniciado | Não há notificação, token ou registro de aprovação |
-| Fluxo automático de status | Parcial | Enum existe; transições estão incompletas e não possuem endpoints/histórico |
-| Consulta do cliente | Não iniciado | Não há API pública ou código seguro de acompanhamento |
-| Listagem e detalhe de OS | Parcial | Existem endpoints básicos, sem filtros, paginação ou visão completa |
-| Tempo médio de execução | Não iniciado | Não há histórico de status nem endpoint de métricas |
-| JWT administrativo | Não iniciado | Não há autenticação, autorização ou usuários administrativos |
-| Validação CPF/CNPJ e placa | Não iniciado | Há somente verificação de campos vazios e normalização parcial |
-| Testes unitários | Parcial | Existem 9 testes para uma parte do domínio e aplicação |
-| Testes de integração | Não iniciado | Não há testes da API com PostgreSQL |
-| Cobertura mínima de 80% | Não comprovado | O projeto possui coletor, mas não há relatório nem gate de cobertura |
-| README de execução local | Parcial | Existe, porém as rotas estão desatualizadas e o banco descrito não é usado |
-| Repositório privado e acesso | Ação externa pendente | É necessário confirmar privacidade e conceder acesso a `soatarchitecture` |
+| Monólito em camadas | Feito | Projetos `Domain`, `Application`, `Infrastructure` e `Api` presentes |
+| Swagger | Feito (parcial) | `Program.cs` registra Swagger e UI; falta integração com autenticação e contratos públicos |
+| Dockerfile | Feito | Build e runtime multi-stage configurados (Dockerfile presente) |
+| Docker Compose | Parcial | `docker-compose.yml` declara `api` e `db` (PostgreSQL) mas a app usa `InMemory` |
+| Persistência PostgreSQL | Não iniciado | Repositórios reais não implementados; `Oficina.Infrastructure` registra repositórios `InMemory` |
+| CRUD de clientes | Feito | Endpoints, `CustomerService`, `InMemoryCustomerRepository` e testes existentes |
+| CRUD de veículos | Feito | `Vehicle` possui `Id`, endpoints e `VehicleService` com testes (cadastro, atualização, listagem) |
+| CRUD de serviços | Feito | Catálogo de serviços (`WorkshopService`) com endpoints e testes aplicacionais |
+| CRUD de peças e insumos | Feito | CRUD e ajustes de estoque (`AdjustStock`) implementados e testados |
+| Controle de estoque | Parcial | Regras de ajuste/retirada estão em `Part`, mas não há `InventoryMovement`, auditoria, ou persistência transacional |
+| Criação completa de OS | Parcial | `ServiceOrder` existe com `CustomerId`, itens de peça e total de peças; não referencia `Vehicle` nem inclui itens de serviço/orçamento |
+| Orçamento automático | Não iniciado | Não há entidade `Quote` nem cálculo unificado de serviços+peças |
+| Envio e aprovação | Não iniciado | Não há fluxo de envio, tokens, notificações ou endpoints públicos de aprovação |
+| Fluxo automático de status | Parcial | `ServiceOrderStatus` enum existe e algumas transições em `ServiceOrder`, mas falta histórico e endpoints administrativos completos |
+| Consulta do cliente | Não iniciado | Não há endpoints públicos de acompanhamento com token seguro |
+| Listagem e detalhe de OS | Parcial | Endpoints básicos em `ServiceOrdersController` retornam entidades do domínio sem paginação/filtering/DTOs completas |
+| Tempo médio de execução | Não iniciado | Não existe histórico de status persistido para cálculo de métricas |
+| JWT administrativo | Não iniciado | Autenticação/authorization ausentes; Swagger não está protegido por Bearer |
+| Validação CPF/CNPJ e placa | Parcial | Normalização básica implementada (`NormalizeDocument`, `NormalizePlate`); faltam value objects/validações formais |
+| Testes unitários | Parcial | Existem testes de domínio e aplicação cobrindo pontos centrais (clientes, peças, serviços, ordens) |
+| Testes de integração | Não iniciado | Não há testes `WebApplicationFactory`/PostgreSQL configurados |
+| Cobertura mínima de 80% | Não comprovado | Coverlet/relatórios não configurados para gate de cobertura |
+| README de execução local | Parcial | `README.md` descreve execução e Compose, mas menciona DB que ainda não é usado pela aplicação |
+| Repositório privado e acesso | Ação externa pendente | Acesso e privacidade precisam ser confirmados e concedidos a `soatarchitecture` |
+
+## 2.1 Resumo de progresso e próximos passos (rápido)
+
+- **Concluído / estável:** estrutura em camadas, Swagger UI disponível, Dockerfile, CRUDs de clientes, veículos, peças e serviços, e testes unitários básicos.
+- **Parcial:** controle de estoque em memória, criação de OS básica (sem veículo), enum de status e algumas transições em memória, README e Compose presentes mas sem persistência real.
+- **Não iniciado / crítico:** persistência PostgreSQL (EF Core), migrations, `StockMovement`/auditoria, orçamento (`Quote`) e fluxo de envio/aprovação, histórico de status, autenticação JWT, testes de integração e gate de cobertura.
+
+- **Próximos passos recomendados (prioridade):**
+   1. Implementar `OficinaDbContext` + repositórios EF Core e criar migration inicial.
+   2. Modelar `InventoryMovement` e garantir transação atômica ao reservar/consumir estoque durante criação/aprovação de OS.
+   3. Atualizar `ServiceOrder` para referenciar `VehicleId` e separar itens de serviço e peça.
+   4. Implementar `Quote` (orçamento) e o fluxo de envio/aprovação com token de uso único.
+   5. Adicionar autenticação JWT e proteger endpoints administrativos; habilitar Swagger Bearer.
+   6. Criar testes de integração com `WebApplicationFactory` e PostgreSQL isolado; configurar cobertura (Coverlet) e gate de 80%.
+
+**Observação:** não encontrei arquivos de issues/PRs nem e-mails relacionados no workspace; para validar históricos de PR/Issues/threads, preciso de acesso ao repositório remoto (GitHub/GitLab) ou export desses recursos.
 
 ## 3. Modelo de domínio necessário
 

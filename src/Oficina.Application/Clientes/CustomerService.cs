@@ -46,6 +46,10 @@ public sealed class CustomerService
         {
             throw new ConflictException("A customer with the informed document already exists.");
         }
+        if (!Customer.IsValidDocument(request.Document))
+        {
+            throw new ConflictException("Error validating the provided document. Verify that the CPF or CNPJ is valid.");
+        }
 
         var customer = Customer.Create(request.Name, request.Email, request.Document);
         await _customers.AddAsync(customer, cancellationToken);
