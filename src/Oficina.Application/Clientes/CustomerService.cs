@@ -42,13 +42,16 @@ public sealed class CustomerService
         CancellationToken cancellationToken)
     {
         var existing = await _customers.GetByDocumentAsync(request.Document, cancellationToken);
+        if (existing is not null && !existing.IsActive)
+        {
+            existing.Activate();
+            existing.Update(request.Name, request.Email, request.Document);
+            await _customers.UpdateAsync(existing, cancellationToken);
+            return Map(existing);
+        }
         if (existing is not null)
         {
             throw new ConflictException("A customer with the informed document already exists.");
-        }
-        if (!Customer.IsValidDocument(request.Document))
-        {
-            throw new ConflictException("Error validating the provided document. Verify that the CPF or CNPJ is valid.");
         }
 
         var customer = Customer.Create(request.Name, request.Email, request.Document);

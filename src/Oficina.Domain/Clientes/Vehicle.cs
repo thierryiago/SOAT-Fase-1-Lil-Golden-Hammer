@@ -31,6 +31,11 @@ public sealed class Vehicle
 
         Validate(plate, brand, model, year);
 
+        if (!IsValidPlate(plate))
+        {
+            throw new ArgumentException("Error validating the provided plate. Verify that the plate is valid.");
+        }
+
         return new Vehicle(
             Guid.NewGuid(),
             customerId,
@@ -43,6 +48,11 @@ public sealed class Vehicle
     public void Update(string plate, string brand, string model, int year)
     {
         Validate(plate, brand, model, year);
+
+        if (!IsValidPlate(plate))
+        {
+            throw new ArgumentException("Error validating the provided plate. Verify that the plate is valid.");
+        }
 
         Plate = NormalizePlate(plate);
         Brand = brand.Trim();
@@ -78,16 +88,29 @@ public sealed class Vehicle
         }
     }
 
-    private static string NormalizePlate(string plate) =>
-        plate.Trim().Replace("-", string.Empty).ToUpperInvariant();
-
-    public static bool IsValidPlate(string placa)
+    private static string NormalizePlate(string plate)
     {
-        if (string.IsNullOrWhiteSpace(placa))
+        if (string.IsNullOrWhiteSpace(plate))
+            return string.Empty;
+
+        var normalized = Regex.Replace(plate.Trim(), "[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
+
+        if (Regex.IsMatch(normalized, @"^[A-Z]{3}[0-9]{4}$"))
+            return $"{normalized.Substring(0, 3)}-{normalized.Substring(3, 4)}";
+
+        if (Regex.IsMatch(normalized, @"^[A-Z]{3}[0-9][A-Z][0-9]{2}$"))
+            return normalized;
+
+        return normalized;
+    }
+
+    public static bool IsValidPlate(string plate)
+    {
+        if (string.IsNullOrWhiteSpace(plate))
             return false;
 
-        placa = NormalizePlate(placa);
+        plate = NormalizePlate(plate);
 
-        return Regex.IsMatch(placa, @"^(?:[A-Z]{3}[0-9]{4}|[A-Z]{3}[0-9][A-Z][0-9]{2})$");
+        return Regex.IsMatch(plate, @"^(?:[A-Z]{3}[0-9]{4}|[A-Z]{3}[0-9][A-Z][0-9]{2}|[A-Z]{3}-[0-9]{4})$");
     }
 }

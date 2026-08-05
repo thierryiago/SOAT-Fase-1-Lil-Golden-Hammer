@@ -84,11 +84,6 @@ public sealed class VehicleService
             throw new ConflictException("A vehicle with the informed plate already exists.");
         }
 
-        if (!Vehicle.IsValidPlate(request.Plate))
-        {
-            throw new ConflictException("Error validating the provided plate. Verify that the plate is valid.");
-        }
-
         var vehicle = Vehicle.Create(
             request.CustomerId,
             request.Plate,
