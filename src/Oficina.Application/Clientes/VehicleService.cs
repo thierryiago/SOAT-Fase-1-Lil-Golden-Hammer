@@ -29,7 +29,7 @@ public sealed class VehicleService
             new CreateVehicleRequest(
                 customer.Id,
                 request.Plate,
-                request.Make,
+                request.Brand,
                 request.Model,
                 request.Year),
             cancellationToken);
@@ -54,7 +54,7 @@ public sealed class VehicleService
             .Where(vehicle =>
                 string.IsNullOrWhiteSpace(search) ||
                 vehicle.Plate.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                vehicle.Make.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                vehicle.Brand.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                 vehicle.Model.Contains(search, StringComparison.OrdinalIgnoreCase))
             .OrderBy(vehicle => vehicle.Plate)
             .Select(Map);
@@ -84,10 +84,15 @@ public sealed class VehicleService
             throw new ConflictException("A vehicle with the informed plate already exists.");
         }
 
+        if (!Vehicle.IsValidPlate(request.Plate))
+        {
+            throw new ConflictException("Error validating the provided plate. Verify that the plate is valid.");
+        }
+
         var vehicle = Vehicle.Create(
             request.CustomerId,
             request.Plate,
-            request.Make,
+            request.Brand,
             request.Model,
             request.Year);
         await _vehicles.AddAsync(vehicle, cancellationToken);
@@ -106,7 +111,7 @@ public sealed class VehicleService
             throw new ConflictException("A vehicle with the informed plate already exists.");
         }
 
-        vehicle.Update(request.Plate, request.Make, request.Model, request.Year);
+        vehicle.Update(request.Plate, request.Brand, request.Model, request.Year);
         await _vehicles.UpdateAsync(vehicle, cancellationToken);
         return Map(vehicle);
     }
@@ -140,7 +145,7 @@ public sealed class VehicleService
             vehicle.Id,
             vehicle.CustomerId,
             vehicle.Plate,
-            vehicle.Make,
+            vehicle.Brand,
             vehicle.Model,
             vehicle.Year);
 }

@@ -66,7 +66,7 @@ public sealed class VehicleServiceTests
         Assert.Equal("Ana Customer", response.Name);
         Assert.Equal("123.456.789-00", response.Document);
         Assert.Equal("ABC1D23", response.Vehicle.Plate);
-        Assert.Equal("Toyota", response.Vehicle.Make);
+        Assert.Equal("Toyota", response.Vehicle.Brand);
         Assert.Equal("Corolla", response.Vehicle.Model);
         Assert.Equal(2022, response.Vehicle.Year);
     }

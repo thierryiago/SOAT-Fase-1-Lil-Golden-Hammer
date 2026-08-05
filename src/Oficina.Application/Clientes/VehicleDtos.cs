@@ -3,20 +3,20 @@ namespace Oficina.Application.Vehicles;
 public sealed record CreateVehicleRequest(
     Guid CustomerId,
     string Plate,
-    string Make,
+    string Brand,
     string Model,
     int Year);
 
 public sealed record UpdateVehicleRequest(
     string Plate,
-    string Make,
+    string Brand,
     string Model,
     int Year);
 
 public sealed record IdentifyCustomerAndRegisterVehicleRequest(
     string Document,
     string Plate,
-    string Make,
+    string Brand,
     string Model,
     int Year);
 
@@ -30,6 +30,6 @@ public sealed record VehicleResponse(
     Guid Id,
     Guid CustomerId,
     string Plate,
-    string Make,
+    string Brand,
     string Model,
     int Year);
