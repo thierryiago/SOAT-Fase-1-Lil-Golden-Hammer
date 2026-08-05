@@ -19,7 +19,7 @@ classDiagram
         +Guid Id PK
         +Guid CustomerId FK
         +string Plate UK
-        +string Make
+        +string Brand
         +string Model
         +int Year
         +DateTimeOffset CreatedAt
