@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace Oficina.Domain.Customers;
 
 public sealed class Customer
@@ -19,29 +21,39 @@ public sealed class Customer
 
     public static Customer Create(string name, string email, string document)
     {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            throw new ArgumentException("Customer name is required.", nameof(name));
-        }
+        Validate(name, email, document);
 
-        if (string.IsNullOrWhiteSpace(email))
-        {
-            throw new ArgumentException("Customer email is required.", nameof(email));
-        }
+        var normalizedDocument = NormalizeDocument(document);
 
-        if (string.IsNullOrWhiteSpace(document))
+        if (!IsValidDocument(normalizedDocument))
         {
-            throw new ArgumentException("Customer document is required.", nameof(document));
+            throw new ArgumentException("Error validating the provided document. Verify that the CPF or CNPJ is valid.");
         }
 
         return new Customer(
             Guid.NewGuid(),
             name.Trim(),
             email.Trim().ToLowerInvariant(),
-            document.Trim());
+            normalizedDocument);
     }
 
     public void Update(string name, string email, string document)
+    {
+        Validate(name, email, document);
+
+        var normalizedDocument = NormalizeDocument(document);
+
+        if (!IsValidDocument(normalizedDocument))
+        {
+            throw new ArgumentException("Error validating the provided document. Verify that the CPF or CNPJ is valid.");
+        }
+
+        Name = name.Trim();
+        Email = email.Trim().ToLowerInvariant();
+        Document = normalizedDocument;
+    }
+
+    public static void Validate(string name, string email, string document)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -57,10 +69,6 @@ public sealed class Customer
         {
             throw new ArgumentException("Customer document is required.", nameof(document));
         }
-
-        Name = name.Trim();
-        Email = email.Trim().ToLowerInvariant();
-        Document = document.Trim();
     }
 
     public void Deactivate()
@@ -68,9 +76,48 @@ public sealed class Customer
         IsActive = false;
     }
 
+    public void Activate()
+    {
+        IsActive = true;
+    }
+
+    public static string NormalizeDocument(string document)
+    {
+        if (string.IsNullOrWhiteSpace(document))
+            return string.Empty;
+
+        var digits = Regex.Replace(document.Trim(), "\\D", string.Empty);
+
+        if (digits.Length == 11)
+            return $"{digits.Substring(0, 3)}.{digits.Substring(3, 3)}.{digits.Substring(6, 3)}-{digits.Substring(9, 2)}";
+
+        if (digits.Length == 14)
+            return $"{digits.Substring(0, 2)}.{digits.Substring(2, 3)}.{digits.Substring(5, 3)}/{digits.Substring(8, 4)}-{digits.Substring(12, 2)}";
+
+        return document.Trim();
+    }
+
     public static bool IsValidDocument(string cpfCnpj)
     {
-        return (IsCpf(cpfCnpj) || IsCnpj(cpfCnpj));
+        var cpf = IsCpf(cpfCnpj);
+        var cnpj = IsCnpj(cpfCnpj);
+        return (cpf || cnpj);
+    }
+
+    private static bool HasRepeatedDigits(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return true;
+
+        var digits = value.Trim()
+            .Replace(".", string.Empty)
+            .Replace("-", string.Empty)
+            .Replace("/", string.Empty);
+
+        if (digits.Length == 0)
+            return true;
+
+        return digits.All(ch => ch == digits[0]);
     }
 
     private static bool IsCpf(string cpf)
@@ -82,9 +129,8 @@ public sealed class Customer
         if (cpf.Length != 11)
             return false;
 
-        for (int j = 0; j < 10; j++)
-            if (j.ToString().PadLeft(11, char.Parse(j.ToString())) == cpf)
-                return false;
+        if (HasRepeatedDigits(cpf))
+            return false;
 
         string tempCpf = cpf.Substring(0, 9);
         int soma = 0;
@@ -122,6 +168,9 @@ public sealed class Customer
 
         cnpj = cnpj.Trim().Replace(".", "").Replace("-", "").Replace("/", "");
         if (cnpj.Length != 14)
+            return false;
+
+        if (HasRepeatedDigits(cnpj))
             return false;
 
         string tempCnpj = cnpj.Substring(0, 12);
