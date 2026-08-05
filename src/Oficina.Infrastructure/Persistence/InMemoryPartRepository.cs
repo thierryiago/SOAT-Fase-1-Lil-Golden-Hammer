@@ -17,7 +17,21 @@ public sealed class InMemoryPartRepository : IPartRepository
         return Task.FromResult(part);
     }
 
+    public Task<Part?> GetByCodeAsync(string code, CancellationToken cancellationToken)
+    {
+        var normalizedCode = code.Trim().ToUpperInvariant();
+        var part = _parts.Values.FirstOrDefault(existingPart =>
+            string.Equals(existingPart.Code, normalizedCode, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(part);
+    }
+
     public Task AddAsync(Part part, CancellationToken cancellationToken)
+    {
+        _parts[part.Id] = part;
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateAsync(Part part, CancellationToken cancellationToken)
     {
         _parts[part.Id] = part;
         return Task.CompletedTask;

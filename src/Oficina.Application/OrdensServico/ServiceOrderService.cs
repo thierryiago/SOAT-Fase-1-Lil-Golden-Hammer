@@ -58,6 +58,7 @@ public sealed class ServiceOrderService
 
         part.WithdrawStock(request.Quantity);
         serviceOrder.AddPart(part.Id, part.Name, request.Quantity, part.UnitPrice);
+        await _parts.UpdateAsync(part, cancellationToken);
         await _serviceOrders.UpdateAsync(serviceOrder, cancellationToken);
         return serviceOrder;
     }

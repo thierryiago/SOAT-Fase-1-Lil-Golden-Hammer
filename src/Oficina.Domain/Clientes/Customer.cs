@@ -2,21 +2,20 @@ namespace Oficina.Domain.Customers;
 
 public sealed class Customer
 {
-    private readonly List<Vehicle> _vehicles = new();
-
     private Customer(Guid id, string name, string email, string document)
     {
         Id = id;
         Name = name;
         Email = email;
         Document = document;
+        IsActive = true;
     }
 
     public Guid Id { get; }
     public string Name { get; private set; }
     public string Email { get; private set; }
     public string Document { get; private set; }
-    public IReadOnlyCollection<Vehicle> Vehicles => _vehicles.AsReadOnly();
+    public bool IsActive { get; private set; }
 
     public static Customer Create(string name, string email, string document)
     {
@@ -42,10 +41,30 @@ public sealed class Customer
             document.Trim());
     }
 
-    public Vehicle RegisterVehicle(string plate, string make, string model, int year)
+    public void Update(string name, string email, string document)
     {
-        var vehicle = new Vehicle(plate, make, model, year);
-        _vehicles.Add(vehicle);
-        return vehicle;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Customer name is required.", nameof(name));
+        }
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new ArgumentException("Customer email is required.", nameof(email));
+        }
+
+        if (string.IsNullOrWhiteSpace(document))
+        {
+            throw new ArgumentException("Customer document is required.", nameof(document));
+        }
+
+        Name = name.Trim();
+        Email = email.Trim().ToLowerInvariant();
+        Document = document.Trim();
+    }
+
+    public void Deactivate()
+    {
+        IsActive = false;
     }
 }

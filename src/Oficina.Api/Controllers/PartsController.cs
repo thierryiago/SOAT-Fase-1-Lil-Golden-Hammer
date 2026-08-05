@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Oficina.Application.Common;
 using Oficina.Application.Parts;
-using Oficina.Domain.Parts;
 
 namespace Oficina.Api.Controllers;
 
@@ -16,15 +16,17 @@ public sealed class PartsController : ControllerBase
     }
 
     [HttpGet(Name = "ListParts")]
-    [ProducesResponseType(typeof(IReadOnlyCollection<Part>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> List(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(PagedResponse<PartResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> List(
+        [FromQuery] PageRequest request,
+        CancellationToken cancellationToken)
     {
-        var parts = await _parts.ListAsync(cancellationToken);
+        var parts = await _parts.ListAsync(request, cancellationToken);
         return Ok(parts);
     }
 
     [HttpGet("{id:guid}", Name = "GetPartById")]
-    [ProducesResponseType(typeof(Part), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PartResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
@@ -33,11 +35,47 @@ public sealed class PartsController : ControllerBase
     }
 
     [HttpPost(Name = "CreatePart")]
-    [ProducesResponseType(typeof(Part), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(PartResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create(CreatePartRequest request, CancellationToken cancellationToken)
     {
         var part = await _parts.CreateAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = part.Id }, part);
+    }
+
+    [HttpPut("{id:guid}", Name = "UpdatePart")]
+    [ProducesResponseType(typeof(PartResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Update(
+        Guid id,
+        UpdatePartRequest request,
+        CancellationToken cancellationToken)
+    {
+        var part = await _parts.UpdateAsync(id, request, cancellationToken);
+        return Ok(part);
+    }
+
+    [HttpPost("{id:guid}/stock-adjustments", Name = "AdjustPartStock")]
+    [ProducesResponseType(typeof(PartResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AdjustStock(
+        Guid id,
+        AdjustStockRequest request,
+        CancellationToken cancellationToken)
+    {
+        var part = await _parts.AdjustStockAsync(id, request, cancellationToken);
+        return Ok(part);
+    }
+
+    [HttpDelete("{id:guid}", Name = "DeletePart")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var deleted = await _parts.DeleteAsync(id, cancellationToken);
+        return deleted ? NoContent() : NotFound();
     }
 }

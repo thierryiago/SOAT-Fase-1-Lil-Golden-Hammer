@@ -23,13 +23,13 @@ public sealed class CustomerTests
     }
 
     [Fact]
-    public void RegisterVehicle_should_add_vehicle_to_customer()
+    public void Vehicle_create_should_link_vehicle_to_customer()
     {
         var customer = Customer.Create("Maria Silva", "maria@email.com", "123.456.789-00");
 
-        customer.RegisterVehicle("ABC1D23", "Honda", "Civic", 2021);
+        var vehicle = Vehicle.Create(customer.Id, "ABC1D23", "Honda", "Civic", 2021);
 
-        var vehicle = Assert.Single(customer.Vehicles);
+        Assert.Equal(customer.Id, vehicle.CustomerId);
         Assert.Equal("ABC1D23", vehicle.Plate);
         Assert.Equal("Honda", vehicle.Make);
         Assert.Equal("Civic", vehicle.Model);
@@ -37,11 +37,11 @@ public sealed class CustomerTests
     }
 
     [Fact]
-    public void RegisterVehicle_should_reject_invalid_year()
+    public void Vehicle_create_should_reject_invalid_year()
     {
         var customer = Customer.Create("Maria Silva", "maria@email.com", "123.456.789-00");
 
-        var act = () => customer.RegisterVehicle("ABC1D23", "Honda", "Civic", 1800);
+        var act = () => Vehicle.Create(customer.Id, "ABC1D23", "Honda", "Civic", 1800);
 
         Assert.Throws<ArgumentException>(act);
     }

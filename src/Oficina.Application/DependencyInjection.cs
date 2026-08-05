@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Oficina.Application.Customers;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
+using Oficina.Application.Servicos;
 using Oficina.Application.Vehicles;
 
 namespace Oficina.Application;
@@ -14,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<PartService>();
         services.AddScoped<ServiceOrderService>();
         services.AddScoped<VehicleService>();
+        services.AddScoped<ServiceCatalogService>();
         return services;
     }
 }

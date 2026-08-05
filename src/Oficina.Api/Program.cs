@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
 using Oficina.Application;
+using Oficina.Application.Common;
 using Oficina.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,9 +29,13 @@ app.UseExceptionHandler(errorApp =>
     errorApp.Run(async context =>
     {
         var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
-        var statusCode = exception is ArgumentException or InvalidOperationException
-            ? StatusCodes.Status400BadRequest
-            : StatusCodes.Status500InternalServerError;
+        var statusCode = exception switch
+        {
+            KeyNotFoundException => StatusCodes.Status404NotFound,
+            ConflictException => StatusCodes.Status409Conflict,
+            ArgumentException or InvalidOperationException => StatusCodes.Status400BadRequest,
+            _ => StatusCodes.Status500InternalServerError
+        };
 
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/problem+json";
@@ -38,6 +43,9 @@ app.UseExceptionHandler(errorApp =>
         {
             title = "Nao foi possivel processar a requisicao.",
             status = statusCode,
+            detail = statusCode == StatusCodes.Status500InternalServerError
+                ? null
+                : exception?.Message,
             traceId = context.TraceIdentifier
         });
     });
