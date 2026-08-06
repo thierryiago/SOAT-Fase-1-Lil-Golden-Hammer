@@ -3,6 +3,7 @@ using Oficina.Application.Customers;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.Services;
+using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
 using Oficina.Infrastructure.Persistence;
 
@@ -17,6 +18,7 @@ public static class DependencyInjection
         services.AddSingleton<IPartRepository, InMemoryPartRepository>();
         services.AddSingleton<IWorkshopServiceRepository, InMemoryWorkshopServiceRepository>();
         services.AddSingleton<IServiceOrderRepository, InMemoryServiceOrderRepository>();
+        services.AddSingleton<IStockRepository, InMemoryStockRepository>();
         return services;
     }
 }

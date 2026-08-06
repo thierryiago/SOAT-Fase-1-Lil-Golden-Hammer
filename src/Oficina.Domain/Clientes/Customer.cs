@@ -99,9 +99,18 @@ public sealed class Customer
 
     public static bool IsValidDocument(string cpfCnpj)
     {
-        var cpf = IsCpf(cpfCnpj);
-        var cnpj = IsCnpj(cpfCnpj);
-        return (cpf || cnpj);
+        if (string.IsNullOrWhiteSpace(cpfCnpj))
+        {
+            return false;
+        }
+
+        var digits = Regex.Replace(cpfCnpj.Trim(), "\\D", string.Empty);
+        if (digits.Length == 0)
+        {
+            return false;
+        }
+
+        return !HasRepeatedDigits(digits);
     }
 
     private static bool HasRepeatedDigits(string value)
