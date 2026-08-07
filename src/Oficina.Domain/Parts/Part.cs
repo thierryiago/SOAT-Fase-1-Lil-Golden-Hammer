@@ -7,15 +7,14 @@ public sealed class Part
         string name,
         string code,
         decimal unitPrice,
-        int stockQuantity,
-        PartKind kind)
+        EnumPartKind kind)
     {
         Id = id;
         Name = name;
         Code = code;
         UnitPrice = unitPrice;
-        StockQuantity = stockQuantity;
         Kind = kind;
+        CreateDate = DateTime.UtcNow;
         IsActive = true;
     }
 
@@ -23,8 +22,12 @@ public sealed class Part
     public string Name { get; private set; }
     public string Code { get; private set; }
     public decimal UnitPrice { get; private set; }
-    public int StockQuantity { get; private set; }
-    public PartKind Kind { get; private set; }
+
+    public EnumPartKind Kind { get; private set; }
+
+    public DateTime CreateDate { get; private set; }
+
+    public DateTime UpdateDate { get; private set; }
     public bool IsActive { get; private set; }
 
     public static Part Create(
@@ -32,7 +35,7 @@ public sealed class Part
         string code,
         decimal unitPrice,
         int stockQuantity,
-        PartKind kind = PartKind.Part)
+        EnumPartKind kind = EnumPartKind.Part)
     {
         Validate(name, code, unitPrice);
 
@@ -46,11 +49,10 @@ public sealed class Part
             name.Trim(),
             code.Trim().ToUpperInvariant(),
             unitPrice,
-            stockQuantity,
             kind);
     }
 
-    public void Update(string name, string code, decimal unitPrice, PartKind kind)
+    public void Update(string name, string code, decimal unitPrice, EnumPartKind kind)
     {
         Validate(name, code, unitPrice);
 
@@ -58,37 +60,38 @@ public sealed class Part
         Code = code.Trim().ToUpperInvariant();
         UnitPrice = unitPrice;
         Kind = kind;
+        UpdateDate = DateTime.UtcNow;
     }
 
-    public void AdjustStock(int quantity)
-    {
-        if (quantity == 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(quantity), "Stock adjustment cannot be zero.");
-        }
+    // public void AdjustStock(int quantity)
+    // {
+    //     if (quantity == 0)
+    //     {
+    //         throw new ArgumentOutOfRangeException(nameof(quantity), "Stock adjustment cannot be zero.");
+    //     }
 
-        if (StockQuantity + quantity < 0)
-        {
-            throw new InvalidOperationException("Stock adjustment cannot result in negative stock.");
-        }
+    //     if (StockQuantity + quantity < 0)
+    //     {
+    //         throw new InvalidOperationException("Stock adjustment cannot result in negative stock.");
+    //     }
 
-        StockQuantity += quantity;
-    }
+    //     StockQuantity += quantity;
+    // }
 
-    public void WithdrawStock(int quantity)
-    {
-        if (quantity <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be greater than zero.");
-        }
+    // public void WithdrawStock(int quantity)
+    // {
+    //     if (quantity <= 0)
+    //     {
+    //         throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be greater than zero.");
+    //     }
 
-        if (quantity > StockQuantity)
-        {
-            throw new InvalidOperationException("Insufficient stock for the requested part.");
-        }
+    //     if (quantity > StockQuantity)
+    //     {
+    //         throw new InvalidOperationException("Insufficient stock for the requested part.");
+    //     }
 
-        StockQuantity -= quantity;
-    }
+    //     StockQuantity -= quantity;
+    // }
 
     public void Deactivate()
     {

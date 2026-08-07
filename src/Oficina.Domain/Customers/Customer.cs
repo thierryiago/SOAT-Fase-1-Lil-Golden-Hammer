@@ -4,24 +4,32 @@ namespace Oficina.Domain.Customers;
 
 public sealed class Customer
 {
-    private Customer(Guid id, string name, string email, string document)
+    private Customer(Guid id, string name, string email, string telephoneNumber, string document)
     {
         Id = id;
         Name = name;
         Email = email;
+        TelephoneNumber = telephoneNumber;
+        CreateDate = DateTime.UtcNow;
         Document = document;
         IsActive = true;
     }
 
     public Guid Id { get; }
+
+    public List<Vehicle> Vehicles { get; private set; } = new List<Vehicle>();
     public string Name { get; private set; }
     public string Email { get; private set; }
+
+    public string TelephoneNumber { get; private set; }
+
+    public DateTime CreateDate { get; private set; }
     public string Document { get; private set; }
     public bool IsActive { get; private set; }
 
-    public static Customer Create(string name, string email, string document)
+    public static Customer Create(string name, string email, string telephoneNumber, string document)
     {
-        Validate(name, email, document);
+        Validate(name, email, telephoneNumber, document);
 
         var normalizedDocument = NormalizeDocument(document);
 
@@ -33,13 +41,14 @@ public sealed class Customer
         return new Customer(
             Guid.NewGuid(),
             name.Trim(),
+            telephoneNumber.Trim(),
             email.Trim().ToLowerInvariant(),
             normalizedDocument);
     }
 
-    public void Update(string name, string email, string document)
+    public void Update(string name, string email, string telephoneNumber, string document)
     {
-        Validate(name, email, document);
+        Validate(name, email, telephoneNumber, document);
 
         var normalizedDocument = NormalizeDocument(document);
 
@@ -50,10 +59,11 @@ public sealed class Customer
 
         Name = name.Trim();
         Email = email.Trim().ToLowerInvariant();
+        TelephoneNumber = telephoneNumber.Trim();
         Document = normalizedDocument;
     }
 
-    public static void Validate(string name, string email, string document)
+    public static void Validate(string name, string email, string telephoneNumber, string document)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -63,6 +73,11 @@ public sealed class Customer
         if (string.IsNullOrWhiteSpace(email))
         {
             throw new ArgumentException("Customer email is required.", nameof(email));
+        }
+
+        if (string.IsNullOrWhiteSpace(telephoneNumber))
+        {
+            throw new ArgumentException("Customer telephone number is required.", nameof(telephoneNumber));
         }
 
         if (string.IsNullOrWhiteSpace(document))

@@ -28,6 +28,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  migration-runner:
+    build: .
+    command: ["dotnet ef database update", "migration", "run"] # Substitua pelo comando do seu framework
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      - DB_HOST=localhost
+      - DB_PORT=5432
 
 volumes:
   oficina-db-data:
