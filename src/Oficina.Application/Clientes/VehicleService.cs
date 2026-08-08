@@ -89,7 +89,8 @@ public sealed class VehicleService
             request.Plate,
             request.Brand,
             request.Model,
-            request.Year);
+            request.Year,
+            request.Category);
         await _vehicles.AddAsync(vehicle, cancellationToken);
         return Map(vehicle);
     }
@@ -106,7 +107,7 @@ public sealed class VehicleService
             throw new ConflictException("A vehicle with the informed plate already exists.");
         }
 
-        vehicle.Update(request.Plate, request.Brand, request.Model, request.Year);
+        vehicle.Update(request.Plate, request.Brand, request.Model, request.Year, request.Category);
         await _vehicles.UpdateAsync(vehicle, cancellationToken);
         return Map(vehicle);
     }

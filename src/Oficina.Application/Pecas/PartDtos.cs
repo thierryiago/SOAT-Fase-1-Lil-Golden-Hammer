@@ -6,14 +6,13 @@ public sealed record CreatePartRequest(
     string Name,
     string Code,
     decimal UnitPrice,
-    int StockQuantity,
-    PartKind Kind = PartKind.Part);
+    EnumPartKind Kind = EnumPartKind.Part);
 
 public sealed record UpdatePartRequest(
     string Name,
     string Code,
     decimal UnitPrice,
-    PartKind Kind);
+    EnumPartKind Kind);
 
 public sealed record AdjustStockRequest(int Quantity, string Reason);
 
@@ -22,5 +21,4 @@ public sealed record PartResponse(
     string Name,
     string Code,
     decimal UnitPrice,
-    int StockQuantity,
-    PartKind Kind);
+    EnumPartKind Kind);

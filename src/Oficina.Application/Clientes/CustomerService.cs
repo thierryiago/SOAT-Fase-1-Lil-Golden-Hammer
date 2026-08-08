@@ -45,7 +45,7 @@ public sealed class CustomerService
         if (existing is not null && !existing.IsActive)
         {
             existing.Activate();
-            existing.Update(request.Name, request.Email, request.Document);
+            existing.Update(request.Name, request.Email, request.TelephoneNumber, request.Document);
             await _customers.UpdateAsync(existing, cancellationToken);
             return Map(existing);
         }
@@ -54,7 +54,7 @@ public sealed class CustomerService
             throw new ConflictException("A customer with the informed document already exists.");
         }
 
-        var customer = Customer.Create(request.Name, request.Email, request.Document);
+        var customer = Customer.Create(request.Name, request.Email, request.TelephoneNumber, request.Document);
         await _customers.AddAsync(customer, cancellationToken);
         return Map(customer);
     }
@@ -71,7 +71,7 @@ public sealed class CustomerService
             throw new ConflictException("A customer with the informed document already exists.");
         }
 
-        customer.Update(request.Name, request.Email, request.Document);
+        customer.Update(request.Name, request.Email, request.TelephoneNumber, request.Document);
         await _customers.UpdateAsync(customer, cancellationToken);
         return Map(customer);
     }
@@ -101,5 +101,5 @@ public sealed class CustomerService
     }
 
     private static CustomerResponse Map(Customer customer) =>
-        new(customer.Id, customer.Name, customer.Email, customer.Document);
+        new(customer.Id, customer.Name, customer.Email, customer.TelephoneNumber, customer.Document);
 }

@@ -34,15 +34,15 @@ public sealed class Part
         string name,
         string code,
         decimal unitPrice,
-        int stockQuantity,
+        // int stockQuantity,
         EnumPartKind kind = EnumPartKind.Part)
     {
         Validate(name, code, unitPrice);
 
-        if (stockQuantity < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(stockQuantity), "Stock cannot be negative.");
-        }
+        // if (stockQuantity < 0)
+        // {
+        //     throw new ArgumentOutOfRangeException(nameof(stockQuantity), "Stock cannot be negative.");
+        // }
 
         return new Part(
             Guid.NewGuid(),

@@ -50,7 +50,6 @@ public sealed class PartService
             request.Name,
             request.Code,
             request.UnitPrice,
-            request.StockQuantity,
             request.Kind);
         await _parts.AddAsync(part, cancellationToken);
         return Map(part);
@@ -84,7 +83,7 @@ public sealed class PartService
         }
 
         var part = await GetActivePartAsync(id, cancellationToken);
-        part.AdjustStock(request.Quantity);
+        // part.AdjustStock(request.Quantity);
         await _parts.UpdateAsync(part, cancellationToken);
         return Map(part);
     }
@@ -119,6 +118,5 @@ public sealed class PartService
             part.Name,
             part.Code,
             part.UnitPrice,
-            part.StockQuantity,
             part.Kind);
 }
