@@ -15,7 +15,7 @@ public sealed class VehicleServiceTests
         var customerService = new CustomerService(customerRepository);
         var vehicleService = new VehicleService(customerRepository, vehicleRepository);
         var customer = await customerService.CreateAsync(
-            new CreateCustomerRequest("Joao Silva", "joao@email.com", "987.654.321-00"),
+            new CreateCustomerRequest("Joao Silva", "joao@email.com", "123", "111.444.777-35"),
             CancellationToken.None);
 
         var created = await vehicleService.CreateAsync(
@@ -49,13 +49,13 @@ public sealed class VehicleServiceTests
         var vehicles = new InMemoryVehicleRepository();
         var customerService = new CustomerService(customers);
         var customer = await customerService.CreateAsync(
-            new CreateCustomerRequest("Ana Customer", "ana@email.com", "123.456.789-00"),
+            new CreateCustomerRequest("Ana Customer", "ana@email.com", "123", "529.982.247-25"),
             CancellationToken.None);
         var service = new VehicleService(customers, vehicles);
 
         var response = await service.IdentifyCustomerAndRegisterVehicleAsync(
             new IdentifyCustomerAndRegisterVehicleRequest(
-                "12345678900",
+                "52998224725",
                 "ABC1D23",
                 "Toyota",
                 "Corolla",
@@ -64,7 +64,7 @@ public sealed class VehicleServiceTests
 
         Assert.Equal(customer.Id, response.CustomerId);
         Assert.Equal("Ana Customer", response.Name);
-        Assert.Equal("123.456.789-00", response.Document);
+        Assert.Equal("529.982.247-25", response.Document);
         Assert.Equal("ABC1D23", response.Vehicle.Plate);
         Assert.Equal("Toyota", response.Vehicle.Brand);
         Assert.Equal("Corolla", response.Vehicle.Model);

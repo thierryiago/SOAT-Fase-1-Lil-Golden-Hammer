@@ -41,8 +41,8 @@ public sealed class Customer
         return new Customer(
             Guid.NewGuid(),
             name.Trim(),
-            telephoneNumber.Trim(),
             email.Trim().ToLowerInvariant(),
+            telephoneNumber.Trim(),
             normalizedDocument);
     }
 
