@@ -56,7 +56,7 @@ public sealed class ServiceOrderService
             throw new InvalidOperationException("Part was not found.");
         }
 
-        part.WithdrawStock(request.Quantity);
+        // part.WithdrawStock(request.Quantity);
         serviceOrder.AddPart(part.Id, part.Name, request.Quantity, part.UnitPrice);
         await _parts.UpdateAsync(part, cancellationToken);
         await _serviceOrders.UpdateAsync(serviceOrder, cancellationToken);

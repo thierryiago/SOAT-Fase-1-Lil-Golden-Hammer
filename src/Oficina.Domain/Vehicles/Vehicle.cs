@@ -1,9 +1,10 @@
 namespace Oficina.Domain.Customers;
 using System.Text.RegularExpressions;
+using Oficina.Domain.Vehicles;
 
 public sealed class Vehicle
 {
-    private Vehicle(Guid id, Guid customerId, string plate, string brand, string model, int year)
+    private Vehicle(Guid id, Guid customerId, string plate, string brand, string model, int year, EnumVehicleCategory category)
     {
         Id = id;
         CustomerId = customerId;
@@ -11,25 +12,29 @@ public sealed class Vehicle
         Brand = brand;
         Model = model;
         Year = year;
+        Category = category;
         IsActive = true;
     }
 
     public Guid Id { get; }
     public Guid CustomerId { get; }
+    public Customer Customer { get; private set; }
     public string Plate { get; private set; }
     public string Brand { get; private set; }
     public string Model { get; private set; }
     public int Year { get; private set; }
+
+    public EnumVehicleCategory Category { get; private set; }
     public bool IsActive { get; private set; }
 
-    public static Vehicle Create(Guid customerId, string plate, string brand, string model, int year)
+    public static Vehicle Create(Guid customerId, string plate, string brand, string model, int year, EnumVehicleCategory category)
     {
         if (customerId == Guid.Empty)
         {
             throw new ArgumentException("Customer is required.", nameof(customerId));
         }
 
-        Validate(plate, brand, model, year);
+        Validate(plate, brand, model, year, category);
 
         if (!IsValidPlate(plate))
         {
@@ -42,12 +47,13 @@ public sealed class Vehicle
             NormalizePlate(plate),
             brand.Trim(),
             model.Trim(),
-            year);
+            year,
+            category);
     }
 
-    public void Update(string plate, string brand, string model, int year)
+    public void Update(string plate, string brand, string model, int year, EnumVehicleCategory category)
     {
-        Validate(plate, brand, model, year);
+        Validate(plate, brand, model, year, category);
 
         if (!IsValidPlate(plate))
         {
@@ -58,6 +64,7 @@ public sealed class Vehicle
         Brand = brand.Trim();
         Model = model.Trim();
         Year = year;
+        Category = category;
     }
 
     public void Deactivate()
@@ -65,7 +72,7 @@ public sealed class Vehicle
         IsActive = false;
     }
 
-    private static void Validate(string plate, string brand, string model, int year)
+    private static void Validate(string plate, string brand, string model, int year, EnumVehicleCategory category)
     {
         if (string.IsNullOrWhiteSpace(plate))
         {
