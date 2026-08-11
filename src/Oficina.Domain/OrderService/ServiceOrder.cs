@@ -1,8 +1,14 @@
+using Oficina.Domain.Customers;
+using Oficina.Domain.Mechanics;
+using Oficina.Domain.OrderService;
+using Oficina.Domain.OrderService;
+using Oficina.Domain.Services;
+
 namespace Oficina.Domain.ServiceOrders;
 
 public sealed class ServiceOrder
 {
-    private readonly List<ServiceOrderItem> _items = new();
+    private readonly List<ServiceOrderPart> _items = new();
 
     private ServiceOrder(Guid id, Guid customerId, string description)
     {
@@ -15,12 +21,18 @@ public sealed class ServiceOrder
 
     public Guid Id { get; }
     public Guid CustomerId { get; }
+    public Guid MechanicId { get; }
+    public Guid VehicleId { get; }
     public string Description { get; private set; }
-    public ServiceOrderStatus Status { get; private set; }
+    public string CheckList { get; private set; }
+    public ServiceOrderStatus? Status { get; private set; }
     public DateTimeOffset CreatedAt { get; }
-    public IReadOnlyCollection<ServiceOrderItem> Items => _items.AsReadOnly();
-    public decimal TotalParts => _items.Sum(item => item.Total);
-
+    public decimal TotalParts {  get; private set; }
+    public Customer Customer { get; private set; }
+    public Mechanic Mechanic { get; private set; }
+    public Vehicle Vehicle { get; set; }
+    public IReadOnlyCollection<ServiceOrderPart> Parts => _items.AsReadOnly();
+    public IReadOnlyCollection<ServiceOrderWorkshop> WorkshopServices { get; private set; }
     public static ServiceOrder Open(Guid customerId, string description)
     {
         if (customerId == Guid.Empty)
@@ -43,7 +55,18 @@ public sealed class ServiceOrder
             throw new InvalidOperationException("Closed service orders cannot be changed.");
         }
 
-        _items.Add(new ServiceOrderItem(partId, partName, quantity, unitPrice));
+        if (quantity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be greater than zero.");
+        }
+
+        if (unitPrice < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(unitPrice), "Unit price cannot be negative.");
+        }
+
+        _items.Add(new ServiceOrderPart(Guid.NewGuid(), partId, Id, quantity));
+        TotalParts += quantity * unitPrice;
     }
 
     public void Start()

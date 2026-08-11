@@ -1,3 +1,5 @@
+using Oficina.Domain.Vehicles;
+
 namespace Oficina.Application.Vehicles;
 
 public sealed record CreateVehicleRequest(
@@ -5,20 +7,23 @@ public sealed record CreateVehicleRequest(
     string Plate,
     string Brand,
     string Model,
-    int Year);
+    int Year,
+    EnumVehicleCategory Category = EnumVehicleCategory.Car);
 
 public sealed record UpdateVehicleRequest(
     string Plate,
     string Brand,
     string Model,
-    int Year);
+    int Year,
+    EnumVehicleCategory Category = EnumVehicleCategory.Car);
 
 public sealed record IdentifyCustomerAndRegisterVehicleRequest(
     string Document,
     string Plate,
     string Brand,
     string Model,
-    int Year);
+    int Year,
+    EnumVehicleCategory Category = EnumVehicleCategory.Car);
 
 public sealed record CustomerVehicleRegistrationResponse(
     Guid CustomerId,
@@ -32,4 +37,5 @@ public sealed record VehicleResponse(
     string Plate,
     string Brand,
     string Model,
-    int Year);
+    int Year,
+    EnumVehicleCategory Category = EnumVehicleCategory.Car);

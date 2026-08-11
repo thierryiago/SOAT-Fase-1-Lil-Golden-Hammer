@@ -15,7 +15,7 @@ public sealed class ServiceOrderServiceTests
         var customers = new FakeCustomerRepository();
         var serviceOrders = new FakeServiceOrderRepository();
         var parts = new FakePartRepository();
-        var customer = Customer.Create("John Customer", "john@email.com", "123");
+        var customer = Customer.Create("John Customer", "john@email.com", "123", "529.982.247-25");
         await customers.AddAsync(customer, CancellationToken.None);
         var service = new ServiceOrderService(serviceOrders, customers, parts);
 
@@ -52,8 +52,8 @@ public sealed class ServiceOrderServiceTests
         var customers = new FakeCustomerRepository();
         var serviceOrders = new FakeServiceOrderRepository();
         var parts = new FakePartRepository();
-        var customer = Customer.Create("John Customer", "john@email.com", "123");
-        var part = Part.Create("Filtro de oleo", "FLT-001", 35.50m, 4);
+        var customer = Customer.Create("John Customer", "john@email.com", "123", "529.982.247-25");
+        var part = Part.Create("Filtro de oleo", "FLT-001", 35.50m, EnumPartKind.Part);
         await customers.AddAsync(customer, CancellationToken.None);
         await parts.AddAsync(part, CancellationToken.None);
         var service = new ServiceOrderService(serviceOrders, customers, parts);

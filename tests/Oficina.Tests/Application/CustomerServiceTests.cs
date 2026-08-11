@@ -11,12 +11,12 @@ public sealed class CustomerServiceTests
     {
         var service = new CustomerService(new InMemoryCustomerRepository());
         var created = await service.CreateAsync(
-            new CreateCustomerRequest("Maria Silva", "maria@email.com", "123.456.789-00"),
+            new CreateCustomerRequest("Maria Silva", "maria@email.com", "123", "529.982.247-25"),
             CancellationToken.None);
 
         var updated = await service.UpdateAsync(
             created.Id,
-            new UpdateCustomerRequest("Maria Souza", "maria.souza@email.com", "123.456.789-00"),
+            new UpdateCustomerRequest("Maria Souza", "maria.souza@email.com", "123", "529.982.247-25"),
             CancellationToken.None);
         var page = await service.ListAsync(new PageRequest("Souza", 1, 20), CancellationToken.None);
         var deleted = await service.DeleteAsync(created.Id, CancellationToken.None);
@@ -33,11 +33,11 @@ public sealed class CustomerServiceTests
     {
         var service = new CustomerService(new InMemoryCustomerRepository());
         await service.CreateAsync(
-            new CreateCustomerRequest("Maria Silva", "maria@email.com", "123.456.789-00"),
+            new CreateCustomerRequest("Maria Silva", "maria@email.com", "123", "529.982.247-25"),
             CancellationToken.None);
 
         var act = () => service.CreateAsync(
-            new CreateCustomerRequest("Outra Pessoa", "outra@email.com", "12345678900"),
+            new CreateCustomerRequest("Outra Pessoa", "outra@email.com", "456", "52998224725"),
             CancellationToken.None);
 
         await Assert.ThrowsAsync<ConflictException>(act);

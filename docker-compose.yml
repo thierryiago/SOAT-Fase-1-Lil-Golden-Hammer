@@ -28,6 +28,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  ef-migrator:
+    image: minha-api:latest
+    build: .
+    command: ["dotnet-ef", "database", "update"] # ou o comando customizado do seu .dll
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=db;Database=MeuBanco;User Id=sa;Password=SuaSenhaForte;
+    depends_on:
+      - db
 
 volumes:
   oficina-db-data:
