@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Oficina.Application;
 using Oficina.Application.Common;
@@ -10,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure();
+builder.Services.AddInfrastructure(builder.Configuration.GetConnectionString("Database"));
 builder.Services.AddHealthChecks();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -22,12 +21,6 @@ builder.Services.AddSwaggerGen(options =>
         Description = "MVP RESTful para gestao de clientes, pecas e ordens de servico."
     });
 });
-builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    var connectionString = builder.Configuration.GetConnectionString("Database");
-    options.UseNpgsql(connectionString);
-});
-
 var app = builder.Build();
 
 app.UseExceptionHandler(errorApp =>

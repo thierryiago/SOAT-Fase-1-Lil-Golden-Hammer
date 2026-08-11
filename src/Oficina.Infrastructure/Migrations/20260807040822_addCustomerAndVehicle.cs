@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Oficina.Api.Migrations
+namespace Oficina.Infrastructure.Migrations
 {
     /// <inheritdoc />
     public partial class addCustomerAndVehicle : Migration
