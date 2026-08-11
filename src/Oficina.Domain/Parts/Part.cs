@@ -22,11 +22,8 @@ public sealed class Part
     public string Name { get; private set; }
     public string Code { get; private set; }
     public decimal UnitPrice { get; private set; }
-
     public EnumPartKind Kind { get; private set; }
-
     public DateTime CreateDate { get; private set; }
-
     public DateTime UpdateDate { get; private set; }
     public bool IsActive { get; private set; }
 

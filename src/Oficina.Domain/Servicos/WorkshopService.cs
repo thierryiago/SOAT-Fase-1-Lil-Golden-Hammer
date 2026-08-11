@@ -2,6 +2,14 @@ namespace Oficina.Domain.Services;
 
 public sealed class WorkshopService
 {
+    /// <summary>
+    /// Serviço oferecido pela oficina, incluindo informações como nome, descrição, preço unitário e duração estimada.
+    /// </summary>
+    /// <param name="id"></param>
+    /// <param name="name"></param>
+    /// <param name="description"></param>
+    /// <param name="unitPrice"></param>
+    /// <param name="estimatedDurationMinutes"></param>
     private WorkshopService(
         Guid id,
         string name,

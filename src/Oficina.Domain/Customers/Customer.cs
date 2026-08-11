@@ -1,3 +1,4 @@
+using Oficina.Domain.ServiceOrders;
 using System.Text.RegularExpressions;
 
 namespace Oficina.Domain.Customers;
@@ -20,12 +21,11 @@ public sealed class Customer
     public List<Vehicle> Vehicles { get; private set; } = new List<Vehicle>();
     public string Name { get; private set; }
     public string Email { get; private set; }
-
     public string TelephoneNumber { get; private set; }
-
     public DateTime CreateDate { get; private set; }
     public string Document { get; private set; }
     public bool IsActive { get; private set; }
+    public List<ServiceOrder> ServiceOrders { get; private set; } = new List<ServiceOrder>();
 
     public static Customer Create(string name, string email, string telephoneNumber, string document)
     {
