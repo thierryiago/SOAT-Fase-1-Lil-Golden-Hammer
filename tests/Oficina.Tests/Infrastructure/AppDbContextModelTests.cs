@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Oficina.Domain.OrderService;
+using Oficina.Infrastructure.Persistence;
 
 namespace Oficina.Tests.Infrastructure;
 
