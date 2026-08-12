@@ -4,11 +4,11 @@ using Oficina.Domain.Stock;
 
 namespace Oficina.Infrastructure.Persistence;
 
-public sealed class EfStockPartRepository : IStockRepository
+public sealed class StockPartRepository : IStockRepository
 {
     private readonly AppDbContext _context;
 
-    public EfStockPartRepository(AppDbContext context)
+    public StockPartRepository(AppDbContext context)
     {
         _context = context;
     }
