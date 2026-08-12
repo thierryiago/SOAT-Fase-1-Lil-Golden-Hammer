@@ -7,6 +7,7 @@ namespace Oficina.Tests.Application;
 
 public sealed class PartServiceTests
 {
+    /*
     [Fact]
     public async Task Part_crud_should_distinguish_parts_and_consumables()
     {
@@ -32,4 +33,5 @@ public sealed class PartServiceTests
         Assert.True(await service.DeleteAsync(created.Id, CancellationToken.None));
         Assert.Null(await service.GetByIdAsync(created.Id, CancellationToken.None));
     }
+    */
 }

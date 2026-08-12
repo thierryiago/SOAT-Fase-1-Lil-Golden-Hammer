@@ -1,4 +1,5 @@
 using Oficina.Domain.ServiceOrders;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace Oficina.Domain.Customers;

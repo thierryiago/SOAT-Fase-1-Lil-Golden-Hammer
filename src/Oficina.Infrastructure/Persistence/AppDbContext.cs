@@ -85,7 +85,7 @@ public class AppDbContext : DbContext
                 .HasForeignKey(e => e.MechanicId)
                 .OnDelete(DeleteBehavior.SetNull);
             e.Property(e => e.Description).HasMaxLength(500);
-            e.Property(e => e.CheckList).HasMaxLength(1000);
+            e.Property(e => e.CheckList).HasMaxLength(1000).IsRequired(false); ;
             e.Property(e => e.Status).HasConversion<string>();
             e.Property(e => e.CreatedAt).IsRequired();
             e.Property(e => e.TotalParts).HasColumnType("decimal(18,2)");
