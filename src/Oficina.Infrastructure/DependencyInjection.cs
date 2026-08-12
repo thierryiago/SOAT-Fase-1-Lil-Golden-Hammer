@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Oficina.Application.Customers;
 using Oficina.Application.Parts;
@@ -11,8 +12,14 @@ namespace Oficina.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        string? connectionString)
     {
+        services.AddDbContext<AppDbContext>(options =>
+        {
+            options.UseNpgsql(connectionString);
+        });
         services.AddSingleton<ICustomerRepository, InMemoryCustomerRepository>();
         services.AddSingleton<IVehicleRepository, InMemoryVehicleRepository>();
         services.AddSingleton<IPartRepository, InMemoryPartRepository>();

@@ -5,10 +5,11 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using Oficina.Infrastructure.Persistence;
 
 #nullable disable
 
-namespace Oficina.Api.Migrations
+namespace Oficina.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20260811015036_AddNewTablesAccordingToSchema")]

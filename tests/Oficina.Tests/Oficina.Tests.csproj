@@ -6,7 +6,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
     <PackageReference Include="coverlet.collector" Version="6.0.2" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
@@ -16,7 +16,6 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Oficina.Api\Oficina.Api.csproj" />
     <ProjectReference Include="..\..\src\Oficina.Application\Oficina.Application.csproj" />
     <ProjectReference Include="..\..\src\Oficina.Domain\Oficina.Domain.csproj" />
     <ProjectReference Include="..\..\src\Oficina.Infrastructure\Oficina.Infrastructure.csproj" />
