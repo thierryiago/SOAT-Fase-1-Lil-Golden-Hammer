@@ -22,10 +22,10 @@ public static class DependencyInjection
         });
         services.AddSingleton<ICustomerRepository, InMemoryCustomerRepository>();
         services.AddSingleton<IVehicleRepository, InMemoryVehicleRepository>();
-        services.AddSingleton<IPartRepository, InMemoryPartRepository>();
+        services.AddScoped<IPartRepository, EfPartRepository>();
         services.AddSingleton<IWorkshopServiceRepository, InMemoryWorkshopServiceRepository>();
         services.AddSingleton<IServiceOrderRepository, InMemoryServiceOrderRepository>();
-        services.AddSingleton<IStockRepository, InMemoryStockRepository>();
+        services.AddScoped<IStockRepository, EfStockPartRepository>();
         return services;
     }
 }

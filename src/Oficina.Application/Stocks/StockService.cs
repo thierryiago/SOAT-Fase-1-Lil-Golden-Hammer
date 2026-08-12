@@ -1,6 +1,6 @@
 using Oficina.Application.Common;
 using Oficina.Application.Parts;
-using Oficina.Domain.Stocks;
+using Oficina.Domain.Stock;
 
 namespace Oficina.Application.Stocks;
 
@@ -45,7 +45,7 @@ public sealed class StockService
             throw new ConflictException("Stock already exists for the informed part.");
         }
 
-        var stock = Stock.Create(request.PartId, request.Quantity);
+        var stock = StockPart.Create(request.PartId, request.Quantity);
         await _stocks.AddAsync(stock, cancellationToken);
         return Map(stock);
     }
@@ -89,7 +89,7 @@ public sealed class StockService
         return Map(stock);
     }
 
-    private async Task<Stock> GetOrCreateStockAsync(Guid partId, CancellationToken cancellationToken)
+    private async Task<StockPart> GetOrCreateStockAsync(Guid partId, CancellationToken cancellationToken)
     {
         var existing = await _stocks.GetByPartIdAsync(partId, cancellationToken);
         if (existing is not null)
@@ -97,7 +97,7 @@ public sealed class StockService
             return existing;
         }
 
-        var stock = Stock.Create(partId, 0);
+        var stock = StockPart.Create(partId, 0);
         await _stocks.AddAsync(stock, cancellationToken);
         return stock;
     }
@@ -111,6 +111,6 @@ public sealed class StockService
         }
     }
 
-    private static StockResponse Map(Stock stock) =>
-        new(stock.Id, stock.PartId, stock.Qty, stock.CreateDate);
+    private static StockResponse Map(StockPart stockPart) =>
+        new(stockPart.Id, stockPart.PartId, stockPart.Quantity, new DateTimeOffset(stockPart.CreatedDate));
 }

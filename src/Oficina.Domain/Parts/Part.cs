@@ -31,7 +31,6 @@ public sealed class Part
         string name,
         string code,
         decimal unitPrice,
-        // int stockQuantity,
         EnumPartKind kind = EnumPartKind.Part)
     {
         Validate(name, code, unitPrice);

@@ -6,11 +6,11 @@ namespace Oficina.Api.Controllers;
 
 [ApiController]
 [Route("api/stocks")]
-public sealed class StockController : ControllerBase
+public sealed class StocksController : ControllerBase
 {
     private readonly StockService _stocks;
 
-    public StockController(StockService stocks)
+    public StocksController(StockService stocks)
     {
         _stocks = stocks;
     }
@@ -38,34 +38,45 @@ public sealed class StockController : ControllerBase
     [ProducesResponseType(typeof(StockResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> Create(CreateStockRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(
+        [FromBody] CreateStockRequest request,
+        CancellationToken cancellationToken)
     {
         var stock = await _stocks.CreateAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = stock.Id }, stock);
     }
 
-    [HttpPost("{partId:guid}/entries", Name = "EntryStock")]
+    [HttpPut("{partId:guid}/entries", Name = "EntryStock")]
     [ProducesResponseType(typeof(StockResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Entry(Guid partId, StockMovementRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Entry(
+        Guid partId,
+        [FromBody] StockMovementRequest request,
+        CancellationToken cancellationToken)
     {
         var stock = await _stocks.EntryAsync(partId, request, cancellationToken);
         return Ok(stock);
     }
 
-    [HttpPost("{partId:guid}/consumptions", Name = "ConsumeStock")]
+    [HttpPut("{partId:guid}/consumptions", Name = "ConsumeStock")]
     [ProducesResponseType(typeof(StockResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Consume(Guid partId, StockMovementRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Consume(
+        Guid partId,
+        [FromBody] StockMovementRequest request,
+        CancellationToken cancellationToken)
     {
         var stock = await _stocks.ConsumeAsync(partId, request, cancellationToken);
         return Ok(stock);
     }
 
-    [HttpPost("{partId:guid}/adjustments", Name = "AdjustStock")]
+    [HttpPut("{partId:guid}/adjustments", Name = "AdjustStock")]
     [ProducesResponseType(typeof(StockResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Adjust(Guid partId, StockMovementRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Adjust(
+        Guid partId,
+        [FromBody] StockMovementRequest request,
+        CancellationToken cancellationToken)
     {
         var stock = await _stocks.AdjustAsync(partId, request, cancellationToken);
         return Ok(stock);

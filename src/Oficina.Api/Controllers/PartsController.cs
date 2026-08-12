@@ -37,7 +37,9 @@ public sealed class PartsController : ControllerBase
     [HttpPost(Name = "CreatePart")]
     [ProducesResponseType(typeof(PartResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Create(CreatePartRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(
+        [FromBody] CreatePartRequest request,
+        CancellationToken cancellationToken)
     {
         var part = await _parts.CreateAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = part.Id }, part);
@@ -50,20 +52,20 @@ public sealed class PartsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(
         Guid id,
-        UpdatePartRequest request,
+        [FromBody] UpdatePartRequest request,
         CancellationToken cancellationToken)
     {
         var part = await _parts.UpdateAsync(id, request, cancellationToken);
         return Ok(part);
     }
 
-    [HttpPost("{id:guid}/stock-adjustments", Name = "AdjustPartStock")]
+    [HttpPut("{id:guid}/stock-adjustments", Name = "AdjustPartStock")]
     [ProducesResponseType(typeof(PartResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> AdjustStock(
         Guid id,
-        AdjustStockRequest request,
+        [FromBody] AdjustStockRequest request,
         CancellationToken cancellationToken)
     {
         var part = await _parts.AdjustStockAsync(id, request, cancellationToken);

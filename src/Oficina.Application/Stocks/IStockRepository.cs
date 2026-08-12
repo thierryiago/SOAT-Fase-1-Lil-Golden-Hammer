@@ -1,12 +1,12 @@
-using Oficina.Domain.Stocks;
+using Oficina.Domain.Stock;
 
 namespace Oficina.Application.Stocks;
 
 public interface IStockRepository
 {
-    Task<IReadOnlyCollection<Stock>> ListAsync(CancellationToken cancellationToken);
-    Task<Stock?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
-    Task<Stock?> GetByPartIdAsync(Guid partId, CancellationToken cancellationToken);
-    Task AddAsync(Stock stock, CancellationToken cancellationToken);
-    Task UpdateAsync(Stock stock, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<StockPart>> ListAsync(CancellationToken cancellationToken);
+    Task<StockPart?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+    Task<StockPart?> GetByPartIdAsync(Guid partId, CancellationToken cancellationToken);
+    Task AddAsync(StockPart stockPart, CancellationToken cancellationToken);
+    Task UpdateAsync(StockPart stockPart, CancellationToken cancellationToken);
 }

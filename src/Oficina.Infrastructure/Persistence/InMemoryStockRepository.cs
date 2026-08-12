@@ -1,45 +1,45 @@
 using System.Collections.Concurrent;
 using Oficina.Application.Stocks;
-using Oficina.Domain.Stocks;
+using Oficina.Domain.Stock;
 
 namespace Oficina.Infrastructure.Persistence;
 
 public sealed class InMemoryStockRepository : IStockRepository
 {
-    private readonly ConcurrentDictionary<Guid, Stock> _stocksById = new();
+    private readonly ConcurrentDictionary<Guid, StockPart> _stocksById = new();
     private readonly ConcurrentDictionary<Guid, Guid> _stockIdsByPartId = new();
 
-    public Task<IReadOnlyCollection<Stock>> ListAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyCollection<Stock>>(_stocksById.Values.OrderBy(stock => stock.PartId).ToList());
+    public Task<IReadOnlyCollection<StockPart>> ListAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyCollection<StockPart>>(_stocksById.Values.OrderBy(stockPart => stockPart.PartId).ToList());
 
-    public Task<Stock?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    public Task<StockPart?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         _stocksById.TryGetValue(id, out var stock);
         return Task.FromResult(stock);
     }
 
-    public Task<Stock?> GetByPartIdAsync(Guid partId, CancellationToken cancellationToken)
+    public Task<StockPart?> GetByPartIdAsync(Guid partId, CancellationToken cancellationToken)
     {
         if (_stockIdsByPartId.TryGetValue(partId, out var id) &&
             _stocksById.TryGetValue(id, out var stock))
         {
-            return Task.FromResult<Stock?>(stock);
+            return Task.FromResult<StockPart?>(stock);
         }
 
-        return Task.FromResult<Stock?>(null);
+        return Task.FromResult<StockPart?>(null);
     }
 
-    public Task AddAsync(Stock stock, CancellationToken cancellationToken)
+    public Task AddAsync(StockPart stockPart, CancellationToken cancellationToken)
     {
-        _stocksById[stock.Id] = stock;
-        _stockIdsByPartId[stock.PartId] = stock.Id;
+        _stocksById[stockPart.Id] = stockPart;
+        _stockIdsByPartId[stockPart.PartId] = stockPart.Id;
         return Task.CompletedTask;
     }
 
-    public Task UpdateAsync(Stock stock, CancellationToken cancellationToken)
+    public Task UpdateAsync(StockPart stockPart, CancellationToken cancellationToken)
     {
-        _stocksById[stock.Id] = stock;
-        _stockIdsByPartId[stock.PartId] = stock.Id;
+        _stocksById[stockPart.Id] = stockPart;
+        _stockIdsByPartId[stockPart.PartId] = stockPart.Id;
         return Task.CompletedTask;
     }
 }
