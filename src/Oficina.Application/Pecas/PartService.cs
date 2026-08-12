@@ -56,6 +56,7 @@ public sealed class PartService
             request.UnitPrice,
             request.Kind);
         await _parts.AddAsync(part, cancellationToken);
+        await _stocks.AddAsync(StockPart.Create(part.Id, 0), cancellationToken);
         return Map(part);
     }
 
