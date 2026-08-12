@@ -20,7 +20,7 @@ public sealed class ServiceOrderService
         _parts = parts;
     }
 
-    public Task<IReadOnlyCollection<ServiceOrder>> ListAsync(CancellationToken cancellationToken) =>
+    public Task<List<ServiceOrder>> ListAsync(CancellationToken cancellationToken) =>
         _serviceOrders.ListAsync(cancellationToken);
 
     public Task<ServiceOrder?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>

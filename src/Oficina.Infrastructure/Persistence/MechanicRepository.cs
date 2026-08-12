@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Oficina.Application.Mechanics;
 using Oficina.Domain.Mechanics;
 
@@ -15,10 +14,8 @@ public sealed class MechanicRepository : IMechanicRepository
         _appDbContext = appDbContext;
     }
 
-    private readonly ConcurrentDictionary<Guid, Mechanic> _mechanics = new();
-
     public Task<List<Mechanic>> ListAsync(CancellationToken cancellationToken) =>
-        _appDbContext.Mechanics.AsNoTracking().ToListAsync();
+        _appDbContext.Mechanics.ToListAsync(cancellationToken);
 
     public Task<Mechanic?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -37,6 +34,7 @@ public sealed class MechanicRepository : IMechanicRepository
         try
         {
             await _appDbContext.Mechanics.AddAsync(mechanic, cancellationToken);
+            await _appDbContext.SaveChangesAsync(cancellationToken);
         }
         catch (Exception)
         {
@@ -44,9 +42,16 @@ public sealed class MechanicRepository : IMechanicRepository
         }
     }
 
-    public Task UpdateAsync(Mechanic mechanic, CancellationToken cancellationToken)
+    public async Task UpdateAsync(Mechanic mechanic, CancellationToken cancellationToken)
     {
-        _mechanics[mechanic.Id] = mechanic;
-        return Task.CompletedTask;
+        try
+        {
+            _appDbContext.Mechanics.Update(mechanic);
+            await _appDbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception)
+        {
+            throw;
+        }
     }
 }
