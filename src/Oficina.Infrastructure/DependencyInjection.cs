@@ -23,14 +23,6 @@ public static class DependencyInjection
         {
             options.UseNpgsql(connectionString);
         });
-<<<<<<< HEAD
-        services.AddSingleton<ICustomerRepository, InMemoryCustomerRepository>();
-        services.AddSingleton<IVehicleRepository, InMemoryVehicleRepository>();
-        services.AddScoped<IPartRepository, EfPartRepository>();
-        services.AddSingleton<IWorkshopServiceRepository, InMemoryWorkshopServiceRepository>();
-        services.AddSingleton<IServiceOrderRepository, InMemoryServiceOrderRepository>();
-        services.AddScoped<IStockRepository, EfStockPartRepository>();
-=======
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IVehicleRepository, VehicleRepository>();
         services.AddScoped<IPartRepository, PartRepository>();
@@ -39,7 +31,6 @@ public static class DependencyInjection
         services.AddScoped<IMechanicRepository, MechanicRepository>();
         services.AddScoped<IServiceOrderHistoryRepository, ServiceOrderHistoryRepository>();
         services.AddScoped<ServiceOrderHistoryService>();
->>>>>>> 96bf54b9426b5c6140207fe6e47b6e88fc4d58d2
         return services;
     }
 }
