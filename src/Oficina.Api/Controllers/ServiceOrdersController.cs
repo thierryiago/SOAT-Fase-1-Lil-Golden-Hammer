@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.ServiceOrders;
+using Oficina.Application.Services;
 using Oficina.Domain.ServiceOrders;
 
 namespace Oficina.Api.Controllers;
@@ -39,6 +40,15 @@ public sealed class ServiceOrdersController : ControllerBase
     {
         var serviceOrder = await _serviceOrders.OpenAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = serviceOrder.Id }, serviceOrder);
+    }
+
+    [HttpPut(Name = "UpdateServiceOrder")]
+    [ProducesResponseType(typeof(ServiceOrder), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Update(UpdateServiceOrderRequest request, CancellationToken cancellationToken)
+    {
+        var service = await _serviceOrders.UpdateAsync(request, cancellationToken);
+        return Ok(service);
     }
 
     [HttpPost("{id:guid}/parts", Name = "AddPartToServiceOrder")]
