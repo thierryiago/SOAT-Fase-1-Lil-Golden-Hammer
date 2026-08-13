@@ -1,12 +1,22 @@
 ﻿using Oficina.Domain.ServiceOrders;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace Oficina.Domain.OrderServiceHistory
+namespace Oficina.Domain.OrderServiceHistory;
+
+public record ServiceOrderHistory(Guid Id, Guid OrderServiceId, string? StatusName, DateTime CreatedDate)
 {
-    public record ServiceOrderHistory(Guid Id, Guid OrderServiceId, string? StatusName, DateTime CreatedDate)
+    public ServiceOrder? OrderService { get; set; }
+
+    public static ServiceOrderHistory Create(Guid orderServiceId, string? statusName)
     {
-        public ServiceOrder? OrderService { get; set; }
+        if (orderServiceId == Guid.Empty)
+        {
+            throw new ArgumentException("Service order id is required.", nameof(orderServiceId));
+        }
+
+        return new ServiceOrderHistory(
+            Guid.NewGuid(),
+            orderServiceId,
+            string.IsNullOrWhiteSpace(statusName) ? "Unknown" : statusName.Trim(),
+            DateTime.UtcNow);
     }
 }

@@ -23,7 +23,7 @@ public class AppDbContext : DbContext
     public DbSet<Mechanic> Mechanics { get; set; }
     public DbSet<WorkshopService> WorkshopServices { get; set; }
     public DbSet<ServiceOrderWorkshop> ServiceOrderWorkshops { get; set; }
-    public DbSet<StockParts> StockParts { get; set; }
+    public DbSet<StockPart> StockParts { get; set; }
     public DbSet<ServiceOrderHistory> ServiceOrderHistories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -85,7 +85,7 @@ public class AppDbContext : DbContext
                 .HasForeignKey(e => e.MechanicId)
                 .OnDelete(DeleteBehavior.SetNull);
             e.Property(e => e.Description).HasMaxLength(500);
-            e.Property(e => e.CheckList).HasMaxLength(1000);
+            e.Property(e => e.CheckList).HasMaxLength(1000).IsRequired(false); ;
             e.Property(e => e.Status).HasConversion<string>();
             e.Property(e => e.CreatedAt).IsRequired();
             e.Property(e => e.TotalParts).HasColumnType("decimal(18,2)");
@@ -154,7 +154,7 @@ public class AppDbContext : DbContext
             e.Property(e => e.QuantityUsed).IsRequired();
         });
 
-        modelBuilder.Entity<StockParts>(e =>
+        modelBuilder.Entity<StockPart>(e =>
         {
             e.HasKey(e => e.Id);
             e.HasOne(e => e.Part)

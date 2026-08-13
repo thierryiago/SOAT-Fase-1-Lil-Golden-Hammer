@@ -15,22 +15,22 @@ public sealed class ServiceOrder
         Id = id;
         CustomerId = customerId;
         Description = description;
-        Status = ServiceOrderStatus.Received;
+        Status = 0;
         CreatedAt = DateTimeOffset.UtcNow;
     }
 
     public Guid Id { get; }
     public Guid CustomerId { get; }
-    public Guid MechanicId { get; }
-    public Guid VehicleId { get; }
+    public Guid? MechanicId { get; }
+    public Guid? VehicleId { get; }
     public string Description { get; private set; }
-    public string CheckList { get; private set; }
+    public string? CheckList { get; private set; }
     public ServiceOrderStatus? Status { get; private set; }
     public DateTimeOffset CreatedAt { get; }
     public decimal TotalParts {  get; private set; }
     public Customer Customer { get; private set; }
-    public Mechanic Mechanic { get; private set; }
-    public Vehicle Vehicle { get; set; }
+    public Mechanic? Mechanic { get; private set; }
+    public Vehicle? Vehicle { get; set; }
     public IReadOnlyCollection<ServiceOrderPart> Parts => _items.AsReadOnly();
     public IReadOnlyCollection<ServiceOrderWorkshop> WorkshopServices { get; private set; }
     public static ServiceOrder Open(Guid customerId, string description)

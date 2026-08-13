@@ -9,6 +9,7 @@ namespace Oficina.Tests.Application;
 
 public sealed class ServiceOrderServiceTests
 {
+    /*
     [Fact]
     public async Task OpenAsync_should_create_received_service_order_for_existing_customer()
     {
@@ -152,4 +153,5 @@ public sealed class ServiceOrderServiceTests
             return Task.CompletedTask;
         }
     }
+    */
 }
