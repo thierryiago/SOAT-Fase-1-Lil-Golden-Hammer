@@ -12,13 +12,14 @@ MVP de back-end em .NET 10 para gestao de clientes, pecas e ordens de servico, o
 
 ## Rotas principais
 
-- `GET /api/clientes`
-- `POST /api/clientes`
-- `GET /api/pecas`
-- `POST /api/pecas`
-- `GET /api/ordens-servico`
-- `POST /api/ordens-servico`
-- `POST /api/ordens-servico/{id}/pecas`
+- `/api/customers`
+- `/api/vehicles`
+- `/api/mechanics`
+- `/api/services`
+- `/api/parts`
+- `/api/stocks`
+- `/api/service-orders`
+- `/api/service-order-history`
 - `GET /health`
 - `GET /swagger`
 
@@ -30,8 +31,16 @@ docker compose up --build
 
 A API fica em `http://localhost:8080` e a documentacao Swagger em `http://localhost:8080/swagger`.
 
-O `docker-compose.yml` inclui PostgreSQL como banco padrao temporario. Como o banco definitivo ainda sera definido, a aplicacao ainda usa persistencia em memoria e a troca futura deve ficar concentrada em `Oficina.Infrastructure`.
+O `docker-compose.yml` inclui PostgreSQL e a aplicacao executa as migrations automaticamente ao iniciar.
 
 ## Visual Studio
 
 Abra `Oficina.sln` na raiz do repositorio. Defina `Oficina.Api` como projeto de inicializacao para executar a API e acessar o Swagger.
+
+## Requisicoes HTTP
+
+O arquivo [`oficina.http`](oficina.http) documenta e permite executar todos os endpoints publicados no Swagger com dados mockados. Ele usa `http://localhost:8080` como URL base e encadeia os IDs retornados pelas requests de criacao.
+
+Antes de usa-lo, inicie a API com `docker compose up --build` e confirme que `http://localhost:8080/health` responde. Em seguida, abra o arquivo no Visual Studio, no JetBrains Rider ou no VS Code com a extensao REST Client e execute o fluxo principal de cima para baixo. As requests de limpeza ficam isoladas no fim do arquivo e devem ser executadas individualmente somente depois das demais.
+
+Se uma execucao for interrompida, dados com documento, e-mail, placa ou codigo unicos podem permanecer no banco. Conclua a limpeza usando os IDs retornados, altere os valores mockados ou recrie o banco de desenvolvimento antes de repetir o fluxo completo.

@@ -1,0 +1,279 @@
+@baseUrl = https://localhost:5001
+
+# Oficina API - requests executaveis
+#
+# Pre-requisitos:
+#   1. Execute `docker compose up --build` na raiz do repositorio.
+#   2. Confirme GET {{baseUrl}}/health e abra {{baseUrl}}/swagger.
+#   3. Execute as requests da secao "Fluxo principal" de cima para baixo.
+#   4. Execute a secao "Limpeza opcional" somente ao final e individualmente.
+#
+# Sintaxe: Visual Studio HTTP files, JetBrains Rider e extensao REST Client do VS Code.
+# Os IDs sao obtidos das respostas nomeadas pela expressao
+# `nomeDaRequest.response.body.$.propriedade`, entre chaves duplas. Clientes antigos podem nao oferecer
+# variaveis de resposta; nesse caso, copie os GUIDs retornados para as URLs.
+#
+# Os campos document, email, plate e code possuem valores unicos. Se uma execucao
+# for interrompida antes da limpeza, conclua a limpeza com os IDs retornados ou
+# altere esses valores antes de executar o fluxo novamente.
+
+### Health check (auxiliar; nao faz parte das 38 operacoes do Swagger)
+
+###############################################################################
+# Fluxo principal
+###############################################################################
+
+GET {{baseUrl}}/health
+
+### Customers 1/5 - Create customer
+# @name createCustomer
+POST {{baseUrl}}/api/customers
+Content-Type: application/json
+
+{
+  "name": "Maria da Silva",
+  "email": "maria.oficina@example.com",
+  "telephoneNumber": "+5511999990001",
+  "document": "529.982.247-25"
+}
+### Customers 2/5 - List customers
+GET {{baseUrl}}/api/customers?search=Maria&page=1&pageSize=20
+
+### Customers 3/5 - Get customer by ID
+GET {{baseUrl}}/api/customers/{{createCustomer.response.body.$.id}}
+
+### Customers 4/5 - Update customer
+PUT {{baseUrl}}/api/customers/{{createCustomer.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "name": "Maria da Silva Atualizada",
+  "email": "maria.oficina@example.com",
+  "telephoneNumber": "+5511999990002",
+  "document": "52998224725"
+}
+
+### Vehicles 1/6 - Create vehicle
+# @name createVehicle
+POST {{baseUrl}}/api/vehicles
+Content-Type: application/json
+
+{
+  "customerId": "{{createCustomer.response.body.$.id}}",
+  "plate": "FHT2A31",
+  "brand": "Honda",
+  "model": "Civic",
+  "year": 2022,
+  "category": 1
+}
+
+### Vehicles 2/6 - Identify customer and register another vehicle
+# @name identifyCustomerAndRegisterVehicle
+POST {{baseUrl}}/api/vehicles/identify-customer-and-register
+Content-Type: application/json
+
+{
+  "document": "52998224725",
+  "plate": "BRA2E19",
+  "brand": "Toyota",
+  "model": "Corolla",
+  "year": 2023,
+  "category": 1
+}
+
+### Vehicles 3/6 - List vehicles filtered by customer
+GET {{baseUrl}}/api/vehicles?page=1&pageSize=20&customerId={{createCustomer.response.body.$.id}}
+
+### Vehicles 4/6 - Get vehicle by ID
+GET {{baseUrl}}/api/vehicles/{{createVehicle.response.body.$.id}}
+
+### Vehicles 5/6 - Update vehicle
+PUT {{baseUrl}}/api/vehicles/{{createVehicle.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "plate": "FHT2A31",
+  "brand": "Honda",
+  "model": "Civic Touring",
+  "year": 2022,
+  "category": 1
+}
+
+### Mechanics 1/5 - Create mechanic
+# @name createMechanic
+POST {{baseUrl}}/api/mechanics
+Content-Type: application/json
+
+{
+  "name": "Carlos Oliveira"
+}
+
+### Mechanics 2/5 - List mechanics
+GET {{baseUrl}}/api/mechanics?search=Carlos&page=1&pageSize=20
+
+### Mechanics 3/5 - Get mechanic by ID
+GET {{baseUrl}}/api/mechanics/{{createMechanic.response.body.$.id}}
+
+### Mechanics 4/5 - Update mechanic
+PUT {{baseUrl}}/api/mechanics/{{createMechanic.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "name": "Carlos Oliveira Atualizado"
+}
+
+### Services 1/5 - Create workshop service
+# @name createService
+POST {{baseUrl}}/api/services
+Content-Type: application/json
+
+{
+  "name": "Troca de oleo",
+  "description": "Troca do oleo do motor e verificacao do filtro",
+  "unitPrice": 180.50,
+  "estimatedDurationMinutes": 60
+}
+
+### Services 2/5 - List workshop services
+GET {{baseUrl}}/api/services?search=Troca&page=1&pageSize=20
+
+### Services 3/5 - Get workshop service by ID
+GET {{baseUrl}}/api/services/{{createService.response.body.$.id}}
+
+### Services 4/5 - Update workshop service
+PUT {{baseUrl}}/api/services/{{createService.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "name": "Troca de oleo completa",
+  "description": "Troca do oleo do motor, filtro e verificacao dos niveis",
+  "unitPrice": 210.90,
+  "estimatedDurationMinutes": 75
+}
+
+### Parts 1/6 - Create part (also creates its stock with quantity zero)
+# @name createPart
+POST {{baseUrl}}/api/parts
+Content-Type: application/json
+
+{
+  "name": "Filtro de oleo",
+  "code": "FLT-OLEO-001",
+  "unitPrice": 45.90,
+  "kind": 1
+}
+
+### Parts 2/6 - List parts
+GET {{baseUrl}}/api/parts?search=Filtro&page=1&pageSize=20
+
+### Parts 3/6 - Get part by ID
+GET {{baseUrl}}/api/parts/{{createPart.response.body.$.id}}
+
+### Parts 4/6 - Update part
+PUT {{baseUrl}}/api/parts/{{createPart.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "name": "Filtro de oleo premium",
+  "code": "FLT-OLEO-001",
+  "unitPrice": 49.90,
+  "kind": 1
+}
+
+### Parts 5/6 - Adjust stock through the parts resource
+PUT {{baseUrl}}/api/parts/{{createPart.response.body.$.id}}/stock-adjustments
+Content-Type: application/json
+
+{
+  "quantity": 20,
+  "reason": "Carga inicial para testes manuais"
+}
+
+### Stocks 1/5 - List stocks
+# @name listStocks
+GET {{baseUrl}}/api/stocks?page=1&pageSize=100
+
+### Stocks 2/5 - Add stock entry and capture the stock ID
+# @name enterStock
+PUT {{baseUrl}}/api/stocks/{{createPart.response.body.$.id}}/entries
+Content-Type: application/json
+
+{
+  "quantity": 10
+}
+
+### Stocks 3/5 - Get stock by ID
+GET {{baseUrl}}/api/stocks/{{enterStock.response.body.$.id}}
+
+### Stocks 4/5 - Consume stock after a positive balance exists
+PUT {{baseUrl}}/api/stocks/{{createPart.response.body.$.id}}/consumptions
+Content-Type: application/json
+
+{
+  "quantity": 5
+}
+
+### Stocks 5/5 - Set the absolute stock quantity
+PUT {{baseUrl}}/api/stocks/{{createPart.response.body.$.id}}/adjustments
+Content-Type: application/json
+
+{
+  "quantity": 25
+}
+
+### Service orders 1/4 - Open service order
+# @name openServiceOrder
+POST {{baseUrl}}/api/service-orders
+Content-Type: application/json
+
+{
+  "customerId": "{{createCustomer.response.body.$.id}}",
+  "description": "Revisao preventiva completa"
+}
+
+### Service orders 2/4 - Add part to service order
+POST {{baseUrl}}/api/service-orders/{{openServiceOrder.response.body.$.id}}/parts
+Content-Type: application/json
+
+{
+  "partId": "{{createPart.response.body.$.id}}",
+  "quantity": 1
+}
+
+### Service orders 3/4 - List service orders
+GET {{baseUrl}}/api/service-orders
+
+### Service orders 4/4 - Get service order by ID
+GET {{baseUrl}}/api/service-orders/{{openServiceOrder.response.body.$.id}}
+
+### Service order history 1/2 - List all history
+GET {{baseUrl}}/api/service-order-history
+
+### Service order history 2/2 - List history for the created order
+GET {{baseUrl}}/api/service-order-history/service-order/{{openServiceOrder.response.body.$.id}}
+
+###############################################################################
+# Limpeza opcional
+#
+# Execute individualmente e somente depois do fluxo principal. Nao existe DELETE
+# para ordens de servico; por isso, o banco pode manter referencias que impeçam a
+# exclusao do cliente ou da peca. Nesse caso, preserve os recursos ou recrie o
+# banco de desenvolvimento. O endpoint identify/register cria um segundo veiculo;
+# a unica request DELETE abaixo demonstra a operacao com esse segundo ID. Exclua
+# tambem o primeiro veiculo manualmente se quiser desativar ambos.
+###############################################################################
+
+### Vehicles 6/6 - Delete vehicle created by identify/register
+DELETE {{baseUrl}}/api/vehicles/{{identifyCustomerAndRegisterVehicle.response.body.$.vehicle.id}}
+
+### Services 5/5 - Delete workshop service
+DELETE {{baseUrl}}/api/services/{{createService.response.body.$.id}}
+
+### Mechanics 5/5 - Delete mechanic
+DELETE {{baseUrl}}/api/mechanics/{{createMechanic.response.body.$.id}}
+
+### Parts 6/6 - Delete part (pode falhar se a ordem ainda a referenciar)
+DELETE {{baseUrl}}/api/parts/{{createPart.response.body.$.id}}
+
+### Customers 5/5 - Delete customer (pode falhar se a ordem ainda o referenciar)
+DELETE {{baseUrl}}/api/customers/{{createCustomer.response.body.$.id}}
