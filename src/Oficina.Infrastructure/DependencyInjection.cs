@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Oficina.Application.Customers;
 using Oficina.Application.Mechanics;
+using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.Services;
@@ -20,12 +22,14 @@ public static class DependencyInjection
         {
             options.UseNpgsql(connectionString);
         });
-        services.AddScoped<ICustomerRepository, InMemoryCustomerRepository>();
-        services.AddScoped<IVehicleRepository, InMemoryVehicleRepository>();
-        services.AddScoped<IPartRepository, InMemoryPartRepository>();
-        services.AddScoped<IWorkshopServiceRepository, InMemoryWorkshopServiceRepository>();
-        services.AddScoped<IServiceOrderRepository, InMemoryServiceOrderRepository>();
+        services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<IVehicleRepository, VehicleRepository>();
+        services.AddScoped<IPartRepository, PartRepository>();
+        services.AddScoped<IWorkshopServiceRepository, WorkshopServiceRepository>();
+        services.AddScoped<IServiceOrderRepository, ServiceOrderRepository>();
         services.AddScoped<IMechanicRepository, MechanicRepository>();
+        services.AddScoped<IServiceOrderHistoryRepository, ServiceOrderHistoryRepository>();
+        services.AddScoped<ServiceOrderHistoryService>();
         return services;
     }
 }

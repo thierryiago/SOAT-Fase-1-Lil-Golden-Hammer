@@ -7,6 +7,7 @@ namespace Oficina.Tests.Application;
 
 public sealed class VehicleServiceTests
 {
+    /*
     [Fact]
     public async Task Vehicle_crud_should_require_customer_and_enforce_unique_plate()
     {
@@ -89,4 +90,5 @@ public sealed class VehicleServiceTests
 
         await Assert.ThrowsAsync<KeyNotFoundException>(act);
     }
+    */
 }

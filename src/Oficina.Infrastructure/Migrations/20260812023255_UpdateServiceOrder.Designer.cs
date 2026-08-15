@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Oficina.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Oficina.Infrastructure.Persistence;
 namespace Oficina.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260812023255_UpdateServiceOrder")]
+    partial class UpdateServiceOrder
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -245,7 +248,7 @@ namespace Oficina.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<Guid?>("MechanicId")
+                    b.Property<Guid>("MechanicId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Status")
@@ -254,7 +257,7 @@ namespace Oficina.Infrastructure.Migrations
                     b.Property<decimal>("TotalParts")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<Guid?>("VehicleId")
+                    b.Property<Guid>("VehicleId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
@@ -391,12 +394,14 @@ namespace Oficina.Infrastructure.Migrations
                     b.HasOne("Oficina.Domain.Mechanics.Mechanic", "Mechanic")
                         .WithMany()
                         .HasForeignKey("MechanicId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .IsRequired();
 
                     b.HasOne("Oficina.Domain.Customers.Vehicle", "Vehicle")
                         .WithMany()
                         .HasForeignKey("VehicleId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .IsRequired();
 
                     b.Navigation("Customer");
 
