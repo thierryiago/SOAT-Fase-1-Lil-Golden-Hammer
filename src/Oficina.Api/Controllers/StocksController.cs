@@ -34,18 +34,6 @@ public sealed class StocksController : ControllerBase
         return stock is null ? NotFound() : Ok(stock);
     }
 
-    // [HttpPost(Name = "CreateStock")]
-    // [ProducesResponseType(typeof(StockResponse), StatusCodes.Status201Created)]
-    // [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    // [ProducesResponseType(StatusCodes.Status409Conflict)]
-    // public async Task<IActionResult> Create(
-    //     [FromBody] CreateStockRequest request,
-    //     CancellationToken cancellationToken)
-    // {
-    //     var stock = await _stocks.CreateAsync(request, cancellationToken);
-    //     return CreatedAtAction(nameof(GetById), new { id = stock.Id }, stock);
-    // }
-
     [HttpPut("{partId:guid}/entries", Name = "EntryStock")]
     [ProducesResponseType(typeof(StockResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

@@ -51,15 +51,52 @@ public sealed class StockServiceTests
     }
 
     [Fact]
-    public async Task AdjustAsync_should_reject_adjustment_that_makes_stock_negative()
+    public async Task AdjustAsync_should_replace_existing_stock_quantity()
     {
         var parts = new FakePartRepository();
         var stocks = new FakeStockPartRepository();
         var part = await AddActivePartAsync(parts, "FLT-004");
-        await stocks.AddAsync(StockPart.Create(part.Id, 2), CancellationToken.None);
+        await stocks.AddAsync(StockPart.Create(part.Id, 10), CancellationToken.None);
         var service = new StockService(stocks, parts);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var stock = await service.AdjustAsync(part.Id, new StockMovementRequest(7), CancellationToken.None);
+
+        Assert.Equal(7, stock.Quantity);
+    }
+
+    [Fact]
+    public async Task EntryAsync_should_reject_negative_quantity()
+    {
+        var parts = new FakePartRepository();
+        var stocks = new FakeStockPartRepository();
+        var part = await AddActivePartAsync(parts, "FLT-005");
+        var service = new StockService(stocks, parts);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            service.EntryAsync(part.Id, new StockMovementRequest(-3), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ConsumeAsync_should_reject_negative_quantity()
+    {
+        var parts = new FakePartRepository();
+        var stocks = new FakeStockPartRepository();
+        var part = await AddActivePartAsync(parts, "FLT-006");
+        var service = new StockService(stocks, parts);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            service.ConsumeAsync(part.Id, new StockMovementRequest(-3), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task AdjustAsync_should_reject_negative_quantity()
+    {
+        var parts = new FakePartRepository();
+        var stocks = new FakeStockPartRepository();
+        var part = await AddActivePartAsync(parts, "FLT-007");
+        var service = new StockService(stocks, parts);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             service.AdjustAsync(part.Id, new StockMovementRequest(-3), CancellationToken.None));
     }
 
