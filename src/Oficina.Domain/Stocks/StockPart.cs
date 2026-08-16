@@ -61,6 +61,16 @@ public sealed class StockPart
         Quantity += quantity;
     }
 
+    public void SetQuantity(int quantity)
+    {
+        if (quantity < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(quantity), "Stock quantity cannot be negative.");
+        }
+
+        Quantity = quantity;
+    }
+
     private static void ValidateNonZeroMovement(int quantity)
     {
         if (quantity == 0)

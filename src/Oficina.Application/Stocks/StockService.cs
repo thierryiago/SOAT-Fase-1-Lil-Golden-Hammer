@@ -55,6 +55,7 @@ public sealed class StockService
         StockMovementRequest request,
         CancellationToken cancellationToken)
     {
+        ValidateNonNegativeMovement(request.Quantity);
         await EnsurePartExistsAsync(partId, cancellationToken);
 
         var stock = await GetOrCreateStockAsync(partId, cancellationToken);
@@ -68,6 +69,7 @@ public sealed class StockService
         StockMovementRequest request,
         CancellationToken cancellationToken)
     {
+        ValidateNonNegativeMovement(request.Quantity);
         await EnsurePartExistsAsync(partId, cancellationToken);
 
         var stock = await GetOrCreateStockAsync(partId, cancellationToken);
@@ -81,10 +83,11 @@ public sealed class StockService
         StockMovementRequest request,
         CancellationToken cancellationToken)
     {
+        ValidateNonNegativeMovement(request.Quantity);
         await EnsurePartExistsAsync(partId, cancellationToken);
 
         var stock = await GetOrCreateStockAsync(partId, cancellationToken);
-        stock.AdjustQuantity(request.Quantity);
+        stock.SetQuantity(request.Quantity);
         await _stocks.UpdateAsync(stock, cancellationToken);
         return Map(stock);
     }
@@ -108,6 +111,14 @@ public sealed class StockService
         if (part is null || !part.IsActive)
         {
             throw new KeyNotFoundException("Part was not found.");
+        }
+    }
+
+    private static void ValidateNonNegativeMovement(int quantity)
+    {
+        if (quantity < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(quantity), "Stock movement quantity cannot be negative.");
         }
     }
 
