@@ -1,8 +1,3 @@
-using Oficina.Application.Common;
-using Oficina.Application.Parts;
-using Oficina.Domain.Parts;
-using Oficina.Infrastructure.Persistence;
-
 namespace Oficina.Tests.Application;
 
 public sealed class PartServiceTests

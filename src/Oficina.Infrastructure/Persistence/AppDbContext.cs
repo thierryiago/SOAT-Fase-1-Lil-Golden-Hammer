@@ -70,7 +70,7 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<ServiceOrder>(e =>
         {
-            e.HasKey(e =>e.Id);
+            e.HasKey(e => e.Id);
             e.HasOne(e => e.Customer)
                 .WithMany(c => c.ServiceOrders)
                 .HasForeignKey(e => e.CustomerId)

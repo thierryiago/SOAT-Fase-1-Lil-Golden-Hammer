@@ -5,7 +5,7 @@ using Oficina.Application.Parts;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
-[Route("api/parts")]
+[Route("api/v1/parts")]
 public sealed class PartsController : ControllerBase
 {
     private readonly PartService _parts;

@@ -20,13 +20,19 @@ public sealed class ServiceOrderService
         _parts = parts;
     }
 
-    public Task<List<ServiceOrder>> ListAsync(CancellationToken cancellationToken) =>
-        _serviceOrders.ListAsync(cancellationToken);
+    public async Task<IReadOnlyCollection<ServiceOrderListItemResponse>> ListAsync(CancellationToken cancellationToken)
+    {
+        var serviceOrders = await _serviceOrders.ListAsync(cancellationToken);
+        return serviceOrders.Select(MapListItem).ToList();
+    }
 
-    public Task<ServiceOrder?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
-        _serviceOrders.GetByIdAsync(id, cancellationToken);
+    public async Task<ServiceOrderDetailResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var serviceOrder = await _serviceOrders.GetByIdAsync(id, cancellationToken);
+        return serviceOrder is null ? null : MapDetail(serviceOrder);
+    }
 
-    public async Task<ServiceOrder> OpenAsync(OpenServiceOrderRequest request, CancellationToken cancellationToken)
+    public async Task<ServiceOrderDetailResponse> OpenAsync(OpenServiceOrderRequest request, CancellationToken cancellationToken)
     {
         var customer = await _customers.GetByIdAsync(request.CustomerId, cancellationToken);
         if (customer is null)
@@ -36,10 +42,10 @@ public sealed class ServiceOrderService
 
         var serviceOrder = ServiceOrder.Open(request.CustomerId, request.Description);
         await _serviceOrders.AddAsync(serviceOrder, cancellationToken);
-        return serviceOrder;
+        return MapDetail(serviceOrder);
     }
 
-    public async Task<ServiceOrder> AddPartAsync(
+    public async Task<ServiceOrderDetailResponse> AddPartAsync(
         Guid serviceOrderId,
         AddPartToServiceOrderRequest request,
         CancellationToken cancellationToken)
@@ -60,6 +66,32 @@ public sealed class ServiceOrderService
         serviceOrder.AddPart(part.Id, part.Name, request.Quantity, part.UnitPrice);
         await _parts.UpdateAsync(part, cancellationToken);
         await _serviceOrders.UpdateAsync(serviceOrder, cancellationToken);
-        return serviceOrder;
+        return MapDetail(serviceOrder);
     }
+
+    private static ServiceOrderListItemResponse MapListItem(ServiceOrder serviceOrder) =>
+        new(
+            serviceOrder.Id,
+            serviceOrder.CustomerId,
+            serviceOrder.VehicleId,
+            serviceOrder.MechanicId,
+            serviceOrder.Description,
+            serviceOrder.Status,
+            serviceOrder.CreatedAt,
+            serviceOrder.TotalParts);
+
+    private static ServiceOrderDetailResponse MapDetail(ServiceOrder serviceOrder) =>
+        new(
+            serviceOrder.Id,
+            serviceOrder.CustomerId,
+            serviceOrder.VehicleId,
+            serviceOrder.MechanicId,
+            serviceOrder.Description,
+            serviceOrder.CheckList,
+            serviceOrder.Status,
+            serviceOrder.CreatedAt,
+            serviceOrder.TotalParts,
+            serviceOrder.Parts
+                .Select(part => new ServiceOrderPartResponse(part.Id, part.PartId, part.QuantityUsed))
+                .ToList());
 }

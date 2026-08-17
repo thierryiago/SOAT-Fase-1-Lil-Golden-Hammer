@@ -10,9 +10,7 @@ using Oficina.Infrastructure.Persistence;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddInfrastructure(builder.Configuration.GetConnectionString("Database"));
-builder.Services.AddControllers().AddJsonOptions(link => {
-    link.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-});
+builder.Services.AddControllers();
 builder.Services.AddApplication();
 builder.Services.AddHealthChecks();
 builder.Services.AddEndpointsApiExplorer();
@@ -24,6 +22,8 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "MVP RESTful para gestao de clientes, pecas e ordens de servico."
     });
+    var xmlDocumentation = Path.Combine(AppContext.BaseDirectory, "Oficina.Api.xml");
+    options.IncludeXmlComments(xmlDocumentation);
 });
 var app = builder.Build();
 
@@ -64,8 +64,9 @@ app.UseHttpsRedirection();
 app.MapHealthChecks("/health", new HealthCheckOptions { AllowCachingResponses = false });
 app.MapControllers();
 
-using (var scope = app.Services.CreateScope())
+if (!app.Environment.IsEnvironment("Testing"))
 {
+    using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
     try
     {
@@ -80,3 +81,5 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+public partial class Program;

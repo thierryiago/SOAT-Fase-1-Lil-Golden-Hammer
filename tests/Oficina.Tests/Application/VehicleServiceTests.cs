@@ -1,8 +1,3 @@
-using Oficina.Application.Common;
-using Oficina.Application.Customers;
-using Oficina.Application.Vehicles;
-using Oficina.Infrastructure.Persistence;
-
 namespace Oficina.Tests.Application;
 
 public sealed class VehicleServiceTests

@@ -1,8 +1,6 @@
 using Oficina.Domain.Customers;
 using Oficina.Domain.Mechanics;
 using Oficina.Domain.OrderService;
-using Oficina.Domain.OrderService;
-using Oficina.Domain.Services;
 
 namespace Oficina.Domain.ServiceOrders;
 
@@ -27,7 +25,7 @@ public sealed class ServiceOrder
     public string? CheckList { get; private set; }
     public ServiceOrderStatus? Status { get; private set; }
     public DateTimeOffset CreatedAt { get; }
-    public decimal TotalParts {  get; private set; }
+    public decimal TotalParts { get; private set; }
     public Customer Customer { get; private set; }
     public Mechanic? Mechanic { get; private set; }
     public Vehicle? Vehicle { get; set; }

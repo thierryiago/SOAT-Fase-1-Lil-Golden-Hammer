@@ -5,7 +5,7 @@ using Oficina.Application.Vehicles;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
-[Route("api/vehicles")]
+[Route("api/v1/vehicles")]
 public sealed class VehiclesController : ControllerBase
 {
     private readonly VehicleService _vehicles;

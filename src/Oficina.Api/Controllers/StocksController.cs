@@ -5,7 +5,7 @@ using Oficina.Application.Stocks;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
-[Route("api/stocks")]
+[Route("api/v1/stocks")]
 public sealed class StocksController : ControllerBase
 {
     private readonly StockService _stocks;

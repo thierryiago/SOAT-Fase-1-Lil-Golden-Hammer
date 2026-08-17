@@ -1,8 +1,3 @@
-using Oficina.Application.Common;
-using Oficina.Application.Services;
-using Oficina.Application.Servicos;
-using Oficina.Infrastructure.Persistence;
-
 namespace Oficina.Tests.Application;
 
 public sealed class ServiceCatalogServiceTests

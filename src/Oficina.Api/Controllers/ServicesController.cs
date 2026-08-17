@@ -6,7 +6,7 @@ using Oficina.Application.Servicos;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
-[Route("api/services")]
+[Route("api/v1/services")]
 public sealed class ServicesController : ControllerBase
 {
     private readonly ServiceCatalogService _services;
