@@ -1,6 +1,3 @@
-using Oficina.Domain.Services;
-using Oficina.Domain.Stock;
-
 namespace Oficina.Application.ServiceOrders;
 
 public sealed record OpenServiceOrderRequest(Guid CustomerId, string Description);
@@ -12,8 +9,7 @@ public sealed record UpdateServiceOrderRequest(
     string? Description,
     string? CheckList,
     bool? ClientApproved,
-    IReadOnlyCollection<StockParts>? Parts,
-    IReadOnlyCollection<WorkshopService>? WorkshopServices);
-
+    IReadOnlyCollection<AddPartToServiceOrderRequest>? Parts,
+    IReadOnlyCollection<Guid>? WorkshopServiceIds);
 
 public sealed record AddPartToServiceOrderRequest(Guid PartId, int Quantity);

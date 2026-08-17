@@ -1,19 +1,24 @@
-﻿using Oficina.Domain.ServiceOrders;
+using Oficina.Domain.ServiceOrders;
 using Oficina.Domain.Services;
 
 namespace Oficina.Domain.OrderService
 {
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="Id"></param>
-    /// <param name="ServiceOrderId"></param>
-    /// <param name="WorkshopServiceId"></param>
-    /// <param name="ServiceOrder"></param>
-    /// <param name="WorkshopService"></param>
-    public record ServiceOrderWorkshop(Guid Id, Guid ServiceOrderId, Guid WorkshopServiceId)
+    public sealed class ServiceOrderWorkshop
     {
+        private ServiceOrderWorkshop(Guid id, Guid serviceOrderId, Guid workshopServiceId)
+        {
+            Id = id;
+            ServiceOrderId = serviceOrderId;
+            WorkshopServiceId = workshopServiceId;
+        }
+
+        public Guid Id { get; }
+        public Guid ServiceOrderId { get; }
+        public Guid WorkshopServiceId { get; }
         public ServiceOrder? ServiceOrder { get; set; }
         public WorkshopService? WorkshopService { get; set; }
+
+        public static ServiceOrderWorkshop Create(Guid serviceOrderId, Guid workshopServiceId) =>
+            new(Guid.NewGuid(), serviceOrderId, workshopServiceId);
     }
 }

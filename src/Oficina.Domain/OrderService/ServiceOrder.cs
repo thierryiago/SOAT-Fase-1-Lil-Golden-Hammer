@@ -1,7 +1,6 @@
 using Oficina.Domain.Customers;
 using Oficina.Domain.Mechanics;
 using Oficina.Domain.OrderService;
-using Oficina.Domain.Services;
 
 namespace Oficina.Domain.ServiceOrders;
 
@@ -16,11 +15,12 @@ public sealed class ServiceOrder
         Description = description;
         Status = 0;
         CreatedAt = DateTimeOffset.UtcNow;
+        WorkshopServices = new List<ServiceOrderWorkshop>();
     }
 
     public Guid Id { get; }
     public Guid CustomerId { get; }
-    public Guid? MechanicId { get; }
+    public Guid? MechanicId { get; private set; }
     public Guid? VehicleId { get; }
     public string Description { get; private set; }
     public string? CheckList { get; private set; }
@@ -48,7 +48,42 @@ public sealed class ServiceOrder
         return new ServiceOrder(Guid.NewGuid(), customerId, description.Trim());
     }
 
-    public void UpdateStatus(ServiceOrder oldServiceOrder,
+    public void Update(
+        Guid? mechanicId,
+        string? description,
+        string? checkList,
+        IReadOnlyCollection<ServiceOrderPart>? parts,
+        IReadOnlyCollection<ServiceOrderWorkshop>? workshopServices)
+    {
+        CheckList = checkList.Trim();
+        Description = description.Trim();
+        MechanicId = mechanicId;
+
+        if (parts is not null)
+        {
+            SetParts(parts);
+        }
+
+        if (workshopServices is not null)
+        {
+            SetWorkshopServices(workshopServices);
+        }
+    }
+
+    private void SetParts(IReadOnlyCollection<ServiceOrderPart> parts)
+    {
+        _items.Clear();
+        _items.AddRange(parts);
+
+        TotalParts = _items.Sum(item => item.QuantityUsed * (item.Part?.UnitPrice ?? 0));
+    }
+
+    private void SetWorkshopServices(IReadOnlyCollection<ServiceOrderWorkshop> workshopServices)
+    {
+        WorkshopServices = workshopServices.ToList();
+    }
+
+    public void UpdateStatus(
         bool? clientApproved = null,
         bool hasNewItems = false,
         bool newItemsExecuted = false,
