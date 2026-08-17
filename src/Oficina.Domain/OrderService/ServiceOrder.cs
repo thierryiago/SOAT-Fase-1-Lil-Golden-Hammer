@@ -6,8 +6,6 @@ namespace Oficina.Domain.ServiceOrders;
 
 public sealed class ServiceOrder
 {
-    private readonly List<ServiceOrderPart> _items = new();
-
     private ServiceOrder(Guid id, Guid customerId, string description)
     {
         Id = id;
@@ -15,6 +13,7 @@ public sealed class ServiceOrder
         Description = description;
         Status = 0;
         CreatedAt = DateTimeOffset.UtcNow;
+        Parts = new List<ServiceOrderPart>();
         WorkshopServices = new List<ServiceOrderWorkshop>();
     }
 
@@ -30,7 +29,7 @@ public sealed class ServiceOrder
     public Customer Customer { get; private set; }
     public Mechanic? Mechanic { get; private set; }
     public Vehicle? Vehicle { get; set; }
-    public IReadOnlyCollection<ServiceOrderPart> Parts => _items.AsReadOnly();
+    public IReadOnlyCollection<ServiceOrderPart> Parts { get; private set; }
     public IReadOnlyCollection<ServiceOrderWorkshop> WorkshopServices { get; private set; }
 
     public static ServiceOrder Open(Guid customerId, string description)
@@ -72,10 +71,9 @@ public sealed class ServiceOrder
 
     private void SetParts(IReadOnlyCollection<ServiceOrderPart> parts)
     {
-        _items.Clear();
-        _items.AddRange(parts);
+        Parts = parts.ToList();
 
-        TotalParts = _items.Sum(item => item.QuantityUsed * (item.Part?.UnitPrice ?? 0));
+        TotalParts = Parts.Sum(item => item.QuantityUsed * (item.Part?.UnitPrice ?? 0));
     }
 
     private void SetWorkshopServices(IReadOnlyCollection<ServiceOrderWorkshop> workshopServices)

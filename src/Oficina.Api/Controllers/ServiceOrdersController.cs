@@ -51,15 +51,4 @@ public sealed class ServiceOrdersController : ControllerBase
         return Ok(service);
     }
 
-    [HttpPost("{id:guid}/parts", Name = "AddPartToServiceOrder")]
-    [ProducesResponseType(typeof(ServiceOrder), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> AddPart(
-        Guid id,
-        AddPartToServiceOrderRequest request,
-        CancellationToken cancellationToken)
-    {
-        var serviceOrder = await _serviceOrders.AddPartAsync(id, request, cancellationToken);
-        return Ok(serviceOrder);
-    }
 }

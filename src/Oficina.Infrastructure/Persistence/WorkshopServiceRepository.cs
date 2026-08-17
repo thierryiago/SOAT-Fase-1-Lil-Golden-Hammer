@@ -22,7 +22,6 @@ public sealed class WorkshopServiceRepository : IWorkshopServiceRepository
 
     public Task<WorkshopService?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         _appDbContext.WorkshopServices
-            .AsNoTracking()
             .FirstOrDefaultAsync(service => service.Id == id, cancellationToken);
 
     public async Task<WorkshopService?> GetByNameAsync(string name, CancellationToken cancellationToken)

@@ -54,13 +54,22 @@ public sealed class ServiceOrderService
 
         await CheckCustomerAsync(serviceOrder, request.CustomerId, cancellationToken);
 
-        var parts = request.Parts is null
-            ? null
-            : await ResolvePartsAsync(serviceOrder, request.Parts, cancellationToken);
+        IReadOnlyCollection<ServiceOrderPart>? parts = null;
+        IReadOnlyCollection<ServiceOrderPart> newParts = Array.Empty<ServiceOrderPart>();
+        if (request.Parts is not null)
+        {
+            (parts, newParts) = await ResolvePartsAsync(serviceOrder, request.Parts, cancellationToken);
+        }
 
-        var workshopServices = request.WorkshopServiceIds is null
-            ? null
-            : await ResolveWorkshopServicesAsync(serviceOrder, request.WorkshopServiceIds, cancellationToken);
+        IReadOnlyCollection<ServiceOrderWorkshop>? workshopServices = null;
+        IReadOnlyCollection<ServiceOrderWorkshop> newWorkshopServices = Array.Empty<ServiceOrderWorkshop>();
+        if (request.WorkshopServiceIds is not null)
+        {
+            (workshopServices, newWorkshopServices) = await ResolveWorkshopServicesAsync(
+                serviceOrder,
+                request.WorkshopServiceIds,
+                cancellationToken);
+        }
 
         serviceOrder.Update(
             request.MechanicId,
@@ -69,7 +78,7 @@ public sealed class ServiceOrderService
             parts,
             workshopServices);
 
-        await _serviceOrderRepository.UpdateAsync(serviceOrder, cancellationToken);
+        await _serviceOrderRepository.UpdateAsync(serviceOrder, newParts, newWorkshopServices, cancellationToken);
         return serviceOrder;
     }
 
@@ -90,12 +99,13 @@ public sealed class ServiceOrderService
         }
     }
 
-    private async Task<IReadOnlyCollection<ServiceOrderPart>> ResolvePartsAsync(
+    private async Task<(IReadOnlyCollection<ServiceOrderPart> All, IReadOnlyCollection<ServiceOrderPart> New)> ResolvePartsAsync(
         ServiceOrder serviceOrder,
         IReadOnlyCollection<AddPartToServiceOrderRequest> items,
         CancellationToken cancellationToken)
     {
         var parts = new List<ServiceOrderPart>();
+        var newParts = new List<ServiceOrderPart>();
 
         foreach (var item in items)
         {
@@ -105,21 +115,32 @@ public sealed class ServiceOrderService
                 throw new InvalidOperationException($"Part '{item.PartId}' was not found.");
             }
 
-            var serviceOrderPart = ServiceOrderPart.Create(part.Id, serviceOrder.Id, item.Quantity);
+            var serviceOrderPart = serviceOrder.Parts.FirstOrDefault(existing => existing.PartId == item.PartId);
+            if (serviceOrderPart is null)
+            {
+                serviceOrderPart = ServiceOrderPart.Create(part.Id, serviceOrder.Id, item.Quantity);
+                serviceOrderPart.OrderService = serviceOrder;
+                newParts.Add(serviceOrderPart);
+            }
+            else
+            {
+                serviceOrderPart.UpdateQuantity(item.Quantity);
+            }
+
             serviceOrderPart.Part = part;
-            serviceOrderPart.OrderService = serviceOrder;
             parts.Add(serviceOrderPart);
         }
 
-        return parts;
+        return (parts, newParts);
     }
 
-    private async Task<IReadOnlyCollection<ServiceOrderWorkshop>> ResolveWorkshopServicesAsync(
+    private async Task<(IReadOnlyCollection<ServiceOrderWorkshop> All, IReadOnlyCollection<ServiceOrderWorkshop> New)> ResolveWorkshopServicesAsync(
         ServiceOrder serviceOrder,
         IReadOnlyCollection<Guid> workshopServiceIds,
         CancellationToken cancellationToken)
     {
         var workshopServices = new List<ServiceOrderWorkshop>();
+        var newWorkshopServices = new List<ServiceOrderWorkshop>();
 
         foreach (var id in workshopServiceIds)
         {
@@ -129,38 +150,21 @@ public sealed class ServiceOrderService
                 throw new InvalidOperationException($"Workshop service '{id}' was not found.");
             }
 
-            var serviceOrderWorkshop = ServiceOrderWorkshop.Create(serviceOrder.Id, workshopService.Id);
+            var serviceOrderWorkshop = serviceOrder.WorkshopServices
+                .FirstOrDefault(existing => existing.WorkshopServiceId == id);
+
+            if (serviceOrderWorkshop is null)
+            {
+                serviceOrderWorkshop = ServiceOrderWorkshop.Create(serviceOrder.Id, workshopService.Id);
+                serviceOrderWorkshop.ServiceOrder = serviceOrder;
+                newWorkshopServices.Add(serviceOrderWorkshop);
+            }
+
             serviceOrderWorkshop.WorkshopService = workshopService;
-            serviceOrderWorkshop.ServiceOrder = serviceOrder;
             workshopServices.Add(serviceOrderWorkshop);
         }
 
-        return workshopServices;
+        return (workshopServices, newWorkshopServices);
     }
 
-    public async Task<ServiceOrder> AddPartAsync(
-        Guid serviceOrderId,
-        AddPartToServiceOrderRequest request,
-        CancellationToken cancellationToken)
-    {
-        /*
-        var serviceOrder = await _serviceOrderRepository.GetByIdAsync(serviceOrderId, cancellationToken);
-        if (serviceOrder is null)
-        {
-            throw new InvalidOperationException("Service order was not found.");
-        }
-
-        var part = await _parts.GetByIdAsync(request.PartId, cancellationToken);
-        if (part is null)
-        {
-            throw new InvalidOperationException("Part was not found.");
-        }
-
-        // part.WithdrawStock(request.Quantity);
-        serviceOrder.AddPart(part.Id, part.Name, request.Quantity, part.UnitPrice);
-        await _parts.UpdateAsync(part, cancellationToken);
-        await _serviceOrderRepository.UpdateAsync(serviceOrder, cancellationToken);
-        */
-        return null;
-    }
 }

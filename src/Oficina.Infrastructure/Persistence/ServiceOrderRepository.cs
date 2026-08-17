@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Oficina.Application.ServiceOrders;
-using Oficina.Domain.Parts;
+using Oficina.Domain.OrderService;
 using Oficina.Domain.ServiceOrders;
 
 namespace Oficina.Infrastructure.Persistence;
@@ -15,7 +15,10 @@ public sealed class ServiceOrderRepository : IServiceOrderRepository
     }
 
     public Task<List<ServiceOrder>> ListAsync(CancellationToken cancellationToken) =>
-        _appDbContext.ServiceOrders.ToListAsync(cancellationToken);
+        _appDbContext.ServiceOrders
+        .Include(x => x.Parts)
+        .Include(x => x.WorkshopServices)
+        .ToListAsync(cancellationToken);
 
     public Task<ServiceOrder?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         _appDbContext.ServiceOrders
@@ -29,26 +32,25 @@ public sealed class ServiceOrderRepository : IServiceOrderRepository
         await _appDbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task UpdateAsync(ServiceOrder serviceOrder, CancellationToken cancellationToken)
+    public async Task UpdateAsync(
+        ServiceOrder serviceOrder,
+        IReadOnlyCollection<ServiceOrderPart> newParts,
+        IReadOnlyCollection<ServiceOrderWorkshop> newWorkshopServices,
+        CancellationToken cancellationToken)
     {
-        foreach (var part in serviceOrder.Parts)
+        foreach (var part in newParts)
         {
-            if (_appDbContext.Entry(part).State == EntityState.Detached)
-            {
-                _appDbContext.Add(part);
-            }
+            _appDbContext.Add(part);
         }
 
-        foreach (var workshopService in serviceOrder.WorkshopServices)
+        foreach (var workshopService in newWorkshopServices)
         {
-            if (_appDbContext.Entry(workshopService).State == EntityState.Detached)
-            {
-                _appDbContext.Add(workshopService);
-            }
+            _appDbContext.Add(workshopService);
         }
 
         try
         {
+            _appDbContext.ServiceOrders.Update(serviceOrder);
             await _appDbContext.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateConcurrencyException ex)
@@ -58,4 +60,6 @@ public sealed class ServiceOrderRepository : IServiceOrderRepository
                 ex);
         }
     }
+
+
 }

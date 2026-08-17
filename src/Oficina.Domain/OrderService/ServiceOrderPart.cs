@@ -16,7 +16,7 @@ namespace Oficina.Domain.OrderService
         public Guid Id { get; }
         public Guid PartId { get; }
         public Guid OrderServiceId { get; }
-        public int QuantityUsed { get; }
+        public int QuantityUsed { get; private set; }
         public ServiceOrder? OrderService { get; set; }
         public Part? Part { get; set; }
 
@@ -28,6 +28,16 @@ namespace Oficina.Domain.OrderService
             }
 
             return new ServiceOrderPart(Guid.NewGuid(), partId, orderServiceId, quantityUsed);
+        }
+
+        public void UpdateQuantity(int quantityUsed)
+        {
+            if (quantityUsed <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(quantityUsed), "Quantity must be greater than zero.");
+            }
+
+            QuantityUsed = quantityUsed;
         }
     }
 }
