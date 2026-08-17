@@ -1,15 +1,19 @@
 using Oficina.Application.Common;
+using Oficina.Application.Stocks;
 using Oficina.Domain.Parts;
+using Oficina.Domain.Stock;
 
 namespace Oficina.Application.Parts;
 
 public sealed class PartService
 {
     private readonly IPartRepository _parts;
+    private readonly IStockRepository _stocks;
 
-    public PartService(IPartRepository parts)
+    public PartService(IPartRepository parts, IStockRepository stocks)
     {
         _parts = parts;
+        _stocks = stocks;
     }
 
     public async Task<PagedResponse<PartResponse>> ListAsync(
@@ -52,6 +56,7 @@ public sealed class PartService
             request.UnitPrice,
             request.Kind);
         await _parts.AddAsync(part, cancellationToken);
+        await _stocks.AddAsync(StockPart.Create(part.Id, 0), cancellationToken);
         return Map(part);
     }
 
@@ -82,9 +87,22 @@ public sealed class PartService
             throw new ArgumentException("Stock adjustment reason is required.", nameof(request.Reason));
         }
 
+        await GetActivePartAsync(id, cancellationToken);
+        var stockPart = await _stocks.GetByPartIdAsync(id, cancellationToken);
+
+        if (stockPart is null)
+        {
+            stockPart = StockPart.Create(id, 0);
+            stockPart.AdjustQuantity(request.Quantity);
+            await _stocks.AddAsync(stockPart, cancellationToken);
+        }
+        else
+        {
+            stockPart.AdjustQuantity(request.Quantity);
+            await _stocks.UpdateAsync(stockPart, cancellationToken);
+        }
+
         var part = await GetActivePartAsync(id, cancellationToken);
-        // part.AdjustStock(request.Quantity);
-        await _parts.UpdateAsync(part, cancellationToken);
         return Map(part);
     }
 

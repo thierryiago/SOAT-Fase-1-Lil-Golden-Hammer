@@ -11,7 +11,7 @@ public sealed class PartServiceTests
     [Fact]
     public async Task Part_crud_should_distinguish_parts_and_consumables()
     {
-        var service = new PartService(new InMemoryPartRepository());
+        var service = new PartService(new InMemoryPartRepository(), new InMemoryStockRepository());
         var created = await service.CreateAsync(
             new CreatePartRequest("Oleo 5W30", "INS-001", 45m, EnumPartKind.Consumable),
             CancellationToken.None);

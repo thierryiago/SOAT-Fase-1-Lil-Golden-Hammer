@@ -23,7 +23,7 @@ public class AppDbContext : DbContext
     public DbSet<Mechanic> Mechanics { get; set; }
     public DbSet<WorkshopService> WorkshopServices { get; set; }
     public DbSet<ServiceOrderWorkshop> ServiceOrderWorkshops { get; set; }
-    public DbSet<StockParts> StockParts { get; set; }
+    public DbSet<StockPart> StockParts { get; set; }
     public DbSet<ServiceOrderHistory> ServiceOrderHistories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -154,7 +154,7 @@ public class AppDbContext : DbContext
             e.Property(e => e.QuantityUsed).IsRequired();
         });
 
-        modelBuilder.Entity<StockParts>(e =>
+        modelBuilder.Entity<StockPart>(e =>
         {
             e.HasKey(e => e.Id);
             e.HasOne(e => e.Part)

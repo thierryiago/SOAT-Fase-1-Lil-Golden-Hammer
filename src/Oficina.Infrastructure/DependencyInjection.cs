@@ -7,6 +7,7 @@ using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.Services;
+using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
 using Oficina.Infrastructure.Persistence;
 
@@ -25,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IVehicleRepository, VehicleRepository>();
         services.AddScoped<IPartRepository, PartRepository>();
+        services.AddScoped<IStockRepository, StockPartRepository>();
         services.AddScoped<IWorkshopServiceRepository, WorkshopServiceRepository>();
         services.AddScoped<IServiceOrderRepository, ServiceOrderRepository>();
         services.AddScoped<IMechanicRepository, MechanicRepository>();
