@@ -7,5 +7,6 @@ public enum ServiceOrderStatus
     AwaitingApproval = 3,
     InExecution = 4,
     Finalized = 5,
-    Delivered = 6
+    Delivered = 6,
+    Rejected = 7
 }

@@ -1,23 +1,28 @@
 using Oficina.Application.Customers;
 using Oficina.Application.Parts;
+using Oficina.Application.Services;
+using Oficina.Domain.OrderService;
 using Oficina.Domain.ServiceOrders;
 
 namespace Oficina.Application.ServiceOrders;
 
 public sealed class ServiceOrderService
 {
-    private readonly IServiceOrderRepository _serviceOrders;
-    private readonly ICustomerRepository _customers;
+    private readonly IServiceOrderRepository _serviceOrderRepository;
+    private readonly ICustomerRepository _customerRepository;
     private readonly IPartRepository _parts;
+    private readonly IWorkshopServiceRepository _workshopServices;
 
     public ServiceOrderService(
         IServiceOrderRepository serviceOrders,
         ICustomerRepository customers,
-        IPartRepository parts)
+        IPartRepository parts,
+        IWorkshopServiceRepository workshopServices)
     {
-        _serviceOrders = serviceOrders;
-        _customers = customers;
+        _serviceOrderRepository = serviceOrders;
+        _customerRepository = customers;
         _parts = parts;
+        _workshopServices = workshopServices;
     }
 
     public async Task<IReadOnlyCollection<ServiceOrderListItemResponse>> ListAsync(CancellationToken cancellationToken)
@@ -34,7 +39,7 @@ public sealed class ServiceOrderService
 
     public async Task<ServiceOrderDetailResponse> OpenAsync(OpenServiceOrderRequest request, CancellationToken cancellationToken)
     {
-        var customer = await _customers.GetByIdAsync(request.CustomerId, cancellationToken);
+        var customer = await _customerRepository.GetByIdAsync(request.CustomerId, cancellationToken);
         if (customer is null)
         {
             throw new InvalidOperationException("Customer was not found.");
@@ -50,16 +55,29 @@ public sealed class ServiceOrderService
         AddPartToServiceOrderRequest request,
         CancellationToken cancellationToken)
     {
-        var serviceOrder = await _serviceOrders.GetByIdAsync(serviceOrderId, cancellationToken);
+        var serviceOrder = await GetByIdAsync(request.ServiceOrderId, cancellationToken);
         if (serviceOrder is null)
         {
-            throw new InvalidOperationException("Service order was not found.");
+            throw new InvalidOperationException("Service Order was not found!");
         }
 
-        var part = await _parts.GetByIdAsync(request.PartId, cancellationToken);
-        if (part is null)
+        await CheckCustomerAsync(serviceOrder, request.CustomerId, cancellationToken);
+
+        IReadOnlyCollection<ServiceOrderPart>? parts = null;
+        IReadOnlyCollection<ServiceOrderPart> newParts = Array.Empty<ServiceOrderPart>();
+        if (request.Parts is not null)
         {
-            throw new InvalidOperationException("Part was not found.");
+            (parts, newParts) = await ResolvePartsAsync(serviceOrder, request.Parts, cancellationToken);
+        }
+
+        IReadOnlyCollection<ServiceOrderWorkshop>? workshopServices = null;
+        IReadOnlyCollection<ServiceOrderWorkshop> newWorkshopServices = Array.Empty<ServiceOrderWorkshop>();
+        if (request.WorkshopServiceIds is not null)
+        {
+            (workshopServices, newWorkshopServices) = await ResolveWorkshopServicesAsync(
+                serviceOrder,
+                request.WorkshopServiceIds,
+                cancellationToken);
         }
 
         // part.WithdrawStock(request.Quantity);
