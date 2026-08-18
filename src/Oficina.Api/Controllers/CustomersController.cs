@@ -5,7 +5,7 @@ using Oficina.Application.Customers;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
-[Route("api/customers")]
+[Route("api/v1/customers")]
 public sealed class CustomersController : ControllerBase
 {
     private readonly CustomerService _customers;

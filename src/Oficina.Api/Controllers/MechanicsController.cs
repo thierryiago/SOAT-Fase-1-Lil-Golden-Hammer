@@ -5,7 +5,7 @@ using Oficina.Application.Mechanics;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
-[Route("api/mechanics")]
+[Route("api/v1/mechanics")]
 public sealed class MechanicsController : ControllerBase
 {
     private readonly MechanicService _mechanics;

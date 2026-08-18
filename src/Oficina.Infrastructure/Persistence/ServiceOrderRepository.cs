@@ -16,9 +16,10 @@ public sealed class ServiceOrderRepository : IServiceOrderRepository
 
     public Task<List<ServiceOrder>> ListAsync(CancellationToken cancellationToken) =>
         _appDbContext.ServiceOrders
-        .Include(x => x.Parts)
-        .Include(x => x.WorkshopServices)
-        .ToListAsync(cancellationToken);
+            .AsNoTracking()
+            .Include(x => x.Parts)
+            .Include(x => x.WorkshopServices)
+            .ToListAsync(cancellationToken);
 
     public Task<ServiceOrder?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         _appDbContext.ServiceOrders

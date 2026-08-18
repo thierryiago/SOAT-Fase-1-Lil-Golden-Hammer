@@ -1,4 +1,5 @@
 namespace Oficina.Domain.Customers;
+
 using System.Text.RegularExpressions;
 using Oficina.Domain.Vehicles;
 
@@ -18,7 +19,7 @@ public sealed class Vehicle
 
     public Guid Id { get; }
     public Guid CustomerId { get; }
-    public Customer Customer { get; private set; }
+    public Customer Customer { get; private set; } = null!;
     public string Plate { get; private set; }
     public string Brand { get; private set; }
     public string Model { get; private set; }

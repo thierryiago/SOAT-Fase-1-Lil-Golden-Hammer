@@ -26,7 +26,7 @@ public sealed class ServiceOrder
     public ServiceOrderStatus? Status { get; private set; }
     public DateTimeOffset CreatedAt { get; }
     public decimal TotalParts { get; private set; }
-    public Customer Customer { get; private set; }
+    public Customer Customer { get; private set; } = null!;
     public Mechanic? Mechanic { get; private set; }
     public Vehicle? Vehicle { get; set; }
     public IReadOnlyCollection<ServiceOrderPart> Parts { get; private set; }
@@ -54,8 +54,15 @@ public sealed class ServiceOrder
         IReadOnlyCollection<ServiceOrderPart>? parts,
         IReadOnlyCollection<ServiceOrderWorkshop>? workshopServices)
     {
-        CheckList = checkList.Trim();
-        Description = description.Trim();
+        if (checkList is not null)
+        {
+            CheckList = checkList.Trim();
+        }
+
+        if (description is not null)
+        {
+            Description = description.Trim();
+        }
         MechanicId = mechanicId;
 
         if (parts is not null)
