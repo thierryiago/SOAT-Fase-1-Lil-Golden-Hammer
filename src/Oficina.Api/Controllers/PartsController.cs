@@ -59,19 +59,6 @@ public sealed class PartsController : ControllerBase
         return Ok(part);
     }
 
-    [HttpPut("{id:guid}/stock-adjustments", Name = "AdjustPartStock")]
-    [ProducesResponseType(typeof(PartResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> AdjustStock(
-        Guid id,
-        [FromBody] AdjustStockRequest request,
-        CancellationToken cancellationToken)
-    {
-        var part = await _parts.AdjustStockAsync(id, request, cancellationToken);
-        return Ok(part);
-    }
-
     [HttpDelete("{id:guid}", Name = "DeletePart")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
