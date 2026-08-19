@@ -25,13 +25,19 @@ public sealed class ServiceOrderService
         _workshopServices = workshopServices;
     }
 
-    public Task<List<ServiceOrder>> ListAsync(CancellationToken cancellationToken) =>
-        _serviceOrderRepository.ListAsync(cancellationToken);
+    public async Task<IReadOnlyCollection<ServiceOrderListItemResponse>> ListAsync(CancellationToken cancellationToken)
+    {
+        var orders = await _serviceOrderRepository.ListAsync(cancellationToken);
+        return orders.Select(MapListItem).ToList();
+    }
 
-    public Task<ServiceOrder?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
-        _serviceOrderRepository.GetByIdAsync(id, cancellationToken);
+    public async Task<ServiceOrderDetailResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var order = await _serviceOrderRepository.GetByIdAsync(id, cancellationToken);
+        return order is null ? null : MapDetail(order);
+    }
 
-    public async Task<ServiceOrder> OpenAsync(OpenServiceOrderRequest request, CancellationToken cancellationToken)
+    public async Task<ServiceOrderDetailResponse> OpenAsync(OpenServiceOrderRequest request, CancellationToken cancellationToken)
     {
         var customer = await _customerRepository.GetByIdAsync(request.CustomerId, cancellationToken);
         if (customer is null)
@@ -41,12 +47,12 @@ public sealed class ServiceOrderService
 
         var serviceOrder = ServiceOrder.Open(request.CustomerId, request.Description);
         await _serviceOrderRepository.AddAsync(serviceOrder, cancellationToken);
-        return serviceOrder;
+        return MapDetail(serviceOrder);
     }
 
-    public async Task<ServiceOrder> UpdateAsync(UpdateServiceOrderRequest request, CancellationToken cancellationToken)
+    public async Task<ServiceOrderDetailResponse> UpdateAsync(UpdateServiceOrderRequest request, CancellationToken cancellationToken)
     {
-        var serviceOrder = await GetByIdAsync(request.ServiceOrderId, cancellationToken);
+        var serviceOrder = await _serviceOrderRepository.GetByIdAsync(request.ServiceOrderId, cancellationToken);
         if (serviceOrder is null)
         {
             throw new InvalidOperationException("Service Order was not found!");
@@ -79,7 +85,7 @@ public sealed class ServiceOrderService
             workshopServices);
 
         await _serviceOrderRepository.UpdateAsync(serviceOrder, newParts, newWorkshopServices, cancellationToken);
-        return serviceOrder;
+        return MapDetail(serviceOrder);
     }
 
     private async Task CheckCustomerAsync(
@@ -166,5 +172,23 @@ public sealed class ServiceOrderService
 
         return (workshopServices, newWorkshopServices);
     }
+
+    private static ServiceOrderListItemResponse MapListItem(ServiceOrder order) =>
+        new(order.Id, order.CustomerId, order.VehicleId, order.MechanicId, order.Description,
+            order.Status, order.CreatedAt, order.TotalParts);
+
+    private static ServiceOrderDetailResponse MapDetail(ServiceOrder order) =>
+        new(
+            order.Id,
+            order.CustomerId,
+            order.VehicleId,
+            order.MechanicId,
+            order.Description,
+            order.CheckList,
+            order.Status,
+            order.CreatedAt,
+            order.TotalParts,
+            order.Parts.Select(part => new ServiceOrderPartResponse(part.Id, part.PartId, part.QuantityUsed)).ToList(),
+            order.WorkshopServices.Select(service => new ServiceOrderWorkshopResponse(service.Id, service.WorkshopServiceId)).ToList());
 
 }

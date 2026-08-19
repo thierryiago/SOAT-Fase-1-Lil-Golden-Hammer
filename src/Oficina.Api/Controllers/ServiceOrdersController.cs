@@ -1,12 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.ServiceOrders;
-using Oficina.Application.Services;
-using Oficina.Domain.ServiceOrders;
 
 namespace Oficina.Api.Controllers;
 
 [ApiController]
-[Route("api/service-orders")]
+[Route("api/v1/service-orders")]
 public sealed class ServiceOrdersController : ControllerBase
 {
     private readonly ServiceOrderService _serviceOrders;
@@ -17,7 +15,7 @@ public sealed class ServiceOrdersController : ControllerBase
     }
 
     [HttpGet(Name = "ListServiceOrders")]
-    [ProducesResponseType(typeof(IReadOnlyCollection<ServiceOrder>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IReadOnlyCollection<ServiceOrderListItemResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
         var serviceOrders = await _serviceOrders.ListAsync(cancellationToken);
@@ -25,7 +23,7 @@ public sealed class ServiceOrdersController : ControllerBase
     }
 
     [HttpGet("{id:guid}", Name = "GetServiceOrderById")]
-    [ProducesResponseType(typeof(ServiceOrder), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ServiceOrderDetailResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
@@ -34,7 +32,7 @@ public sealed class ServiceOrdersController : ControllerBase
     }
 
     [HttpPost(Name = "OpenServiceOrder")]
-    [ProducesResponseType(typeof(ServiceOrder), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ServiceOrderDetailResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Open(OpenServiceOrderRequest request, CancellationToken cancellationToken)
     {
@@ -43,7 +41,7 @@ public sealed class ServiceOrdersController : ControllerBase
     }
 
     [HttpPut(Name = "UpdateServiceOrder")]
-    [ProducesResponseType(typeof(ServiceOrder), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ServiceOrderDetailResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Update(UpdateServiceOrderRequest request, CancellationToken cancellationToken)
     {

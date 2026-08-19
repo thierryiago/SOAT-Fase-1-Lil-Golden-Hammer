@@ -104,7 +104,7 @@ public sealed class Customer
 
         var digits = Regex.Replace(document.Trim(), "\\D", string.Empty);
 
-        if(digits.Length == 11 || digits.Length == 14)
+        if (digits.Length == 11 || digits.Length == 14)
             return digits;
 
         return document.Trim();

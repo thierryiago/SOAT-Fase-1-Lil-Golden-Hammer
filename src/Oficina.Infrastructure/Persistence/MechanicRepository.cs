@@ -8,7 +8,7 @@ public sealed class MechanicRepository : IMechanicRepository
 {
 
     private readonly AppDbContext _appDbContext;
-    
+
     public MechanicRepository(AppDbContext appDbContext)
     {
         _appDbContext = appDbContext;

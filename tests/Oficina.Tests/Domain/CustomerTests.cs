@@ -12,7 +12,7 @@ public sealed class CustomerTests
 
         Assert.Equal("Maria Silva", customer.Name);
         Assert.Equal("maria@email.com", customer.Email);
-        Assert.Equal("529.982.247-25", customer.Document);
+        Assert.Equal("52998224725", customer.Document);
     }
 
     [Fact]
