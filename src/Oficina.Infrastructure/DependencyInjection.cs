@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Oficina.Application.Customers;
 using Oficina.Application.Mechanics;
+using Oficina.Application.Metrics;
 using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
@@ -31,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<IServiceOrderRepository, ServiceOrderRepository>();
         services.AddScoped<IMechanicRepository, MechanicRepository>();
         services.AddScoped<IServiceOrderHistoryRepository, ServiceOrderHistoryRepository>();
+        services.AddScoped<IWorkshopServiceExecutionTimeRepository, WorkshopServiceExecutionTimeRepository>();
         services.AddScoped<ServiceOrderHistoryService>();
         return services;
     }

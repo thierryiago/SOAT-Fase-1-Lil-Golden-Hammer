@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Oficina.Application.Customers;
 using Oficina.Application.Mechanics;
+using Oficina.Application.Metrics;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.WorkshopServices;
@@ -20,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<ServiceCatalogService>();
         services.AddScoped<StockService>();
         services.AddScoped<MechanicService>();
+        services.AddScoped<MetricsService>();
         return services;
     }
 }

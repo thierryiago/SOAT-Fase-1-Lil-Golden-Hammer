@@ -137,6 +137,9 @@ Content-Type: application/json
 ### Services 2/5 - List workshop services
 GET {{baseUrl}}/api/v1/workshop-services?search=Troca&page=1&pageSize=20
 
+### Metrics - List average execution time by workshop service
+GET {{baseUrl}}/api/v1/metrics/workshop-service/execution-time
+
 ### Services 3/5 - Get workshop service by ID
 GET {{baseUrl}}/api/v1/workshop-services/{{createService.response.body.$.id}}
 
