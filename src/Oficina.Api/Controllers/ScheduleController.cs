@@ -3,8 +3,6 @@ using Oficina.Application.Common;
 using Oficina.Application.Customers;
 using Oficina.Application.OrdensServico;
 using Oficina.Application.ServiceOrders;
-using Oficina.Domain.Customers;
-using System.Xml.Linq;
 
 namespace Oficina.Api.Controllers;
 

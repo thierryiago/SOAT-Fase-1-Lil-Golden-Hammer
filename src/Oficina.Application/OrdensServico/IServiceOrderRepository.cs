@@ -1,4 +1,3 @@
-using Oficina.Application.OrdensServico;
 using Oficina.Domain.OrderService;
 using Oficina.Domain.ServiceOrders;
 
@@ -15,5 +14,5 @@ public interface IServiceOrderRepository
         IReadOnlyCollection<ServiceOrderWorkshop> newWorkshopServices,
         CancellationToken cancellationToken);
     Task<List<ServiceOrder>> ListSchedulesAsync(CancellationToken cancellationToken);
-    Task<List<ServiceOrder>> ListSchedulesByDateAsync(DateTimeOffset date, CancellationToken cancellationToken);  
+    Task<List<ServiceOrder>> ListSchedulesByDateAsync(DateTimeOffset date, CancellationToken cancellationToken);
 }

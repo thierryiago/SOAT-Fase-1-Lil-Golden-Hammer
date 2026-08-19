@@ -202,7 +202,7 @@ public sealed class ServiceOrderService
                 OrderServiceId = so.Id,
                 ScheduleDate = TimeZoneInfo.ConvertTimeFromUtc(so.ScheduledAt.DateTime, TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time"))
             }).ToList();
-        
+
             return scheduleList;
         }
 
