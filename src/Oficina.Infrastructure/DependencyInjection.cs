@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Oficina.Application.Budgets;
 using Oficina.Application.Customers;
 using Oficina.Application.Mechanics;
 using Oficina.Application.OrderServiceHistory;
@@ -32,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<IMechanicRepository, MechanicRepository>();
         services.AddScoped<IServiceOrderHistoryRepository, ServiceOrderHistoryRepository>();
         services.AddScoped<ServiceOrderHistoryService>();
+        services.AddScoped<IBudgetRepository, BudgetRepository>();
         return services;
     }
 }
