@@ -25,6 +25,7 @@ public sealed class ServiceOrder
     public string? CheckList { get; private set; }
     public ServiceOrderStatus? Status { get; private set; }
     public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset ScheduledAt { get; private set; }
     public decimal TotalParts { get; private set; }
     public Customer Customer { get; private set; } = null!;
     public Mechanic? Mechanic { get; private set; }
@@ -44,7 +45,12 @@ public sealed class ServiceOrder
             throw new ArgumentException("Service order description is required.", nameof(description));
         }
 
-        return new ServiceOrder(Guid.NewGuid(), customerId, description.Trim());
+        var serviceOrder = new ServiceOrder(Guid.NewGuid(), customerId, description.Trim())
+        {
+            ScheduledAt = DateTimeOffset.UtcNow
+        };
+
+        return serviceOrder;
     }
 
     public void Update(

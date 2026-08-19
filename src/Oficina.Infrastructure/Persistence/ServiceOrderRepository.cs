@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Oficina.Application.OrdensServico;
 using Oficina.Application.ServiceOrders;
 using Oficina.Domain.OrderService;
 using Oficina.Domain.ServiceOrders;
@@ -20,6 +21,20 @@ public sealed class ServiceOrderRepository : IServiceOrderRepository
             .Include(x => x.Parts)
             .Include(x => x.WorkshopServices)
             .ToListAsync(cancellationToken);
+
+
+    public Task<List<ServiceOrder>> ListSchedulesAsync(CancellationToken cancellationToken) =>
+        _appDbContext.ServiceOrders
+            .AsNoTracking()
+            .Where(x => x.ScheduledAt < DateTime.Now.AddDays(30))
+            .ToListAsync(cancellationToken);
+
+    public Task<List<ServiceOrder>> ListSchedulesByDateAsync(DateTimeOffset date, CancellationToken cancellationToken) =>
+        _appDbContext.ServiceOrders
+            .AsNoTracking()
+            .Where(x => x.ScheduledAt.Date == date.Date)
+            .ToListAsync(cancellationToken);
+
 
     public Task<ServiceOrder?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         _appDbContext.ServiceOrders
