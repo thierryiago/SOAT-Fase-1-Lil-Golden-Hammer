@@ -1,4 +1,4 @@
-namespace Oficina.Domain.Services;
+namespace Oficina.Domain.WorkshopServices;
 
 public sealed class WorkshopService
 {

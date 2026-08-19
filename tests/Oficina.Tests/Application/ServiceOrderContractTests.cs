@@ -6,7 +6,7 @@ using Oficina.Domain.Customers;
 using Oficina.Domain.OrderService;
 using Oficina.Domain.Parts;
 using Oficina.Domain.ServiceOrders;
-using Oficina.Domain.Services;
+using Oficina.Domain.WorkshopServices;
 
 namespace Oficina.Tests.Application;
 

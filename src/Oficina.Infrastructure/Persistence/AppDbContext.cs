@@ -5,7 +5,7 @@ using Oficina.Domain.OrderService;
 using Oficina.Domain.OrderServiceHistory;
 using Oficina.Domain.Parts;
 using Oficina.Domain.ServiceOrders;
-using Oficina.Domain.Services;
+using Oficina.Domain.WorkshopServices;
 using Oficina.Domain.Stock;
 
 namespace Oficina.Infrastructure.Persistence;

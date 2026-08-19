@@ -1,5 +1,5 @@
 using Oficina.Domain.ServiceOrders;
-using Oficina.Domain.Services;
+using Oficina.Domain.WorkshopServices;
 
 namespace Oficina.Domain.OrderService
 {

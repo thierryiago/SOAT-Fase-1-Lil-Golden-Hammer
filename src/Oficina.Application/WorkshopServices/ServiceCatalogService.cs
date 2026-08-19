@@ -1,5 +1,5 @@
 using Oficina.Application.Common;
-using Oficina.Domain.Services;
+using Oficina.Domain.WorkshopServices;
 
 namespace Oficina.Application.WorkshopServices;
 

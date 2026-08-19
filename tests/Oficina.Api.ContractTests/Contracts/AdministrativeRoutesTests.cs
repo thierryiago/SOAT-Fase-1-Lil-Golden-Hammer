@@ -9,7 +9,7 @@ public sealed class AdministrativeRoutesTests(OficinaApiFactory factory) : IClas
 
     public static TheoryData<string> Resources => new()
     {
-        "customers", "vehicles", "mechanics", "services", "parts", "stocks",
+        "customers", "vehicles", "mechanics", "workshop-services", "parts", "stocks",
         "service-orders", "service-order-history"
     };
 
