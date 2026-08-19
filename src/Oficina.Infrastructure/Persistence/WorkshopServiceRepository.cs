@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Oficina.Application.Services;
+using Oficina.Application.WorkshopServices;
 using Oficina.Domain.Services;
 
 namespace Oficina.Infrastructure.Persistence;

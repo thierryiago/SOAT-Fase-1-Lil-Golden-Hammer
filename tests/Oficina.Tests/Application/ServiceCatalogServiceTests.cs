@@ -1,6 +1,5 @@
 using Oficina.Application.Common;
-using Oficina.Application.Services;
-using Oficina.Application.Servicos;
+using Oficina.Application.WorkshopServices;
 using Oficina.Infrastructure.Persistence;
 
 namespace Oficina.Tests.Application;

@@ -1,7 +1,7 @@
 using Oficina.Application.Customers;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
-using Oficina.Application.Services;
+using Oficina.Application.WorkshopServices;
 using Oficina.Domain.Customers;
 using Oficina.Domain.OrderService;
 using Oficina.Domain.Parts;

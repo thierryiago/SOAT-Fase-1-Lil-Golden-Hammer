@@ -124,7 +124,7 @@ Content-Type: application/json
 
 ### Services 1/5 - Create workshop service
 # @name createService
-POST {{baseUrl}}/api/v1/services
+POST {{baseUrl}}/api/v1/workshop-services
 Content-Type: application/json
 
 {
@@ -135,13 +135,13 @@ Content-Type: application/json
 }
 
 ### Services 2/5 - List workshop services
-GET {{baseUrl}}/api/v1/services?search=Troca&page=1&pageSize=20
+GET {{baseUrl}}/api/v1/workshop-services?search=Troca&page=1&pageSize=20
 
 ### Services 3/5 - Get workshop service by ID
-GET {{baseUrl}}/api/v1/services/{{createService.response.body.$.id}}
+GET {{baseUrl}}/api/v1/workshop-services/{{createService.response.body.$.id}}
 
 ### Services 4/5 - Update workshop service
-PUT {{baseUrl}}/api/v1/services/{{createService.response.body.$.id}}
+PUT {{baseUrl}}/api/v1/workshop-services/{{createService.response.body.$.id}}
 Content-Type: application/json
 
 {
@@ -269,7 +269,7 @@ GET {{baseUrl}}/api/v1/service-order-history/service-order/{{openServiceOrder.re
 DELETE {{baseUrl}}/api/v1/vehicles/{{identifyCustomerAndRegisterVehicle.response.body.$.vehicle.id}}
 
 ### Services 5/5 - Delete workshop service
-DELETE {{baseUrl}}/api/v1/services/{{createService.response.body.$.id}}
+DELETE {{baseUrl}}/api/v1/workshop-services/{{createService.response.body.$.id}}
 
 ### Mechanics 5/5 - Delete mechanic
 DELETE {{baseUrl}}/api/v1/mechanics/{{createMechanic.response.body.$.id}}

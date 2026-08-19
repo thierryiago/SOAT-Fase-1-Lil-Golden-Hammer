@@ -6,7 +6,7 @@ using Oficina.Application.Mechanics;
 using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
-using Oficina.Application.Services;
+using Oficina.Application.WorkshopServices;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
 using Oficina.Infrastructure.Persistence;

@@ -3,7 +3,7 @@ using Oficina.Application.Customers;
 using Oficina.Application.Mechanics;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
-using Oficina.Application.Servicos;
+using Oficina.Application.WorkshopServices;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
 

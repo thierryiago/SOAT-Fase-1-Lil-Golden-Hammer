@@ -10,7 +10,7 @@ public sealed class AdministrativeRouteTests
         { typeof(CustomersController), "api/v1/customers" },
         { typeof(VehiclesController), "api/v1/vehicles" },
         { typeof(MechanicsController), "api/v1/mechanics" },
-        { typeof(ServicesController), "api/v1/services" },
+        { typeof(WorkshopServicesController), "api/v1/workshop-services" },
         { typeof(PartsController), "api/v1/parts" },
         { typeof(StocksController), "api/v1/stocks" },
         { typeof(ServiceOrdersController), "api/v1/service-orders" },
