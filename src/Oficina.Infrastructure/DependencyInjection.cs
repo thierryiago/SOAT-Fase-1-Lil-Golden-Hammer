@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Oficina.Application.Budgets;
 using Microsoft.Extensions.Configuration;
 using Oficina.Application.Customers;
 using Oficina.Application.Mechanics;
@@ -35,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IMechanicRepository, MechanicRepository>();
         services.AddScoped<IServiceOrderHistoryRepository, ServiceOrderHistoryRepository>();
         services.AddScoped<ServiceOrderHistoryService>();
+        services.AddScoped<IBudgetRepository, BudgetRepository>();
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
         services.AddScoped<INotificationEmailSender, SmtpNotificationEmailSender>();
         return services;

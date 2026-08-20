@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Oficina.Domain.Budget;
 using Oficina.Domain.Customers;
 using Oficina.Domain.Mechanics;
 using Oficina.Domain.OrderService;
@@ -25,6 +26,7 @@ public class AppDbContext : DbContext
     public DbSet<ServiceOrderWorkshop> ServiceOrderWorkshops { get; set; }
     public DbSet<StockPart> StockParts { get; set; }
     public DbSet<ServiceOrderHistory> ServiceOrderHistories { get; set; }
+    public DbSet<Budget> Budgets { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -164,6 +166,51 @@ public class AppDbContext : DbContext
                 .IsRequired();
             e.Property(e => e.CreatedDate).IsRequired();
             e.Property(e => e.Quantity).IsRequired();
+        });
+
+        modelBuilder.Entity<Budget>(e =>
+        {
+            e.HasKey(e => e.Id);
+            e.HasOne<Customer>()
+                .WithMany()
+                .HasForeignKey(e => e.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+            e.HasOne<ServiceOrder>()
+                .WithMany()
+                .HasForeignKey(e => e.ServiceOrderId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+            e.Property(e => e.CreatedAt).IsRequired();
+            e.Property(e => e.TotalValue).HasColumnType("decimal(18,2)").IsRequired();
+            e.Property(e => e.IsApproved);
+        });
+
+        modelBuilder.Entity<BudgetParts>(e =>
+        {
+            e.HasKey(e => e.Id);
+            e.HasOne(e => e.Budget)
+                .WithMany(e => e.Parts)
+                .HasForeignKey(e => e.BudgetId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(e => e.Part)
+                .WithMany()
+                .HasForeignKey(e => e.PartId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.Property(e => e.Quantity).IsRequired();
+        });
+
+        modelBuilder.Entity<BudgetWorkshopServices>(e =>
+        {
+            e.HasKey(e => e.Id);
+            e.HasOne(e => e.Budget)
+                .WithMany(e => e.WorkshopServices)
+                .HasForeignKey(e => e.BudgetId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(e => e.WorkshopService)
+                .WithMany()
+                .HasForeignKey(e => e.WorkshopServiceId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

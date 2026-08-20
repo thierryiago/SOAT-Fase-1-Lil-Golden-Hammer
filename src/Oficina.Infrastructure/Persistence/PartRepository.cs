@@ -22,6 +22,11 @@ public sealed class PartRepository : IPartRepository
     public Task<Part?> GetByCodeAsync(string code, CancellationToken cancellationToken) =>
         _appDbContext.Parts.FirstOrDefaultAsync(part => part.Code == code, cancellationToken);
 
+    public Task<List<Part>> GetAllById(List<Guid> ids, CancellationToken cancellationToken) =>
+        _appDbContext.Parts
+            .Where(x => ids.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+
     public async Task AddAsync(Part part, CancellationToken cancellationToken)
     {
         await _appDbContext.Parts.AddAsync(part, cancellationToken);

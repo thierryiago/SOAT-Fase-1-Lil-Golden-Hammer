@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Oficina.Application.Services;
+using Oficina.Domain.Parts;
 using Oficina.Domain.Services;
 
 namespace Oficina.Infrastructure.Persistence;
@@ -23,6 +24,11 @@ public sealed class WorkshopServiceRepository : IWorkshopServiceRepository
     public Task<WorkshopService?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         _appDbContext.WorkshopServices
             .FirstOrDefaultAsync(service => service.Id == id, cancellationToken);
+
+    public Task<List<WorkshopService>> GetAllById(List<Guid> ids, CancellationToken cancellationToken) =>
+        _appDbContext.WorkshopServices
+            .Where(x => ids.Contains(x.Id))
+            .ToListAsync(cancellationToken);
 
     public async Task<WorkshopService?> GetByNameAsync(string name, CancellationToken cancellationToken)
     {
