@@ -25,6 +25,14 @@
 
 GET {{baseUrl}}/health
 
+### Notifications - Send simple email
+POST {{baseUrl}}/api/v1/notifications/email
+Content-Type: application/json
+
+{
+  "email": "cliente@example.com"
+}
+
 ### Customers 1/5 - Create customer
 # @name createCustomer
 POST {{baseUrl}}/api/v1/customers
