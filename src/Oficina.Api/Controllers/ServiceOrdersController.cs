@@ -4,6 +4,7 @@ using Oficina.Application.ServiceOrders;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
+[Microsoft.AspNetCore.Authorization.Authorize]
 [Route("api/v1/service-orders")]
 public sealed class ServiceOrdersController : ControllerBase
 {

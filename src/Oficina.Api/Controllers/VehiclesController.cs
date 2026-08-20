@@ -5,6 +5,7 @@ using Oficina.Application.Vehicles;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
+[Microsoft.AspNetCore.Authorization.Authorize]
 [Route("api/v1/vehicles")]
 public sealed class VehiclesController : ControllerBase
 {

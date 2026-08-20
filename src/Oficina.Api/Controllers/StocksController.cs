@@ -5,6 +5,7 @@ using Oficina.Application.Stocks;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
+[Microsoft.AspNetCore.Authorization.Authorize]
 [Route("api/v1/stocks")]
 public sealed class StocksController : ControllerBase
 {
