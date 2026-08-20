@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Oficina.Application.Budgets;
 using Oficina.Application.Customers;
 using Oficina.Application.Mechanics;
+using Oficina.Application.Notifications;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.Servicos;
@@ -22,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<StockService>();
         services.AddScoped<MechanicService>();
         services.AddScoped<BudgetService>();
+        services.AddScoped<NotificationService>();
         return services;
     }
 }

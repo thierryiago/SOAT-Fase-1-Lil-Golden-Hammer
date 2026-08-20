@@ -6,10 +6,12 @@ using Oficina.Application;
 using Oficina.Application.Common;
 using Oficina.Infrastructure;
 using Oficina.Infrastructure.Persistence;
+using Oficina.Api.Configuration;
 
+DotEnvLoader.LoadFromProjectRoot();
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddInfrastructure(builder.Configuration.GetConnectionString("Database"));
+builder.Services.AddInfrastructure(builder.Configuration.GetConnectionString("Database"), builder.Configuration);
 builder.Services.AddControllers();
 builder.Services.AddApplication();
 builder.Services.AddHealthChecks();
