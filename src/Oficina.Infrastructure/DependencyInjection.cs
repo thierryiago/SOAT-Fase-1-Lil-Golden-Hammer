@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Oficina.Application.Customers;
 using Oficina.Application.Mechanics;
+using Oficina.Application.Notifications;
 using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
@@ -9,6 +11,7 @@ using Oficina.Application.Services;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
 using Oficina.Infrastructure.Persistence;
+using Oficina.Infrastructure.Notifications;
 
 namespace Oficina.Infrastructure;
 
@@ -16,7 +19,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        string? connectionString)
+        string? connectionString,
+        IConfiguration configuration)
     {
         services.AddDbContext<AppDbContext>(options =>
         {
@@ -31,6 +35,8 @@ public static class DependencyInjection
         services.AddScoped<IMechanicRepository, MechanicRepository>();
         services.AddScoped<IServiceOrderHistoryRepository, ServiceOrderHistoryRepository>();
         services.AddScoped<ServiceOrderHistoryService>();
+        services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+        services.AddScoped<INotificationEmailSender, SmtpNotificationEmailSender>();
         return services;
     }
 }
