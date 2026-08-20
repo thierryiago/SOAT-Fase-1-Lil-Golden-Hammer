@@ -5,6 +5,7 @@ namespace Oficina.Application.Services;
 public interface IWorkshopServiceRepository
 {
     Task<IReadOnlyCollection<WorkshopService>> ListAsync(CancellationToken cancellationToken);
+    Task<List<WorkshopService>> GetAllById(List<Guid> ids, CancellationToken cancellationToken);
     Task<WorkshopService?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<WorkshopService?> GetByNameAsync(string name, CancellationToken cancellationToken);
     Task AddAsync(WorkshopService service, CancellationToken cancellationToken);
