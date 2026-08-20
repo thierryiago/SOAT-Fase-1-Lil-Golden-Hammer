@@ -13,4 +13,6 @@ public interface IServiceOrderRepository
         IReadOnlyCollection<ServiceOrderPart> newParts,
         IReadOnlyCollection<ServiceOrderWorkshop> newWorkshopServices,
         CancellationToken cancellationToken);
+    Task<List<ServiceOrder>> ListSchedulesAsync(CancellationToken cancellationToken);
+    Task<List<ServiceOrder>> ListSchedulesByDateAsync(DateTimeOffset date, CancellationToken cancellationToken);
 }
