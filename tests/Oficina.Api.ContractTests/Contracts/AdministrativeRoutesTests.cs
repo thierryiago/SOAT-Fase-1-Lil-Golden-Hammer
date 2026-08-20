@@ -1,5 +1,5 @@
-using System.Net;
 using Oficina.Api.ContractTests.Infrastructure;
+using System.Net;
 
 namespace Oficina.Api.ContractTests.Contracts;
 

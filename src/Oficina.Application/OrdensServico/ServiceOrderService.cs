@@ -1,4 +1,5 @@
 using Oficina.Application.Customers;
+using Oficina.Application.OrdensServico;
 using Oficina.Application.Parts;
 using Oficina.Application.Services;
 using Oficina.Domain.OrderService;
@@ -173,6 +174,41 @@ public sealed class ServiceOrderService
         return (workshopServices, newWorkshopServices);
     }
 
+    public async Task<List<ServiceOrderSchedulesDto>> ListSchedulesAsync()
+    {
+        var serviceOrders = await _serviceOrderRepository.ListSchedulesAsync(CancellationToken.None);
+        if (serviceOrders.Count != 0)
+        {
+            var scheduleList = serviceOrders.Select(so => new ServiceOrderSchedulesDto
+            {
+                OrderServiceId = so.Id,
+                ScheduleDate = TimeZoneInfo.ConvertTimeFromUtc(so.ScheduledAt.DateTime, TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time"))
+            }).ToList();
+
+            return scheduleList;
+        }
+
+        return [];
+    }
+
+    public async Task<List<ServiceOrderSchedulesDto>> ListSchedulesByDateAsync(DateTime date)
+    {
+        var serviceOrders = await _serviceOrderRepository.ListSchedulesByDateAsync(date, CancellationToken.None);
+        if (serviceOrders.Count != 0)
+        {
+
+            var scheduleList = serviceOrders.Select(so => new ServiceOrderSchedulesDto
+            {
+                OrderServiceId = so.Id,
+                ScheduleDate = TimeZoneInfo.ConvertTimeFromUtc(so.ScheduledAt.DateTime, TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time"))
+            }).ToList();
+
+            return scheduleList;
+        }
+
+        return [];
+    }
+
     private static ServiceOrderListItemResponse MapListItem(ServiceOrder order) =>
         new(order.Id, order.CustomerId, order.VehicleId, order.MechanicId, order.Description,
             order.Status, order.CreatedAt, order.TotalParts);
@@ -190,5 +226,4 @@ public sealed class ServiceOrderService
             order.TotalParts,
             order.Parts.Select(part => new ServiceOrderPartResponse(part.Id, part.PartId, part.QuantityUsed)).ToList(),
             order.WorkshopServices.Select(service => new ServiceOrderWorkshopResponse(service.Id, service.WorkshopServiceId)).ToList());
-
 }
