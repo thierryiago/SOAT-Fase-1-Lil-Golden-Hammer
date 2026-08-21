@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Oficina.Infrastructure.Persistence;
+using Oficina.Application.Notifications;
 
 namespace Oficina.Api.ContractTests.Infrastructure;
 
@@ -33,6 +34,14 @@ public sealed class OficinaApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<AppDbContext>();
             services.AddDbContext<AppDbContext>(options =>
                 options.UseInMemoryDatabase($"oficina-contracts-{Guid.NewGuid()}"));
+            services.RemoveAll<INotificationEmailSender>();
+            services.AddScoped<INotificationEmailSender, FakeNotificationEmailSender>();
         });
+    }
+
+    private sealed class FakeNotificationEmailSender : INotificationEmailSender
+    {
+        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 }

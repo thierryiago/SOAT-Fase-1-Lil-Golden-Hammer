@@ -25,6 +25,14 @@
 
 GET {{baseUrl}}/health
 
+### Notifications - Send simple email
+POST {{baseUrl}}/api/v1/notifications/email
+Content-Type: application/json
+
+{
+  "email": "cliente@example.com"
+}
+
 ### Issue technical JWT (no user or login)
 # @name issueToken
 POST {{baseUrl}}/api/v1/auth/token

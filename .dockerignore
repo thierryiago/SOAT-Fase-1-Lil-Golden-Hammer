@@ -3,6 +3,7 @@
 .git/
 .vs/
 .vscode/
+.env
 Dockerfile
 docker-compose.yml
 README.md
