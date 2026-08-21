@@ -72,6 +72,7 @@ public sealed class ServiceOrderContractTests
     private sealed class FakePartRepository : IPartRepository
     {
         public Task<List<Part>> ListAsync(CancellationToken cancellationToken) => Task.FromResult(new List<Part>());
+        public Task<List<Part>> GetAllById(List<Guid> ids, CancellationToken cancellationToken) => Task.FromResult(new List<Part>());
         public Task<Part?> GetByIdAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<Part?>(null);
         public Task<Part?> GetByCodeAsync(string code, CancellationToken cancellationToken) => Task.FromResult<Part?>(null);
         public Task AddAsync(Part part, CancellationToken cancellationToken) => Task.CompletedTask;
@@ -81,6 +82,7 @@ public sealed class ServiceOrderContractTests
     private sealed class FakeWorkshopServiceRepository : IWorkshopServiceRepository
     {
         public Task<IReadOnlyCollection<WorkshopService>> ListAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<WorkshopService>>([]);
+        public Task<List<WorkshopService>> GetAllById(List<Guid> ids, CancellationToken cancellationToken) => Task.FromResult(new List<WorkshopService>());
         public Task<WorkshopService?> GetByIdAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<WorkshopService?>(null);
         public Task<WorkshopService?> GetByNameAsync(string name, CancellationToken cancellationToken) => Task.FromResult<WorkshopService?>(null);
         public Task AddAsync(WorkshopService service, CancellationToken cancellationToken) => Task.CompletedTask;

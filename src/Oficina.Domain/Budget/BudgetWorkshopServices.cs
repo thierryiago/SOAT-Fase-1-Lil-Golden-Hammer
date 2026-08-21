@@ -1,4 +1,4 @@
-using Oficina.Domain.Services;
+using Oficina.Domain.WorkshopServices;
 
 namespace Oficina.Domain.Budget;
 

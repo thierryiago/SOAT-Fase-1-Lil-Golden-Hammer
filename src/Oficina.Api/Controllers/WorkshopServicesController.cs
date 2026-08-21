@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Common;
 using Oficina.Application.WorkshopServices;
@@ -5,6 +6,7 @@ using Oficina.Application.WorkshopServices;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/v1/workshop-services")]
 public sealed class WorkshopServicesController : ControllerBase
 {
