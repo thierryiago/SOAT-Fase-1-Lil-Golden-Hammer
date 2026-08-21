@@ -9,32 +9,63 @@ public sealed class MetricsService(IWorkshopServiceExecutionTimeRepository execu
     public async Task<IReadOnlyCollection<WorkshopServiceExecutionTimeResponse>>
         GetWorkshopServiceExecutionTimesAsync(CancellationToken cancellationToken)
     {
-        var services = await _executionTimes.ListAsync(cancellationToken);
+        var data = await _executionTimes.GetAsync(cancellationToken);
+        var averageTimes = CalculateAverageTimeMinutes(data.ServiceOrders);
 
-        return services
+        return data.WorkshopServices
             .Select(service => new WorkshopServiceExecutionTimeResponse(
                 service.WorkshopServiceId,
                 service.WorkshopServiceName,
                 service.WorkshopEstimatedDurationMinutes,
-                CalculateAverageTimeMinutes(service.Histories)))
+                averageTimes.GetValueOrDefault(service.WorkshopServiceId)))
             .ToList();
     }
 
-    private static decimal? CalculateAverageTimeMinutes(
-        IReadOnlyCollection<ServiceOrderStatusHistoryData> histories)
+    private static IReadOnlyDictionary<Guid, decimal?> CalculateAverageTimeMinutes(
+        IReadOnlyCollection<ServiceOrderExecutionTimeData> serviceOrders)
     {
-        var durations = histories
-            .GroupBy(history => history.ServiceOrderId)
-            .Select(CalculateExecutionTimeMinutes)
-            .Where(duration => duration.HasValue)
-            .Select(duration => duration!.Value)
+        return serviceOrders
+            .SelectMany(CalculateAllocatedExecutionTimes)
+            .GroupBy(executionTime => executionTime.WorkshopServiceId)
+            .ToDictionary(
+                group => group.Key,
+                group => (decimal?)group.Average(executionTime => executionTime.DurationMinutes));
+    }
+
+    private static IReadOnlyCollection<AllocatedExecutionTime> CalculateAllocatedExecutionTimes(
+        ServiceOrderExecutionTimeData serviceOrder)
+    {
+        var executionTimeMinutes = CalculateExecutionTimeMinutes(serviceOrder.Histories);
+        if (!executionTimeMinutes.HasValue)
+        {
+            return [];
+        }
+
+        var estimatedMinutesByWorkshopService = serviceOrder.WorkshopServices
+            .GroupBy(service => service.WorkshopServiceId)
+            .Select(group => new
+            {
+                WorkshopServiceId = group.Key,
+                EstimatedDurationMinutes = group.Sum(service => service.EstimatedDurationMinutes)
+            })
             .ToList();
 
-        return durations.Count == 0 ? null : durations.Average();
+        var totalEstimatedDurationMinutes = estimatedMinutesByWorkshopService
+            .Sum(service => service.EstimatedDurationMinutes);
+        if (totalEstimatedDurationMinutes <= 0)
+        {
+            return [];
+        }
+
+        return estimatedMinutesByWorkshopService
+            .Select(service => new AllocatedExecutionTime(
+                service.WorkshopServiceId,
+                executionTimeMinutes.Value * service.EstimatedDurationMinutes / totalEstimatedDurationMinutes))
+            .ToList();
     }
 
     private static decimal? CalculateExecutionTimeMinutes(
-        IGrouping<Guid, ServiceOrderStatusHistoryData> histories)
+        IReadOnlyCollection<ServiceOrderStatusHistoryData> histories)
     {
         var finalized = histories
             .Where(history => history.StatusName == nameof(ServiceOrderStatus.Finalized))
@@ -61,4 +92,6 @@ public sealed class MetricsService(IWorkshopServiceExecutionTimeRepository execu
         var duration = finalized.CreatedDate - inExecution.CreatedDate;
         return duration < TimeSpan.Zero ? null : (decimal)duration.TotalMinutes;
     }
+
+    private sealed record AllocatedExecutionTime(Guid WorkshopServiceId, decimal DurationMinutes);
 }

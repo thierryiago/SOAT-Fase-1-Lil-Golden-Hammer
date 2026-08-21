@@ -9,7 +9,7 @@ public sealed class WorkshopServiceExecutionTimeRepository(AppDbContext appDbCon
 {
     private readonly AppDbContext _appDbContext = appDbContext;
 
-    public async Task<IReadOnlyCollection<WorkshopServiceExecutionTimeData>> ListAsync(
+    public async Task<WorkshopServiceExecutionTimesData> GetAsync(
         CancellationToken cancellationToken)
     {
         var services = await _appDbContext.WorkshopServices
@@ -23,37 +23,64 @@ public sealed class WorkshopServiceExecutionTimeRepository(AppDbContext appDbCon
             })
             .ToListAsync(cancellationToken);
 
-        var histories = await (
+        var finalizedServiceOrderIds = await _appDbContext.ServiceOrders
+            .AsNoTracking()
+            .Where(serviceOrder => serviceOrder.Status == ServiceOrderStatus.Finalized)
+            .Select(serviceOrder => serviceOrder.Id)
+            .ToListAsync(cancellationToken);
+
+        var workshopServicesByServiceOrder = await (
                 from serviceOrderWorkshop in _appDbContext.ServiceOrderWorkshops.AsNoTracking()
-                join serviceOrder in _appDbContext.ServiceOrders.AsNoTracking()
-                    on serviceOrderWorkshop.ServiceOrderId equals serviceOrder.Id
-                join history in _appDbContext.ServiceOrderHistories.AsNoTracking()
-                    on serviceOrder.Id equals history.OrderServiceId
-                where serviceOrder.Status == ServiceOrderStatus.Finalized &&
-                      (history.StatusName == nameof(ServiceOrderStatus.InExecution) ||
-                       history.StatusName == nameof(ServiceOrderStatus.Finalized))
+                join workshopService in _appDbContext.WorkshopServices.AsNoTracking()
+                    on serviceOrderWorkshop.WorkshopServiceId equals workshopService.Id
+                where finalizedServiceOrderIds.Contains(serviceOrderWorkshop.ServiceOrderId)
                 select new
                 {
+                    serviceOrderWorkshop.ServiceOrderId,
                     serviceOrderWorkshop.WorkshopServiceId,
-                    history.OrderServiceId,
-                    history.StatusName,
-                    history.CreatedDate
+                    workshopService.EstimatedDurationMinutes
                 })
             .ToListAsync(cancellationToken);
 
-        var historiesByWorkshopService = histories.ToLookup(history => history.WorkshopServiceId);
+        var histories = await _appDbContext.ServiceOrderHistories
+            .AsNoTracking()
+            .Where(history =>
+                finalizedServiceOrderIds.Contains(history.OrderServiceId) &&
+                (history.StatusName == nameof(ServiceOrderStatus.InExecution) ||
+                 history.StatusName == nameof(ServiceOrderStatus.Finalized)))
+            .Select(history => new
+            {
+                history.OrderServiceId,
+                history.StatusName,
+                history.CreatedDate
+            })
+            .ToListAsync(cancellationToken);
 
-        return services
-            .Select(service => new WorkshopServiceExecutionTimeData(
-                service.Id,
-                service.Name,
-                service.EstimatedDurationMinutes,
-                historiesByWorkshopService[service.Id]
+        var workshopServicesLookup = workshopServicesByServiceOrder
+            .ToLookup(service => service.ServiceOrderId);
+        var historiesLookup = histories.ToLookup(history => history.OrderServiceId);
+
+        return new WorkshopServiceExecutionTimesData(
+            services
+                .Select(service => new WorkshopServiceExecutionTimeData(
+                    service.Id,
+                    service.Name,
+                    service.EstimatedDurationMinutes))
+                .ToList(),
+            finalizedServiceOrderIds
+                .Select(serviceOrderId => new ServiceOrderExecutionTimeData(
+                    serviceOrderId,
+                    workshopServicesLookup[serviceOrderId]
+                        .Select(service => new ServiceOrderWorkshopServiceData(
+                            service.WorkshopServiceId,
+                            service.EstimatedDurationMinutes))
+                        .ToList(),
+                    historiesLookup[serviceOrderId]
                     .Select(history => new ServiceOrderStatusHistoryData(
                         history.OrderServiceId,
                         history.StatusName,
                         history.CreatedDate))
                     .ToList()))
-            .ToList();
+                .ToList());
     }
 }
