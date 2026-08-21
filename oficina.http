@@ -1,4 +1,4 @@
-@baseUrl = https://localhost:5001
+@baseUrl = http://localhost:8080
 
 # Oficina API - requests executaveis
 #
@@ -25,9 +25,22 @@
 
 GET {{baseUrl}}/health
 
+### Notifications - Send simple email
+POST {{baseUrl}}/api/v1/notifications/email
+Content-Type: application/json
+
+{
+  "email": "cliente@example.com"
+}
+
+### Issue technical JWT (no user or login)
+# @name issueToken
+POST {{baseUrl}}/api/v1/auth/token
+
 ### Customers 1/5 - Create customer
 # @name createCustomer
 POST {{baseUrl}}/api/v1/customers
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -38,12 +51,15 @@ Content-Type: application/json
 }
 ### Customers 2/5 - List customers
 GET {{baseUrl}}/api/v1/customers?search=Maria&page=1&pageSize=20
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Customers 3/5 - Get customer by ID
 GET {{baseUrl}}/api/v1/customers/{{createCustomer.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Customers 4/5 - Update customer
 PUT {{baseUrl}}/api/v1/customers/{{createCustomer.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -56,6 +72,7 @@ Content-Type: application/json
 ### Vehicles 1/6 - Create vehicle
 # @name createVehicle
 POST {{baseUrl}}/api/v1/vehicles
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -70,6 +87,7 @@ Content-Type: application/json
 ### Vehicles 2/6 - Identify customer and register another vehicle
 # @name identifyCustomerAndRegisterVehicle
 POST {{baseUrl}}/api/v1/vehicles/identify-customer-and-register
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -83,12 +101,15 @@ Content-Type: application/json
 
 ### Vehicles 3/6 - List vehicles filtered by customer
 GET {{baseUrl}}/api/v1/vehicles?page=1&pageSize=20&customerId={{createCustomer.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Vehicles 4/6 - Get vehicle by ID
 GET {{baseUrl}}/api/v1/vehicles/{{createVehicle.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Vehicles 5/6 - Update vehicle
 PUT {{baseUrl}}/api/v1/vehicles/{{createVehicle.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -102,6 +123,7 @@ Content-Type: application/json
 ### Mechanics 1/5 - Create mechanic
 # @name createMechanic
 POST {{baseUrl}}/api/v1/mechanics
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -110,12 +132,15 @@ Content-Type: application/json
 
 ### Mechanics 2/5 - List mechanics
 GET {{baseUrl}}/api/v1/mechanics?search=Carlos&page=1&pageSize=20
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Mechanics 3/5 - Get mechanic by ID
 GET {{baseUrl}}/api/v1/mechanics/{{createMechanic.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Mechanics 4/5 - Update mechanic
 PUT {{baseUrl}}/api/v1/mechanics/{{createMechanic.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -125,6 +150,7 @@ Content-Type: application/json
 ### Services 1/5 - Create workshop service
 # @name createService
 POST {{baseUrl}}/api/v1/workshop-services
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -135,16 +161,13 @@ Content-Type: application/json
 }
 
 ### Services 2/5 - List workshop services
-GET {{baseUrl}}/api/v1/workshop-services?search=Troca&page=1&pageSize=20
-
-### Metrics - List average execution time by workshop service
-GET {{baseUrl}}/api/v1/metrics/workshop-service/execution-time
+GET {{baseUrl}}/api/v1/services?search=Troca&page=1&pageSize=20
 
 ### Services 3/5 - Get workshop service by ID
-GET {{baseUrl}}/api/v1/workshop-services/{{createService.response.body.$.id}}
+GET {{baseUrl}}/api/v1/services/{{createService.response.body.$.id}}
 
 ### Services 4/5 - Update workshop service
-PUT {{baseUrl}}/api/v1/workshop-services/{{createService.response.body.$.id}}
+PUT {{baseUrl}}/api/v1/services/{{createService.response.body.$.id}}
 Content-Type: application/json
 
 {
@@ -157,6 +180,7 @@ Content-Type: application/json
 ### Parts 1/6 - Create part (also creates its stock with quantity zero)
 # @name createPart
 POST {{baseUrl}}/api/v1/parts
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -168,12 +192,15 @@ Content-Type: application/json
 
 ### Parts 2/6 - List parts
 GET {{baseUrl}}/api/v1/parts?search=Filtro&page=1&pageSize=20
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Parts 3/6 - Get part by ID
 GET {{baseUrl}}/api/v1/parts/{{createPart.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Parts 4/6 - Update part
 PUT {{baseUrl}}/api/v1/parts/{{createPart.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -186,10 +213,12 @@ Content-Type: application/json
 ### Stocks 1/5 - List stocks
 # @name listStocks
 GET {{baseUrl}}/api/v1/stocks?page=1&pageSize=100
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Stocks 2/5 - Add stock entry and capture the stock ID
 # @name enterStock
 PUT {{baseUrl}}/api/v1/stocks/{{createPart.response.body.$.id}}/entries
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -198,9 +227,11 @@ Content-Type: application/json
 
 ### Stocks 3/5 - Get stock by ID
 GET {{baseUrl}}/api/v1/stocks/{{enterStock.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Stocks 4/5 - Consume stock after a positive balance exists
 PUT {{baseUrl}}/api/v1/stocks/{{createPart.response.body.$.id}}/consumptions
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -209,6 +240,7 @@ Content-Type: application/json
 
 ### Stocks 5/5 - Set the absolute stock quantity
 PUT {{baseUrl}}/api/v1/stocks/{{createPart.response.body.$.id}}/adjustments
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -218,6 +250,7 @@ Content-Type: application/json
 ### Service orders 1/4 - Open service order
 # @name openServiceOrder
 POST {{baseUrl}}/api/v1/service-orders
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -227,6 +260,7 @@ Content-Type: application/json
 
 ### Service orders 2/4 - Update service order and add a part
 PUT {{baseUrl}}/api/v1/service-orders
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -247,15 +281,19 @@ Content-Type: application/json
 
 ### Service orders 3/4 - List service orders
 GET {{baseUrl}}/api/v1/service-orders
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Service orders 4/4 - Get service order by ID
 GET {{baseUrl}}/api/v1/service-orders/{{openServiceOrder.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Service order history 1/2 - List all history
 GET {{baseUrl}}/api/v1/service-order-history
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Service order history 2/2 - List history for the created order
 GET {{baseUrl}}/api/v1/service-order-history/service-order/{{openServiceOrder.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ###############################################################################
 # Limpeza opcional
@@ -270,15 +308,19 @@ GET {{baseUrl}}/api/v1/service-order-history/service-order/{{openServiceOrder.re
 
 ### Vehicles 6/6 - Delete vehicle created by identify/register
 DELETE {{baseUrl}}/api/v1/vehicles/{{identifyCustomerAndRegisterVehicle.response.body.$.vehicle.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Services 5/5 - Delete workshop service
-DELETE {{baseUrl}}/api/v1/workshop-services/{{createService.response.body.$.id}}
+DELETE {{baseUrl}}/api/v1/services/{{createService.response.body.$.id}}
 
 ### Mechanics 5/5 - Delete mechanic
 DELETE {{baseUrl}}/api/v1/mechanics/{{createMechanic.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Parts 6/6 - Delete part (pode falhar se a ordem ainda a referenciar)
 DELETE {{baseUrl}}/api/v1/parts/{{createPart.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Customers 5/5 - Delete customer (pode falhar se a ordem ainda o referenciar)
 DELETE {{baseUrl}}/api/v1/customers/{{createCustomer.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}

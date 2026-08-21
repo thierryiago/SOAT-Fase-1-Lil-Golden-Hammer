@@ -1,4 +1,10 @@
 services:
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
   db:
     image: postgres:16-alpine
     environment:
@@ -22,9 +28,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Database: Host=db;Port=5432;Database=oficina;Username=oficina;Password=oficina_dev_password
+      Smtp__Host: mailpit
+      Smtp__Port: 1025
+      Smtp__From: noreply@oficina.local
+      Smtp__EnableSsl: "false"
     ports:
       - "8080:8080"    
     healthcheck:

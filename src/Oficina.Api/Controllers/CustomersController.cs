@@ -5,6 +5,7 @@ using Oficina.Application.Customers;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
+[Microsoft.AspNetCore.Authorization.Authorize]
 [Route("api/v1/customers")]
 public sealed class CustomersController : ControllerBase
 {

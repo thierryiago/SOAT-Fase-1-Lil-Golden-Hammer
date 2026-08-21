@@ -1,17 +1,51 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Oficina.Api.Authentication;
+using Oficina.Api.OpenApi;
 using Oficina.Application;
 using Oficina.Application.Common;
 using Oficina.Infrastructure;
 using Oficina.Infrastructure.Persistence;
+using Oficina.Api.Configuration;
 
+DotEnvLoader.LoadFromProjectRoot();
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddInfrastructure(builder.Configuration.GetConnectionString("Database"));
+builder.Services.AddInfrastructure(builder.Configuration.GetConnectionString("Database"), builder.Configuration);
 builder.Services.AddControllers();
 builder.Services.AddApplication();
+builder.Services.AddSingleton<IValidateOptions<JwtOptions>, JwtOptionsValidator>();
+builder.Services.AddOptions<JwtOptions>()
+    .BindConfiguration(JwtOptions.SectionName)
+    .ValidateOnStart();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<IAccessTokenGenerator, JwtAccessTokenGenerator>();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+builder.Services
+    .AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IOptions<JwtOptions>>((options, configuredOptions) =>
+    {
+        var jwtOptions = configuredOptions.Value;
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30)
+        };
+    });
+builder.Services.AddAuthorization();
 builder.Services.AddHealthChecks();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -22,6 +56,14 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "MVP RESTful para gestao de clientes, pecas e ordens de servico."
     });
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Informe somente o access token JWT."
+    });
+    options.OperationFilter<BearerSecurityOperationFilter>();
     options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, "Oficina.Api.xml"));
 });
 var app = builder.Build();
@@ -60,6 +102,8 @@ app.UseSwaggerUI(options =>
 });
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapHealthChecks("/health", new HealthCheckOptions { AllowCachingResponses = false });
 app.MapControllers();
 

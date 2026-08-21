@@ -5,6 +5,7 @@ using Oficina.Application.Mechanics;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
+[Microsoft.AspNetCore.Authorization.Authorize]
 [Route("api/v1/mechanics")]
 public sealed class MechanicsController : ControllerBase
 {

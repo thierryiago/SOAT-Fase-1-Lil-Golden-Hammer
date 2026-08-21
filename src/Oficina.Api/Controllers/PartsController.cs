@@ -5,6 +5,7 @@ using Oficina.Application.Parts;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
+[Microsoft.AspNetCore.Authorization.Authorize]
 [Route("api/v1/parts")]
 public sealed class PartsController : ControllerBase
 {

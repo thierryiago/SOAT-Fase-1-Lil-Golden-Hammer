@@ -22,6 +22,81 @@ namespace Oficina.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Oficina.Domain.Budget.Budget", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool?>("IsApproved")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ServiceOrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("TotalValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("ServiceOrderId");
+
+                    b.ToTable("Budgets");
+                });
+
+            modelBuilder.Entity("Oficina.Domain.Budget.BudgetParts", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BudgetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PartId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BudgetId");
+
+                    b.HasIndex("PartId");
+
+                    b.ToTable("BudgetParts");
+                });
+
+            modelBuilder.Entity("Oficina.Domain.Budget.BudgetWorkshopServices", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BudgetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("WorkshopServiceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BudgetId");
+
+                    b.HasIndex("WorkshopServiceId");
+
+                    b.ToTable("BudgetWorkshopServices");
+                });
+
             modelBuilder.Entity("Oficina.Domain.Customers.Customer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -248,6 +323,9 @@ namespace Oficina.Infrastructure.Migrations
                     b.Property<Guid?>("MechanicId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset>("ScheduledAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Status")
                         .HasColumnType("text");
 
@@ -298,7 +376,7 @@ namespace Oficina.Infrastructure.Migrations
                     b.ToTable("WorkshopServices");
                 });
 
-            modelBuilder.Entity("Oficina.Domain.Stock.StockParts", b =>
+            modelBuilder.Entity("Oficina.Domain.Stock.StockPart", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -318,6 +396,59 @@ namespace Oficina.Infrastructure.Migrations
                     b.HasIndex("PartId");
 
                     b.ToTable("StockParts");
+                });
+
+            modelBuilder.Entity("Oficina.Domain.Budget.Budget", b =>
+                {
+                    b.HasOne("Oficina.Domain.Customers.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Oficina.Domain.ServiceOrders.ServiceOrder", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Oficina.Domain.Budget.BudgetParts", b =>
+                {
+                    b.HasOne("Oficina.Domain.Budget.Budget", "Budget")
+                        .WithMany("Parts")
+                        .HasForeignKey("BudgetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Oficina.Domain.Parts.Part", "Part")
+                        .WithMany()
+                        .HasForeignKey("PartId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Budget");
+
+                    b.Navigation("Part");
+                });
+
+            modelBuilder.Entity("Oficina.Domain.Budget.BudgetWorkshopServices", b =>
+                {
+                    b.HasOne("Oficina.Domain.Budget.Budget", "Budget")
+                        .WithMany("WorkshopServices")
+                        .HasForeignKey("BudgetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Oficina.Domain.Services.WorkshopService", "WorkshopService")
+                        .WithMany()
+                        .HasForeignKey("WorkshopServiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Budget");
+
+                    b.Navigation("WorkshopService");
                 });
 
             modelBuilder.Entity("Oficina.Domain.Customers.Vehicle", b =>
@@ -405,7 +536,7 @@ namespace Oficina.Infrastructure.Migrations
                     b.Navigation("Vehicle");
                 });
 
-            modelBuilder.Entity("Oficina.Domain.Stock.StockParts", b =>
+            modelBuilder.Entity("Oficina.Domain.Stock.StockPart", b =>
                 {
                     b.HasOne("Oficina.Domain.Parts.Part", "Part")
                         .WithMany()
@@ -414,6 +545,13 @@ namespace Oficina.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Part");
+                });
+
+            modelBuilder.Entity("Oficina.Domain.Budget.Budget", b =>
+                {
+                    b.Navigation("Parts");
+
+                    b.Navigation("WorkshopServices");
                 });
 
             modelBuilder.Entity("Oficina.Domain.Customers.Customer", b =>

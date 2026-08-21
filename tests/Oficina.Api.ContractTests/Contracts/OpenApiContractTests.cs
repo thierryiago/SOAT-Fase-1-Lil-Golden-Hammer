@@ -1,5 +1,5 @@
-using System.Text.Json;
 using Oficina.Api.ContractTests.Infrastructure;
+using System.Text.Json;
 
 namespace Oficina.Api.ContractTests.Contracts;
 
