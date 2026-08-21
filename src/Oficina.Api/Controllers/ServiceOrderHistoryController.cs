@@ -4,6 +4,7 @@ using Oficina.Application.OrderServiceHistory;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
+[Microsoft.AspNetCore.Authorization.Authorize]
 [Route("api/v1/service-order-history")]
 public sealed class ServiceOrderHistoryController : ControllerBase
 {

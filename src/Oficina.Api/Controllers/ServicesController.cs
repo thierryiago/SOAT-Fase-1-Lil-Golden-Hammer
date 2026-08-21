@@ -6,6 +6,7 @@ using Oficina.Application.Servicos;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
+[Microsoft.AspNetCore.Authorization.Authorize]
 [Route("api/v1/services")]
 public sealed class ServicesController : ControllerBase
 {

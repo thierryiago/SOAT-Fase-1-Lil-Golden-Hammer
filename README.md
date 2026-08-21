@@ -22,7 +22,34 @@ MVP de back-end em .NET 10 para gestao de clientes, pecas e ordens de servico, o
 - `/api/v1/service-order-history`
 - `POST /api/v1/notifications/email`
 - `GET /health`
+- `POST /api/v1/auth/token`
 - `GET /swagger`
+
+## JWT administrativo
+
+As rotas `/api/v1/*` são administrativas e exigem um JWT Bearer, com exceção de
+`POST /api/v1/auth/token`. Nesta fase, esse endpoint emite um token técnico sem
+usuário, senha, roles ou login.
+
+Para simplificar os testes locais, `appsettings.json` contém uma chave descartável de
+desenvolvimento. Portanto, basta iniciar a aplicação:
+
+```powershell
+docker compose up --build
+```
+
+Essa chave não deve ser reutilizada em homologação ou produção. Nesses ambientes,
+substitua-a por `Jwt__SigningKey` fornecida por variável de ambiente ou secret manager.
+
+Obtenha o token com `POST /api/v1/auth/token` e envie-o nas demais requisições:
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+No Swagger, use **Authorize** e informe somente o token. `GET /health` e o endpoint
+de emissão permanecem anônimos. Não adicione chaves ou tokens reais aos arquivos
+versionados.
 
 ## Docker
 
@@ -67,7 +94,7 @@ Abra `Oficina.sln` na raiz do repositorio. Defina `Oficina.Api` como projeto de 
 
 O arquivo [`oficina.http`](oficina.http) documenta e permite executar todos os endpoints publicados no Swagger com dados mockados. Ele usa `http://localhost:8080` como URL base e encadeia os IDs retornados pelas requests de criacao.
 
-Antes de usa-lo, inicie a API com `docker compose up --build` e confirme que `http://localhost:8080/health` responde. Em seguida, abra o arquivo no Visual Studio, no JetBrains Rider ou no VS Code com a extensao REST Client e execute o fluxo principal de cima para baixo. As requests de limpeza ficam isoladas no fim do arquivo e devem ser executadas individualmente somente depois das demais.
+Antes de usa-lo, inicie a API com `docker compose up --build` e confirme que `http://localhost:8080/health` responde. Em seguida, abra o arquivo no Visual Studio, no JetBrains Rider ou no VS Code com a extensao REST Client e execute o fluxo principal de cima para baixo. O arquivo emite o token técnico primeiro e o reutiliza nas requests administrativas. As requests de limpeza ficam isoladas no fim do arquivo e devem ser executadas individualmente somente depois das demais.
 
 Se uma execucao for interrompida, dados com documento, e-mail, placa ou codigo unicos podem permanecer no banco. Conclua a limpeza usando os IDs retornados, altere os valores mockados ou recrie o banco de desenvolvimento antes de repetir o fluxo completo.
 

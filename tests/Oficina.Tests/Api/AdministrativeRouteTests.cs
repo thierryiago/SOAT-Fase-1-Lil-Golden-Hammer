@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Oficina.Api.Controllers;
 
 namespace Oficina.Tests.Api;
@@ -14,7 +15,8 @@ public sealed class AdministrativeRouteTests
         { typeof(PartsController), "api/v1/parts" },
         { typeof(StocksController), "api/v1/stocks" },
         { typeof(ServiceOrdersController), "api/v1/service-orders" },
-        { typeof(ServiceOrderHistoryController), "api/v1/service-order-history" }
+        { typeof(ServiceOrderHistoryController), "api/v1/service-order-history" },
+        { typeof(ScheduleController), "api/v1/schedules" }
     };
 
     [Theory]
@@ -24,5 +26,13 @@ public sealed class AdministrativeRouteTests
         var route = Assert.Single(controllerType.GetCustomAttributes(typeof(RouteAttribute), true).Cast<RouteAttribute>());
 
         Assert.Equal(expectedTemplate, route.Template);
+    }
+
+    [Theory]
+    [MemberData(nameof(VersionedControllers))]
+    public void Administrative_controller_should_require_authorization(Type controllerType, string _)
+    {
+        Assert.NotEmpty(controllerType.GetCustomAttributes(typeof(AuthorizeAttribute), true));
+        Assert.Empty(controllerType.GetCustomAttributes(typeof(AllowAnonymousAttribute), true));
     }
 }

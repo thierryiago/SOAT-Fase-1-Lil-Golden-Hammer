@@ -47,3 +47,5 @@ appsettings.*.local.json
 Thumbs.db
 desktop.ini
 
+.hermes
+docs
