@@ -114,6 +114,9 @@ public sealed class StockServiceTests
         public Task<List<Part>> ListAsync(CancellationToken cancellationToken) =>
             Task.FromResult(_parts.Values.ToList());
 
+        public Task<List<Part>> GetAllById(List<Guid> ids, CancellationToken cancellationToken) =>
+            Task.FromResult(_parts.Values.Where(part => ids.Contains(part.Id)).ToList());
+
         public Task<Part?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
             Task.FromResult(_parts.GetValueOrDefault(id));
 

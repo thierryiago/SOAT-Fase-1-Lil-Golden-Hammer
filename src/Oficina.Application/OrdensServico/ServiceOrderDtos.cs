@@ -2,17 +2,18 @@ using Oficina.Domain.ServiceOrders;
 
 namespace Oficina.Application.ServiceOrders;
 
-public sealed record OpenServiceOrderRequest(Guid CustomerId, string Description);
+public sealed record OpenServiceOrderRequest(
+    Guid CustomerId,
+    Guid VehicleId,
+    string Description);
 
 public sealed record UpdateServiceOrderRequest(
     Guid ServiceOrderId,
-    Guid CustomerId,
-    Guid? MechanicId,
-    string? Description,
-    string? CheckList,
-    bool? ClientApproved,
-    IReadOnlyCollection<AddPartToServiceOrderRequest>? Parts,
-    IReadOnlyCollection<Guid>? WorkshopServiceIds);
+    Guid? MechanicId = null,
+    string? Description = null,
+    string? CheckList = null,
+    IReadOnlyCollection<AddPartToServiceOrderRequest>? Parts = null,
+    IReadOnlyCollection<Guid>? WorkshopServiceIds = null);
 
 public sealed record AddPartToServiceOrderRequest(Guid PartId, int Quantity);
 
