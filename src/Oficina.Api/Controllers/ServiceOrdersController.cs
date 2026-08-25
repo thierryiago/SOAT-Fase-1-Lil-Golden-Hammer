@@ -50,4 +50,40 @@ public sealed class ServiceOrdersController : ControllerBase
         return Ok(service);
     }
 
+    [HttpPost("{id:guid}/approve", Name = "ApproveServiceOrder")]
+    [ProducesResponseType(typeof(ServiceOrderDetailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Approve(Guid id, CancellationToken cancellationToken)
+    {
+        var service = await _serviceOrders.ApproveAsync(id, cancellationToken);
+        return Ok(service);
+    }
+
+    [HttpPost("{id:guid}/cancel", Name = "CancelServiceOrder")]
+    [ProducesResponseType(typeof(ServiceOrderDetailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Cancel(Guid id, CancellationToken cancellationToken)
+    {
+        var service = await _serviceOrders.CancelAsync(id, cancellationToken);
+        return Ok(service);
+    }
+
+    [HttpPost("{id:guid}/finalize", Name = "FinalizeServiceOrder")]
+    [ProducesResponseType(typeof(ServiceOrderDetailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Finalize(Guid id, CancellationToken cancellationToken)
+    {
+        var service = await _serviceOrders.FinalizeAsync(id, cancellationToken);
+        return Ok(service);
+    }
+
+    [HttpPost("{id:guid}/deliver", Name = "DeliverServiceOrder")]
+    [ProducesResponseType(typeof(ServiceOrderDetailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Deliver(Guid id, CancellationToken cancellationToken)
+    {
+        var service = await _serviceOrders.DeliverAsync(id, cancellationToken);
+        return Ok(service);
+    }
+
 }

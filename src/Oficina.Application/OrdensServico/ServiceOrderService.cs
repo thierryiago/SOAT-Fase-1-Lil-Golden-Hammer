@@ -1,9 +1,15 @@
 using Oficina.Application.Customers;
+using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.OrdensServico;
 using Oficina.Application.Parts;
 using Oficina.Application.WorkshopServices;
+using Oficina.Application.Stocks;
+using Oficina.Application.Vehicles;
 using Oficina.Domain.OrderService;
+using Oficina.Domain.OrderServiceHistory;
+using Oficina.Domain.Parts;
 using Oficina.Domain.ServiceOrders;
+using Oficina.Domain.Stock;
 
 namespace Oficina.Application.ServiceOrders;
 
@@ -11,19 +17,28 @@ public sealed class ServiceOrderService
 {
     private readonly IServiceOrderRepository _serviceOrderRepository;
     private readonly ICustomerRepository _customerRepository;
+    private readonly IVehicleRepository _vehicleRepository;
     private readonly IPartRepository _parts;
     private readonly IWorkshopServiceRepository _workshopServices;
+    private readonly IStockRepository _stocks;
+    private readonly IServiceOrderHistoryRepository _history;
 
     public ServiceOrderService(
         IServiceOrderRepository serviceOrders,
         ICustomerRepository customers,
+        IVehicleRepository vehicles,
         IPartRepository parts,
-        IWorkshopServiceRepository workshopServices)
+        IWorkshopServiceRepository workshopServices,
+        IStockRepository stocks,
+        IServiceOrderHistoryRepository history)
     {
         _serviceOrderRepository = serviceOrders;
         _customerRepository = customers;
+        _vehicleRepository = vehicles;
         _parts = parts;
         _workshopServices = workshopServices;
+        _stocks = stocks;
+        _history = history;
     }
 
     public async Task<IReadOnlyCollection<ServiceOrderListItemResponse>> ListAsync(CancellationToken cancellationToken)
@@ -42,11 +57,13 @@ public sealed class ServiceOrderService
     {
         var customer = await _customerRepository.GetByIdAsync(request.CustomerId, cancellationToken);
         if (customer is null)
-        {
             throw new InvalidOperationException("Customer was not found.");
-        }
 
-        var serviceOrder = ServiceOrder.Open(request.CustomerId, request.Description);
+        var vehicle = await _vehicleRepository.GetByIdAsync(request.VehicleId, cancellationToken);
+        if (vehicle is null)
+            throw new InvalidOperationException("Vehicle was not found.");
+
+        var serviceOrder = ServiceOrder.Open(request.CustomerId, request.VehicleId, request.Description);
         await _serviceOrderRepository.AddAsync(serviceOrder, cancellationToken);
         return MapDetail(serviceOrder);
     }
@@ -58,8 +75,8 @@ public sealed class ServiceOrderService
         {
             throw new InvalidOperationException("Service Order was not found!");
         }
-
-        await CheckCustomerAsync(serviceOrder, request.CustomerId, cancellationToken);
+        var hasNewItems = HasNewItems(serviceOrder, request);
+        serviceOrder.ValidateUpdate(request.MechanicId, hasNewItems);
 
         IReadOnlyCollection<ServiceOrderPart>? parts = null;
         IReadOnlyCollection<ServiceOrderPart> newParts = Array.Empty<ServiceOrderPart>();
@@ -85,24 +102,160 @@ public sealed class ServiceOrderService
             parts,
             workshopServices);
 
+        var previousStatus = serviceOrder.Status;
+        serviceOrder.UpdateStatus();
+
         await _serviceOrderRepository.UpdateAsync(serviceOrder, newParts, newWorkshopServices, cancellationToken);
+        await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
         return MapDetail(serviceOrder);
     }
 
-    private async Task CheckCustomerAsync(
-        ServiceOrder serviceOrder,
-        Guid customerId,
-        CancellationToken cancellationToken)
+    private static bool HasNewItems(ServiceOrder serviceOrder, UpdateServiceOrderRequest request)
     {
-        var customer = await _customerRepository.GetByIdAsync(customerId, cancellationToken);
-        if (customer is null)
+        var hasNewParts = request.Parts?.Any(item =>
+            serviceOrder.Parts.All(existing => existing.PartId != item.PartId)) ?? false;
+
+        var hasNewWorkshopServices = request.WorkshopServiceIds?.Any(id =>
+            serviceOrder.WorkshopServices.All(existing => existing.WorkshopServiceId != id)) ?? false;
+
+        return hasNewParts || hasNewWorkshopServices;
+    }
+
+    public async Task<ServiceOrderDetailResponse> ApproveAsync(Guid serviceOrderId, CancellationToken cancellationToken)
+    {
+        var serviceOrder = await GetAwaitingApprovalServiceOrderAsync(serviceOrderId, cancellationToken);
+
+        var previousStatus = serviceOrder.Status;
+        serviceOrder.UpdateStatus(clientApproved: true);
+
+        await _serviceOrderRepository.UpdateAsync(
+            serviceOrder,
+            Array.Empty<ServiceOrderPart>(),
+            Array.Empty<ServiceOrderWorkshop>(),
+            cancellationToken);
+        await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
+
+        return MapDetail(serviceOrder);
+    }
+
+    public async Task<ServiceOrderDetailResponse> CancelAsync(Guid serviceOrderId, CancellationToken cancellationToken)
+    {
+        var serviceOrder = await GetAwaitingApprovalServiceOrderAsync(serviceOrderId, cancellationToken);
+
+        var previousStatus = serviceOrder.Status;
+        serviceOrder.UpdateStatus(clientApproved: false);
+
+        await ReturnPartsToStockAsync(serviceOrder.Parts, cancellationToken);
+
+        await _serviceOrderRepository.UpdateAsync(
+            serviceOrder,
+            Array.Empty<ServiceOrderPart>(),
+            Array.Empty<ServiceOrderWorkshop>(),
+            cancellationToken);
+        await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
+
+        return MapDetail(serviceOrder);
+    }
+
+    public async Task<ServiceOrderDetailResponse> FinalizeAsync(Guid serviceOrderId, CancellationToken cancellationToken)
+    {
+        var serviceOrder = await _serviceOrderRepository.GetByIdAsync(serviceOrderId, cancellationToken);
+        if (serviceOrder is null)
         {
-            throw new InvalidOperationException("Customer was not found!");
+            throw new InvalidOperationException("Service Order was not found!");
         }
 
-        if (customer.Id != serviceOrder.CustomerId)
+        if (serviceOrder.Status != ServiceOrderStatus.InExecution)
         {
-            throw new InvalidOperationException("The customer cannot be changed on the Service Order!");
+            throw new InvalidOperationException(
+                $"Invalid service order for this action. Current status: {serviceOrder.Status?.ToString() ?? "None"}.");
+        }
+
+        var previousStatus = serviceOrder.Status;
+        serviceOrder.UpdateStatus(finalized: true);
+
+        await _serviceOrderRepository.UpdateAsync(
+            serviceOrder,
+            Array.Empty<ServiceOrderPart>(),
+            Array.Empty<ServiceOrderWorkshop>(),
+            cancellationToken);
+        await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
+
+        return MapDetail(serviceOrder);
+    }
+
+    public async Task<ServiceOrderDetailResponse> DeliverAsync(Guid serviceOrderId, CancellationToken cancellationToken)
+    {
+        var serviceOrder = await _serviceOrderRepository.GetByIdAsync(serviceOrderId, cancellationToken);
+        if (serviceOrder is null)
+        {
+            throw new InvalidOperationException("Service Order was not found!");
+        }
+
+        if (serviceOrder.Status != ServiceOrderStatus.Finalized)
+        {
+            throw new InvalidOperationException(
+                $"Invalid service order for this action. Current status: {serviceOrder.Status?.ToString() ?? "None"}.");
+        }
+
+        var previousStatus = serviceOrder.Status;
+        serviceOrder.UpdateStatus(delivered: true);
+
+        await _serviceOrderRepository.UpdateAsync(
+            serviceOrder,
+            Array.Empty<ServiceOrderPart>(),
+            Array.Empty<ServiceOrderWorkshop>(),
+            cancellationToken);
+        await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
+
+        return MapDetail(serviceOrder);
+    }
+
+    private async Task RecordHistoryAsync(
+        ServiceOrder serviceOrder,
+        ServiceOrderStatus? previousStatus,
+        CancellationToken cancellationToken)
+    {
+        if (serviceOrder.Status == previousStatus)
+        {
+            return;
+        }
+
+        var history = ServiceOrderHistory.Create(serviceOrder.Id, serviceOrder.Status?.ToString());
+        await _history.AddAsync(history, cancellationToken);
+    }
+
+    private async Task<ServiceOrder> GetAwaitingApprovalServiceOrderAsync(Guid serviceOrderId, CancellationToken cancellationToken)
+    {
+        var serviceOrder = await _serviceOrderRepository.GetByIdAsync(serviceOrderId, cancellationToken);
+        if (serviceOrder is null)
+        {
+            throw new InvalidOperationException("Service Order was not found!");
+        }
+
+        if (serviceOrder.Status != ServiceOrderStatus.AwaitingApproval)
+        {
+            throw new InvalidOperationException(
+                $"Invalid service order for this action. Current status: {serviceOrder.Status?.ToString() ?? "None"}.");
+        }
+
+        return serviceOrder;
+    }
+
+    private async Task ReturnPartsToStockAsync(
+        IReadOnlyCollection<ServiceOrderPart> parts,
+        CancellationToken cancellationToken)
+    {
+        foreach (var part in parts)
+        {
+            var stock = await _stocks.GetByPartIdAsync(part.PartId, cancellationToken);
+            if (stock is null)
+            {
+                continue;
+            }
+
+            stock.AddQuantity(part.QuantityUsed);
+            await _stocks.UpdateAsync(stock, cancellationToken);
         }
     }
 
@@ -113,6 +266,7 @@ public sealed class ServiceOrderService
     {
         var parts = new List<ServiceOrderPart>();
         var newParts = new List<ServiceOrderPart>();
+        var touchedStocks = new Dictionary<Guid, StockPart>();
 
         foreach (var item in items)
         {
@@ -122,15 +276,28 @@ public sealed class ServiceOrderService
                 throw new InvalidOperationException($"Part '{item.PartId}' was not found.");
             }
 
+            var stock = await GetTouchedStockAsync(touchedStocks, part, cancellationToken);
+
             var serviceOrderPart = serviceOrder.Parts.FirstOrDefault(existing => existing.PartId == item.PartId);
             if (serviceOrderPart is null)
             {
+                ConsumeStock(stock, part, item.Quantity);
                 serviceOrderPart = ServiceOrderPart.Create(part.Id, serviceOrder.Id, item.Quantity);
                 serviceOrderPart.OrderService = serviceOrder;
                 newParts.Add(serviceOrderPart);
             }
             else
             {
+                var delta = item.Quantity - serviceOrderPart.QuantityUsed;
+                if (delta > 0)
+                {
+                    ConsumeStock(stock, part, delta);
+                }
+                else if (delta < 0)
+                {
+                    stock.AddQuantity(-delta);
+                }
+
                 serviceOrderPart.UpdateQuantity(item.Quantity);
             }
 
@@ -138,7 +305,43 @@ public sealed class ServiceOrderService
             parts.Add(serviceOrderPart);
         }
 
+        foreach (var stock in touchedStocks.Values)
+        {
+            await _stocks.UpdateAsync(stock, cancellationToken);
+        }
+
         return (parts, newParts);
+    }
+
+    private async Task<StockPart> GetTouchedStockAsync(
+        Dictionary<Guid, StockPart> touchedStocks,
+        Part part,
+        CancellationToken cancellationToken)
+    {
+        if (touchedStocks.TryGetValue(part.Id, out var stock))
+        {
+            return stock;
+        }
+
+        stock = await _stocks.GetByPartIdAsync(part.Id, cancellationToken);
+        if (stock is null)
+        {
+            throw new InvalidOperationException($"There is no stock registered for part '{part.Name}'.");
+        }
+
+        touchedStocks[part.Id] = stock;
+        return stock;
+    }
+
+    private static void ConsumeStock(StockPart stock, Part part, int quantity)
+    {
+        if (stock.Quantity < quantity)
+        {
+            throw new InvalidOperationException(
+                $"Insufficient stock for part '{part.Name}'. Available: {stock.Quantity}, requested: {quantity}.");
+        }
+
+        stock.RemoveQuantity(quantity);
     }
 
     private async Task<(IReadOnlyCollection<ServiceOrderWorkshop> All, IReadOnlyCollection<ServiceOrderWorkshop> New)> ResolveWorkshopServicesAsync(
