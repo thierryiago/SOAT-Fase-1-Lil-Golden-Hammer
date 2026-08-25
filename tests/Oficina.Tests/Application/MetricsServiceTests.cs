@@ -141,7 +141,7 @@ public sealed class MetricsServiceTests
 
     private sealed class FakeWorkshopServiceExecutionTimeRepository(
         WorkshopServiceExecutionTimesData data)
-        : IWorkshopServiceExecutionTimeRepository
+        : IMetricExecutionTimeRepository
     {
         public Task<WorkshopServiceExecutionTimesData> GetAsync(
             CancellationToken cancellationToken) => Task.FromResult(data);

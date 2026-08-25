@@ -1,6 +1,6 @@
 namespace Oficina.Application.Metrics;
 
-public interface IWorkshopServiceExecutionTimeRepository
+public interface IMetricExecutionTimeRepository
 {
     Task<WorkshopServiceExecutionTimesData> GetAsync(
         CancellationToken cancellationToken);

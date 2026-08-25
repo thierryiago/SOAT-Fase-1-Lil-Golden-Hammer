@@ -36,7 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IServiceOrderRepository, ServiceOrderRepository>();
         services.AddScoped<IMechanicRepository, MechanicRepository>();
         services.AddScoped<IServiceOrderHistoryRepository, ServiceOrderHistoryRepository>();
-        services.AddScoped<IWorkshopServiceExecutionTimeRepository, WorkshopServiceExecutionTimeRepository>();
+        services.AddScoped<IMetricExecutionTimeRepository, MetricExecutionTimeRepository>();
         services.AddScoped<ServiceOrderHistoryService>();
         services.AddScoped<IBudgetRepository, BudgetRepository>();
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));

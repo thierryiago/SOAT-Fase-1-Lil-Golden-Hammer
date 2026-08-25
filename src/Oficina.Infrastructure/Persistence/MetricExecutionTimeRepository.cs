@@ -4,8 +4,8 @@ using Oficina.Domain.ServiceOrders;
 
 namespace Oficina.Infrastructure.Persistence;
 
-public sealed class WorkshopServiceExecutionTimeRepository(AppDbContext appDbContext)
-    : IWorkshopServiceExecutionTimeRepository
+public sealed class MetricExecutionTimeRepository(AppDbContext appDbContext)
+    : IMetricExecutionTimeRepository
 {
     private readonly AppDbContext _appDbContext = appDbContext;
 

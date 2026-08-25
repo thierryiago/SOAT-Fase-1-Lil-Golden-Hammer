@@ -2,9 +2,9 @@ using Oficina.Domain.ServiceOrders;
 
 namespace Oficina.Application.Metrics;
 
-public sealed class MetricsService(IWorkshopServiceExecutionTimeRepository executionTimes)
+public sealed class MetricsService(IMetricExecutionTimeRepository executionTimes)
 {
-    private readonly IWorkshopServiceExecutionTimeRepository _executionTimes = executionTimes;
+    private readonly IMetricExecutionTimeRepository _executionTimes = executionTimes;
 
     public async Task<IReadOnlyCollection<WorkshopServiceExecutionTimeResponse>>
         GetWorkshopServiceExecutionTimesAsync(CancellationToken cancellationToken)
