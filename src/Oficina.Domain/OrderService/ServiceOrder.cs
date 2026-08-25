@@ -6,12 +6,14 @@ namespace Oficina.Domain.ServiceOrders;
 
 public sealed class ServiceOrder
 {
-    private ServiceOrder(Guid id, Guid customerId, string description)
+    private ServiceOrder(Guid id, Guid customerId, Guid? vehicleId,
+        string description)
     {
         Id = id;
         CustomerId = customerId;
+        VehicleId = vehicleId;
         Description = description;
-        Status = 0;
+        Status = null;
         CreatedAt = DateTimeOffset.UtcNow;
         Parts = new List<ServiceOrderPart>();
         WorkshopServices = new List<ServiceOrderWorkshop>();
@@ -33,9 +35,13 @@ public sealed class ServiceOrder
     public IReadOnlyCollection<ServiceOrderPart> Parts { get; private set; }
     public IReadOnlyCollection<ServiceOrderWorkshop> WorkshopServices { get; private set; }
 
-    public static ServiceOrder Open(Guid customerId, string description)
+    public static ServiceOrder Open(Guid customerId, Guid vehicleId, string description)
     {
         if (customerId == Guid.Empty)
+        {
+            throw new ArgumentException("Customer is required.", nameof(customerId));
+        }
+        if (vehicleId == Guid.Empty)
         {
             throw new ArgumentException("Customer is required.", nameof(customerId));
         }
@@ -45,7 +51,7 @@ public sealed class ServiceOrder
             throw new ArgumentException("Service order description is required.", nameof(description));
         }
 
-        var serviceOrder = new ServiceOrder(Guid.NewGuid(), customerId, description.Trim())
+        var serviceOrder = new ServiceOrder(Guid.NewGuid(), customerId, vehicleId, description.Trim())
         {
             ScheduledAt = DateTimeOffset.UtcNow
         };
@@ -69,7 +75,10 @@ public sealed class ServiceOrder
         {
             Description = description.Trim();
         }
-        MechanicId = mechanicId;
+        if (mechanicId is not null)
+        {
+            MechanicId = mechanicId;
+        }
 
         if (parts is not null)
         {
@@ -96,17 +105,41 @@ public sealed class ServiceOrder
 
     public void UpdateStatus(
         bool? clientApproved = null,
-        bool hasNewItems = false,
-        bool newItemsExecuted = false,
-        bool finalized = false)
+        bool finalized = false,
+        bool delivered = false)
+    {
+        if (Status == ServiceOrderStatus.Delivered)
+        {
+            throw new InvalidOperationException("A delivered service order cannot be changed.");
+        }
+
+        if (Status == ServiceOrderStatus.Rejected)
+        {
+            throw new InvalidOperationException("A rejected service order cannot be changed.");
+        }
+
+        if (Receive())
+            return;
+
+        if (StartDiagnosis())
+            return;
+
+        if (RequestApproval())
+            return;
+
+        if (ResolveApproval(clientApproved))
+            return;
+
+        if (Finish(finalized))
+            return;
+
+        Deliver(delivered);
+    }
+
+    private void EnsureNotTerminal()
     {
         if (Status == ServiceOrderStatus.Finalized)
         {
-            if (hasNewItems)
-            {
-                throw new InvalidOperationException("A finalized service order cannot receive new services or parts.");
-            }
-
             throw new InvalidOperationException("A finalized service order cannot be changed.");
         }
 
@@ -115,164 +148,99 @@ public sealed class ServiceOrder
             throw new InvalidOperationException("A delivered service order cannot be changed.");
         }
 
-        if (Status == null)
-        {
-            SetReceivedStatus();
-            return;
-        }
-
-        if (Status == ServiceOrderStatus.Received)
-        {
-            SetInDiagnosisStatus();
-            return;
-        }
-
-        if (Status == ServiceOrderStatus.InDiagnosis)
-        {
-            SetAwaitingApprovalStatus();
-            return;
-        }
-
-        if (Status == ServiceOrderStatus.AwaitingApproval)
-        {
-            SetApprovalStatus(
-                clientApproved,
-                newItemsExecuted);
-
-            return;
-        }
-
-        if (Status == ServiceOrderStatus.InExecution)
-        {
-            SetInExecutionStatus(
-                hasNewItems,
-                finalized);
-
-            return;
-        }
-
         if (Status == ServiceOrderStatus.Rejected)
         {
-            throw new InvalidOperationException(
-                "A rejected service order cannot be changed.");
+            throw new InvalidOperationException("A rejected service order cannot be changed.");
         }
     }
 
-    private void SetReceivedStatus()
+    private bool Receive()
     {
-        if (string.IsNullOrWhiteSpace(CheckList))
+        if (Status is not null || string.IsNullOrWhiteSpace(CheckList))
         {
-            return;
+            return false;
         }
 
         Status = ServiceOrderStatus.Received;
+        return true;
     }
 
-    private void SetInDiagnosisStatus()
+    private bool StartDiagnosis()
     {
-        if (!MechanicId.HasValue)
+        if (Status != ServiceOrderStatus.Received || !MechanicId.HasValue)
         {
-            return;
+            return false;
         }
 
         Status = ServiceOrderStatus.InDiagnosis;
+        return true;
     }
 
-    private void SetAwaitingApprovalStatus()
+    private bool RequestApproval()
     {
-        if (Parts.Count == 0 && WorkshopServices.Count == 0)
+        if (Status != ServiceOrderStatus.InDiagnosis || WorkshopServices.Count == 0)
         {
-            return;
+            return false;
         }
 
         Status = ServiceOrderStatus.AwaitingApproval;
+        return true;
     }
 
-    private void SetApprovalStatus(
-        bool? clientApproved,
-        bool newItemsExecuted)
+    private bool ResolveApproval(bool? clientApproved)
     {
-        if (!clientApproved.HasValue)
+        if (Status != ServiceOrderStatus.AwaitingApproval || !clientApproved.HasValue)
         {
-            throw new InvalidOperationException(
-                "The service order is awaiting customer approval.");
+            return false;
         }
 
-        if (clientApproved.Value)
-        {
-            Status = ServiceOrderStatus.InExecution;
-            return;
-        }
-
-        if (newItemsExecuted)
-        {
-            Status = ServiceOrderStatus.Finalized;
-            return;
-        }
-
-        Status = ServiceOrderStatus.Rejected;
+        Status = clientApproved.Value
+            ? ServiceOrderStatus.InExecution
+            : ServiceOrderStatus.Rejected;
+        return true;
     }
 
-    private void SetInExecutionStatus(
-        bool hasNewItems,
-        bool finalized)
+    private bool Finish(bool finalized)
     {
-        if (hasNewItems)
+        if (Status != ServiceOrderStatus.InExecution || !finalized)
         {
-            Status = ServiceOrderStatus.AwaitingApproval;
+            return false;
+        }
+
+        Status = ServiceOrderStatus.Finalized;
+        return true;
+    }
+
+    private void Deliver(bool delivered)
+    {
+        if (Status != ServiceOrderStatus.Finalized || !delivered)
+        {
             return;
         }
 
-        if (finalized)
-        {
-            Status = ServiceOrderStatus.Finalized;
-        }
+        Status = ServiceOrderStatus.Delivered;
     }
 
     public void ValidateUpdate(
         Guid? newMechanicId,
-        bool hasNewItems,
-        bool? clientApproved)
+        bool hasNewItems)
     {
-        if (Status == ServiceOrderStatus.Finalized)
-        {
-            throw new InvalidOperationException(
-                "A finalized service order cannot be changed.");
-        }
-
-        if (Status == ServiceOrderStatus.Delivered)
-        {
-            throw new InvalidOperationException(
-                "A delivered service order cannot be changed.");
-        }
-
-        if (Status == ServiceOrderStatus.Rejected)
-        {
-            throw new InvalidOperationException(
-                "A rejected service order cannot be changed.");
-        }
+        EnsureNotTerminal();
 
         if (Status is
             ServiceOrderStatus.InDiagnosis or
             ServiceOrderStatus.AwaitingApproval or
             ServiceOrderStatus.InExecution)
         {
-            if (newMechanicId != MechanicId)
+            if (newMechanicId is not null && newMechanicId != MechanicId)
             {
                 throw new InvalidOperationException(
                     "The mechanic cannot be removed or changed at this stage.");
             }
         }
 
-        if (clientApproved.HasValue &&
-            Status != ServiceOrderStatus.AwaitingApproval)
-        {
-            throw new InvalidOperationException(
-                "Customer approval can only be changed when the service order is awaiting approval.");
-        }
-
         if (hasNewItems &&
-            Status is null or ServiceOrderStatus.Received)
+            Status is null or ServiceOrderStatus.Received or ServiceOrderStatus.InExecution)
         {
             throw new InvalidOperationException(
                 "Services and parts cannot be added at this stage.");

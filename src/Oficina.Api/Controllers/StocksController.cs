@@ -35,7 +35,7 @@ public sealed class StocksController : ControllerBase
         return stock is null ? NotFound() : Ok(stock);
     }
 
-    [HttpPut("{partId:guid}/entries", Name = "EntryStock")]
+    [HttpPut("stocks-part/{partId:guid}/entries", Name = "EntryStock")]
     [ProducesResponseType(typeof(StockResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Entry(
@@ -47,7 +47,7 @@ public sealed class StocksController : ControllerBase
         return Ok(stock);
     }
 
-    [HttpPut("{partId:guid}/consumptions", Name = "ConsumeStock")]
+    [HttpPut("stocks-part/{partId:guid}/consumptions", Name = "ConsumeStock")]
     [ProducesResponseType(typeof(StockResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Consume(
@@ -59,7 +59,7 @@ public sealed class StocksController : ControllerBase
         return Ok(stock);
     }
 
-    [HttpPut("{partId:guid}/adjustments", Name = "AdjustStock")]
+    [HttpPut("stocks-part/{partId:guid}/adjustments", Name = "AdjustStock")]
     [ProducesResponseType(typeof(StockResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Adjust(
