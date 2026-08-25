@@ -1,18 +1,18 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Common;
-using Oficina.Application.Services;
-using Oficina.Application.Servicos;
+using Oficina.Application.WorkshopServices;
 
 namespace Oficina.Api.Controllers;
 
 [ApiController]
-[Microsoft.AspNetCore.Authorization.Authorize]
-[Route("api/v1/services")]
-public sealed class ServicesController : ControllerBase
+[Authorize]
+[Route("api/v1/workshop-services")]
+public sealed class WorkshopServicesController : ControllerBase
 {
     private readonly ServiceCatalogService _services;
 
-    public ServicesController(ServiceCatalogService services)
+    public WorkshopServicesController(ServiceCatalogService services)
     {
         _services = services;
     }

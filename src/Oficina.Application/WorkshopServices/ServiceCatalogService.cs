@@ -1,8 +1,7 @@
 using Oficina.Application.Common;
-using Oficina.Application.Services;
-using Oficina.Domain.Services;
+using Oficina.Domain.WorkshopServices;
 
-namespace Oficina.Application.Servicos;
+namespace Oficina.Application.WorkshopServices;
 
 public sealed class ServiceCatalogService(IWorkshopServiceRepository services)
 {

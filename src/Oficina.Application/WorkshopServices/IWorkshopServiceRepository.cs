@@ -1,6 +1,6 @@
-using Oficina.Domain.Services;
+using Oficina.Domain.WorkshopServices;
 
-namespace Oficina.Application.Services;
+namespace Oficina.Application.WorkshopServices;
 
 public interface IWorkshopServiceRepository
 {

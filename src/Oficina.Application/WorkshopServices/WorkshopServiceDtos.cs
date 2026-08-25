@@ -1,4 +1,4 @@
-namespace Oficina.Application.Services;
+namespace Oficina.Application.WorkshopServices;
 
 public sealed record CreateWorkshopServiceRequest(
     string Name,

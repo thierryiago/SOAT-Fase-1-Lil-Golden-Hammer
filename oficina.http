@@ -147,37 +147,50 @@ Content-Type: application/json
   "name": "Carlos Oliveira Atualizado"
 }
 
-### Services 1/5 - Create workshop service
-# @name createService
-POST {{baseUrl}}/api/v1/services
+### Workshop Services 1/6 - Create weighted workshop service A
+# @name createWeightedServiceA
+POST {{baseUrl}}/api/v1/workshop-services
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
-  "name": "Troca de oleo",
-  "description": "Troca do oleo do motor e verificacao do filtro",
+  "name": "Metricas - servico A",
+  "description": "Servico de teste com peso de 60 minutos",
   "unitPrice": 180.50,
   "estimatedDurationMinutes": 60
 }
 
-### Services 2/5 - List workshop services
-GET {{baseUrl}}/api/v1/services?search=Troca&page=1&pageSize=20
-Authorization: Bearer {{issueToken.response.body.$.accessToken}}
-
-### Services 3/5 - Get workshop service by ID
-GET {{baseUrl}}/api/v1/services/{{createService.response.body.$.id}}
-Authorization: Bearer {{issueToken.response.body.$.accessToken}}
-
-### Services 4/5 - Update workshop service
-PUT {{baseUrl}}/api/v1/services/{{createService.response.body.$.id}}
+### Workshop Services 2/6 - Create weighted workshop service B
+# @name createWeightedServiceB
+POST {{baseUrl}}/api/v1/workshop-services
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
-  "name": "Troca de oleo completa",
-  "description": "Troca do oleo do motor, filtro e verificacao dos niveis",
-  "unitPrice": 210.90,
-  "estimatedDurationMinutes": 75
+  "name": "Metricas - servico B",
+  "description": "Servico de teste com peso de 120 minutos",
+  "unitPrice": 280.50,
+  "estimatedDurationMinutes": 120
+}
+
+### Workshop Services 3/6 - List workshop services
+GET {{baseUrl}}/api/v1/workshop-services?search=Metricas&page=1&pageSize=20
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+### Workshop Services 4/6 - Get workshop service A by ID
+GET {{baseUrl}}/api/v1/workshop-services/{{createWeightedServiceA.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+### Workshop Services Services 5/6 - Update workshop service A
+PUT {{baseUrl}}/api/v1/workshop-services/{{createWeightedServiceA.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Metricas - servico A",
+  "description": "Servico de teste com peso de 60 minutos",
+  "unitPrice": 180.50,
+  "estimatedDurationMinutes": 60
 }
 
 ### Parts 1/6 - Create part (also creates its stock with quantity zero)
@@ -250,44 +263,77 @@ Content-Type: application/json
   "quantity": 25
 }
 
-### Service orders 1/4 - Open service order
-# @name openServiceOrder
+### Service orders 1/6 - Open weighted service order
+# @name openWeightedServiceOrder
 POST {{baseUrl}}/api/v1/service-orders
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
   "customerId": "{{createCustomer.response.body.$.id}}",
-  "description": "Revisao preventiva completa"
+  "description": "OS de teste para rateio ponderado"
 }
 
-### Service orders 2/4 - Update service order and add a part
+### Service orders 2/6 - Associate the two weighted services with the service order
 PUT {{baseUrl}}/api/v1/service-orders
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
-  "serviceOrderId": "{{openServiceOrder.response.body.$.id}}",
+  "serviceOrderId": "{{openWeightedServiceOrder.response.body.$.id}}",
   "customerId": "{{createCustomer.response.body.$.id}}",
   "mechanicId": null,
-  "description": "Revisao preventiva completa",
+  "description": "OS de teste para rateio ponderado",
   "checkList": "Inspecao inicial concluida",
   "clientApproved": null,
-  "parts": [
-    {
-      "partId": "{{createPart.response.body.$.id}}",
-      "quantity": 1
-    }
-  ],
-  "workshopServiceIds": []
+  "parts": [],
+  "workshopServiceIds": [
+    "{{createWeightedServiceA.response.body.$.id}}",
+    "{{createWeightedServiceB.response.body.$.id}}"
+  ]
 }
 
-### Service orders 3/4 - List service orders
+### Service orders 3/6 - Open a second service order for service A
+# @name openSingleServiceOrder
+POST {{baseUrl}}/api/v1/service-orders
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "customerId": "{{createCustomer.response.body.$.id}}",
+  "description": "Segunda OS de teste para media do servico A"
+}
+
+### Service orders 4/6 - Associate service A with the second service order
+PUT {{baseUrl}}/api/v1/service-orders
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "serviceOrderId": "{{openSingleServiceOrder.response.body.$.id}}",
+  "customerId": "{{createCustomer.response.body.$.id}}",
+  "mechanicId": null,
+  "description": "Segunda OS de teste para media do servico A",
+  "checkList": "Inspecao inicial concluida",
+  "clientApproved": null,
+  "parts": [],
+  "workshopServiceIds": [
+    "{{createWeightedServiceA.response.body.$.id}}"
+  ]
+}
+
+### Service orders 5/6 - List service orders
 GET {{baseUrl}}/api/v1/service-orders
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
-### Service orders 4/4 - Get service order by ID
-GET {{baseUrl}}/api/v1/service-orders/{{openServiceOrder.response.body.$.id}}
+### Service orders 6/6 - Get the weighted service order by ID
+GET {{baseUrl}}/api/v1/service-orders/{{openWeightedServiceOrder.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+### Metrics - Workshop service execution time
+# A resposta tera averageTimeMinutes preenchido depois que as OS forem movidas para
+# InExecution e Finalized, com os respectivos historicos registrados.
+GET {{baseUrl}}/api/v1/metrics/workshop-service/execution-time
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Service order history 1/2 - List all history
@@ -295,7 +341,7 @@ GET {{baseUrl}}/api/v1/service-order-history
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Service order history 2/2 - List history for the created order
-GET {{baseUrl}}/api/v1/service-order-history/service-order/{{openServiceOrder.response.body.$.id}}
+GET {{baseUrl}}/api/v1/service-order-history/service-order/{{openWeightedServiceOrder.response.body.$.id}}
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ###############################################################################
@@ -313,8 +359,12 @@ Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 DELETE {{baseUrl}}/api/v1/vehicles/{{identifyCustomerAndRegisterVehicle.response.body.$.vehicle.id}}
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
-### Services 5/5 - Delete workshop service
-DELETE {{baseUrl}}/api/v1/services/{{createService.response.body.$.id}}
+### Services 6/6 - Delete workshop service A
+DELETE {{baseUrl}}/api/v1/workshop-services/{{createWeightedServiceA.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+### Services - Delete workshop service B
+DELETE {{baseUrl}}/api/v1/workshop-services/{{createWeightedServiceB.response.body.$.id}}
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Mechanics 5/5 - Delete mechanic

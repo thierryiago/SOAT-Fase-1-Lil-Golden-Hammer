@@ -2,7 +2,7 @@ using Oficina.Application.Customers;
 using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
-using Oficina.Application.Services;
+using Oficina.Application.WorkshopServices;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
 using Oficina.Domain.Customers;
@@ -10,7 +10,7 @@ using Oficina.Domain.OrderService;
 using Oficina.Domain.OrderServiceHistory;
 using Oficina.Domain.Parts;
 using Oficina.Domain.ServiceOrders;
-using Oficina.Domain.Services;
+using Oficina.Domain.WorkshopServices;
 using Oficina.Domain.Stock;
 using Oficina.Domain.Vehicles;
 

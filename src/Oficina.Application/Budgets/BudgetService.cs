@@ -1,11 +1,11 @@
 using Oficina.Application.Common;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
-using Oficina.Application.Services;
+using Oficina.Application.WorkshopServices;
 using Oficina.Domain.Budget;
 using Oficina.Domain.Parts;
 using Oficina.Domain.ServiceOrders;
-using Oficina.Domain.Services;
+using Oficina.Domain.WorkshopServices;
 
 namespace Oficina.Application.Budgets;
 

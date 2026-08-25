@@ -126,7 +126,7 @@ Todos os endpoints abaixo usam prefixo `/api` e GUIDs nos recursos individuais.
 | `/customers` | `GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}` |
 | `/vehicles` | `GET` com filtro opcional `customerId`, `GET /{id}`, `POST`, `POST /identify-customer-and-register`, `PUT /{id}`, `DELETE /{id}` |
 | `/parts` | `GET`, `GET /{id}`, `POST`, `PUT /{id}`, `POST /{id}/stock-adjustments`, `DELETE /{id}` |
-| `/services` | `GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}` |
+| `/workshop-services` | `GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}` |
 | `/mechanics` | `GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}` |
 | `/service-orders` | `GET`, `GET /{id}`, `POST`, `POST /{id}/parts` |
 | `/health` | Health check da API |

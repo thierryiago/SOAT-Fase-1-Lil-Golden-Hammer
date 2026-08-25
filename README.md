@@ -15,7 +15,8 @@ MVP de back-end em .NET 10 para gestao de clientes, pecas e ordens de servico, o
 - `/api/v1/customers`
 - `/api/v1/vehicles`
 - `/api/v1/mechanics`
-- `/api/v1/services`
+- `/api/v1/workshop-services`
+- `/api/v1/metrics/workshop-service/execution-time`
 - `/api/v1/parts`
 - `/api/v1/stocks`
 - `/api/v1/service-orders`

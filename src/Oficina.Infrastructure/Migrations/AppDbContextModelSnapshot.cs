@@ -346,7 +346,7 @@ namespace Oficina.Infrastructure.Migrations
                     b.ToTable("ServiceOrders");
                 });
 
-            modelBuilder.Entity("Oficina.Domain.Services.WorkshopService", b =>
+            modelBuilder.Entity("Oficina.Domain.WorkshopServices.WorkshopService", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -489,7 +489,7 @@ namespace Oficina.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Oficina.Domain.Services.WorkshopService", "WorkshopService")
+                    b.HasOne("Oficina.Domain.WorkshopServices.WorkshopService", "WorkshopService")
                         .WithMany()
                         .HasForeignKey("WorkshopServiceId")
                         .OnDelete(DeleteBehavior.Cascade)

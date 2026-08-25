@@ -17,7 +17,8 @@ public sealed class ServiceOrderHistoryRepository : IServiceOrderHistoryReposito
         _appDbContext.ServiceOrderHistories.ToListAsync(cancellationToken);
 
     public Task<List<ServiceOrderHistory>> FindByServiceOrderAsync(Guid serviceOrderId, CancellationToken cancellationToken) =>
-        _appDbContext.ServiceOrderHistories.Where(historic => historic.OrderServiceId == serviceOrderId)
+        _appDbContext.ServiceOrderHistories
+            .Where(historic => historic.OrderServiceId == serviceOrderId)
             .ToListAsync(cancellationToken);
 
 

@@ -2,7 +2,7 @@ using Oficina.Application.Customers;
 using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.OrdensServico;
 using Oficina.Application.Parts;
-using Oficina.Application.Services;
+using Oficina.Application.WorkshopServices;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
 using Oficina.Domain.OrderService;
