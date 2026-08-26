@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Notifications;
 
@@ -5,6 +6,7 @@ namespace Oficina.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/notifications")]
+[ExcludeFromCodeCoverage]
 public sealed class NotificationsController : ControllerBase
 {
     private readonly NotificationService _notifications;

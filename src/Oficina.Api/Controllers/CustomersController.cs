@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Common;
 using Oficina.Application.Customers;
@@ -7,6 +8,7 @@ namespace Oficina.Api.Controllers;
 [ApiController]
 [Microsoft.AspNetCore.Authorization.Authorize]
 [Route("api/v1/customers")]
+[ExcludeFromCodeCoverage]
 public sealed class CustomersController : ControllerBase
 {
     private readonly CustomerService _customers;

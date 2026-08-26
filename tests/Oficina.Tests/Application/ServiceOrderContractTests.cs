@@ -54,6 +54,354 @@ public sealed class ServiceOrderContractTests
         Assert.Collection(response, item => Assert.Equal(order.Id, item.Id));
     }
 
+    [Fact]
+    public async Task OpenAsync_should_throw_when_customer_does_not_exist()
+    {
+        var customers = new FakeCustomerRepository();
+        var vehicles = new FakeVehicleRepository();
+        var service = CreateService(customers, vehicles, new FakeServiceOrderRepository());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.OpenAsync(
+            new OpenServiceOrderRequest(Guid.NewGuid(), Guid.NewGuid(), "Troca de oleo"), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task OpenAsync_should_throw_when_vehicle_does_not_exist()
+    {
+        var customers = new FakeCustomerRepository();
+        var vehicles = new FakeVehicleRepository();
+        var customer = Customer.Create("John Customer", "john@email.com", "11999999999", "52998224725");
+        await customers.AddAsync(customer, CancellationToken.None);
+        var service = CreateService(customers, vehicles, new FakeServiceOrderRepository());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.OpenAsync(
+            new OpenServiceOrderRequest(customer.Id, Guid.NewGuid(), "Troca de oleo"), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_should_return_null_when_order_does_not_exist()
+    {
+        var context = await CreateOpenedOrderAsync();
+
+        var response = await context.Service.GetByIdAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.Null(response);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_should_return_detail_for_existing_order()
+    {
+        var context = await CreateOpenedOrderAsync();
+
+        var response = await context.Service.GetByIdAsync(context.ServiceOrderId, CancellationToken.None);
+
+        Assert.NotNull(response);
+        Assert.Equal(context.ServiceOrderId, response!.Id);
+    }
+
+    [Fact]
+    public async Task ApproveAsync_should_throw_when_order_does_not_exist()
+    {
+        var context = await CreateOpenedOrderAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            context.Service.ApproveAsync(Guid.NewGuid(), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task CancelAsync_should_throw_when_order_does_not_exist()
+    {
+        var context = await CreateOpenedOrderAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            context.Service.CancelAsync(Guid.NewGuid(), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task FinalizeAsync_should_throw_when_order_does_not_exist()
+    {
+        var context = await CreateOpenedOrderAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            context.Service.FinalizeAsync(Guid.NewGuid(), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task DeliverAsync_should_throw_when_order_does_not_exist()
+    {
+        var context = await CreateOpenedOrderAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            context.Service.DeliverAsync(Guid.NewGuid(), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ListSchedulesAsync_should_return_empty_when_no_orders_are_registered()
+    {
+        var service = new ServiceOrderService(
+            new FakeServiceOrderRepository(),
+            new FakeCustomerRepository(),
+            new FakeVehicleRepository(),
+            new FakePartRepository(),
+            new FakeWorkshopServiceRepository(),
+            new FakeStockRepository(),
+            new FakeServiceOrderHistoryRepository());
+
+        var schedules = await service.ListSchedulesAsync();
+
+        Assert.Empty(schedules);
+    }
+
+    [Fact]
+    public async Task CancelAsync_should_skip_returning_stock_when_part_has_no_stock_record()
+    {
+        var customers = new FakeCustomerRepository();
+        var vehicles = new FakeVehicleRepository();
+        var workshopServices = new FakeWorkshopServiceRepository();
+        var stocks = new FakeStockRepository();
+        var orders = new FakeServiceOrderRepository();
+
+        var customer = Customer.Create("John Customer", "john@email.com", "11999999999", "52998224725");
+        await customers.AddAsync(customer, CancellationToken.None);
+        var vehicle = Vehicle.Create(customer.Id, "ABC1234", "Fiat", "Uno", 2020, EnumVehicleCategory.Car);
+        await vehicles.AddAsync(vehicle, CancellationToken.None);
+        var workshopService = WorkshopService.Create("Troca de oleo", "Descricao", 100m, 30);
+        await workshopServices.AddAsync(workshopService, CancellationToken.None);
+
+        var serviceOrder = ServiceOrder.Open(customer.Id, vehicle.Id, "Revisao");
+        var orphanPartId = Guid.NewGuid();
+        var serviceOrderPart = ServiceOrderPart.Create(orphanPartId, serviceOrder.Id, 2);
+
+        serviceOrder.Update(null, null, "Checklist ok", null, null);
+        serviceOrder.UpdateStatus();
+        serviceOrder.Update(Guid.NewGuid(), null, null, null, null);
+        serviceOrder.UpdateStatus();
+        serviceOrder.Update(
+            null, null, null,
+            new[] { serviceOrderPart },
+            new[] { ServiceOrderWorkshop.Create(serviceOrder.Id, workshopService.Id) });
+        serviceOrder.UpdateStatus();
+        await orders.AddAsync(serviceOrder, CancellationToken.None);
+
+        var service = new ServiceOrderService(
+            orders, customers, vehicles, new FakePartRepository(), workshopServices, stocks, new FakeServiceOrderHistoryRepository());
+
+        var response = await service.CancelAsync(serviceOrder.Id, CancellationToken.None);
+
+        Assert.Equal(ServiceOrderStatus.Rejected, response.Status);
+        Assert.Null(await stocks.GetByPartIdAsync(orphanPartId, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_should_consume_stock_when_a_new_part_is_added()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToInDiagnosisAsync(context);
+
+        var response = await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(context.ServiceOrderId, Parts: [new AddPartToServiceOrderRequest(context.PartId, 5)]),
+            CancellationToken.None);
+
+        var stock = await context.Stocks.GetByPartIdAsync(context.PartId, CancellationToken.None);
+        Assert.Equal(5, response.Parts.Single().QuantityUsed);
+        Assert.Equal(5, stock!.Quantity);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_should_return_stock_when_reducing_part_quantity()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToInDiagnosisAsync(context);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(context.ServiceOrderId, Parts: [new AddPartToServiceOrderRequest(context.PartId, 5)]),
+            CancellationToken.None);
+
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(context.ServiceOrderId, Parts: [new AddPartToServiceOrderRequest(context.PartId, 2)]),
+            CancellationToken.None);
+
+        var stock = await context.Stocks.GetByPartIdAsync(context.PartId, CancellationToken.None);
+        Assert.Equal(8, stock!.Quantity);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_should_throw_when_stock_is_insufficient()
+    {
+        var context = await CreateOpenedOrderAsync(initialStock: 3);
+        await AdvanceToInDiagnosisAsync(context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(context.ServiceOrderId, Parts: [new AddPartToServiceOrderRequest(context.PartId, 10)]),
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_should_throw_when_part_does_not_exist()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToInDiagnosisAsync(context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(context.ServiceOrderId, Parts: [new AddPartToServiceOrderRequest(Guid.NewGuid(), 1)]),
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_should_throw_when_workshop_service_does_not_exist()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToInDiagnosisAsync(context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(context.ServiceOrderId, WorkshopServiceIds: [Guid.NewGuid()]),
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_should_throw_when_changing_mechanic_after_diagnosis_started()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToInDiagnosisAsync(context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(context.ServiceOrderId, MechanicId: Guid.NewGuid()),
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ApproveAsync_should_throw_when_order_is_not_awaiting_approval()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToInDiagnosisAsync(context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ApproveAsync_should_advance_status_to_InExecution()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToAwaitingApprovalAsync(context);
+
+        var response = await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+
+        Assert.Equal(ServiceOrderStatus.InExecution, response.Status);
+    }
+
+    [Fact]
+    public async Task CancelAsync_should_throw_when_order_is_not_awaiting_approval()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToInDiagnosisAsync(context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            context.Service.CancelAsync(context.ServiceOrderId, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task CancelAsync_should_reject_order_and_return_consumed_parts_to_stock()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToInDiagnosisAsync(context);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(context.ServiceOrderId, Parts: [new AddPartToServiceOrderRequest(context.PartId, 5)]),
+            CancellationToken.None);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(context.ServiceOrderId, WorkshopServiceIds: [context.WorkshopServiceId]),
+            CancellationToken.None);
+
+        var response = await context.Service.CancelAsync(context.ServiceOrderId, CancellationToken.None);
+
+        var stock = await context.Stocks.GetByPartIdAsync(context.PartId, CancellationToken.None);
+        Assert.Equal(ServiceOrderStatus.Rejected, response.Status);
+        Assert.Equal(10, stock!.Quantity);
+    }
+
+    [Fact]
+    public async Task FinalizeAsync_should_throw_when_order_is_not_in_execution()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToAwaitingApprovalAsync(context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            context.Service.FinalizeAsync(context.ServiceOrderId, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task FinalizeAsync_should_advance_status_to_Finalized()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToAwaitingApprovalAsync(context);
+        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+
+        var response = await context.Service.FinalizeAsync(context.ServiceOrderId, CancellationToken.None);
+
+        Assert.Equal(ServiceOrderStatus.Finalized, response.Status);
+    }
+
+    [Fact]
+    public async Task DeliverAsync_should_throw_when_order_is_not_finalized()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToAwaitingApprovalAsync(context);
+        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            context.Service.DeliverAsync(context.ServiceOrderId, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task DeliverAsync_should_advance_status_to_Delivered()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToAwaitingApprovalAsync(context);
+        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.Service.FinalizeAsync(context.ServiceOrderId, CancellationToken.None);
+
+        var response = await context.Service.DeliverAsync(context.ServiceOrderId, CancellationToken.None);
+
+        Assert.Equal(ServiceOrderStatus.Delivered, response.Status);
+    }
+
+    [Fact]
+    public async Task Full_lifecycle_should_record_one_history_entry_per_real_transition()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToAwaitingApprovalAsync(context);
+        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.Service.FinalizeAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.Service.DeliverAsync(context.ServiceOrderId, CancellationToken.None);
+
+        var history = await context.History.FindByServiceOrderAsync(context.ServiceOrderId, CancellationToken.None);
+
+        Assert.Equal(
+            new[] { "Received", "InDiagnosis", "AwaitingApproval", "InExecution", "Finalized", "Delivered" },
+            history.Select(item => item.StatusName));
+    }
+
+    [Fact]
+    public async Task ListSchedulesAsync_should_return_registered_service_orders()
+    {
+        var context = await CreateOpenedOrderAsync();
+
+        var schedules = await context.Service.ListSchedulesAsync();
+
+        Assert.Collection(schedules, item => Assert.Equal(context.ServiceOrderId, item.OrderServiceId));
+    }
+
+    [Fact]
+    public async Task ListSchedulesByDateAsync_should_filter_out_orders_from_other_dates()
+    {
+        var context = await CreateOpenedOrderAsync();
+
+        var matching = await context.Service.ListSchedulesByDateAsync(DateTime.UtcNow);
+        var notMatching = await context.Service.ListSchedulesByDateAsync(DateTime.UtcNow.AddDays(-5));
+
+        Assert.Single(matching);
+        Assert.Empty(notMatching);
+    }
+
     private static ServiceOrderService CreateService(
         ICustomerRepository customers,
         IVehicleRepository vehicles,
@@ -66,6 +414,60 @@ public sealed class ServiceOrderContractTests
             new FakeWorkshopServiceRepository(),
             new FakeStockRepository(),
             new FakeServiceOrderHistoryRepository());
+
+    private sealed record ServiceOrderTestContext(
+        ServiceOrderService Service,
+        FakeStockRepository Stocks,
+        FakeServiceOrderHistoryRepository History,
+        Guid ServiceOrderId,
+        Guid PartId,
+        Guid WorkshopServiceId);
+
+    private static async Task<ServiceOrderTestContext> CreateOpenedOrderAsync(int initialStock = 10)
+    {
+        var customers = new FakeCustomerRepository();
+        var vehicles = new FakeVehicleRepository();
+        var parts = new FakePartRepository();
+        var workshopServices = new FakeWorkshopServiceRepository();
+        var stocks = new FakeStockRepository();
+        var history = new FakeServiceOrderHistoryRepository();
+        var orders = new FakeServiceOrderRepository();
+
+        var customer = Customer.Create("John Customer", "john@email.com", "11999999999", "52998224725");
+        await customers.AddAsync(customer, CancellationToken.None);
+        var vehicle = Vehicle.Create(customer.Id, "ABC1234", "Fiat", "Uno", 2020, EnumVehicleCategory.Car);
+        await vehicles.AddAsync(vehicle, CancellationToken.None);
+
+        var part = Part.Create("Filtro", "COD-001", 10m, EnumPartKind.Part);
+        await parts.AddAsync(part, CancellationToken.None);
+        await stocks.AddAsync(StockPart.Create(part.Id, initialStock), CancellationToken.None);
+
+        var workshopService = WorkshopService.Create("Troca de oleo", "Descricao", 100m, 30);
+        await workshopServices.AddAsync(workshopService, CancellationToken.None);
+
+        var service = new ServiceOrderService(orders, customers, vehicles, parts, workshopServices, stocks, history);
+
+        var opened = await service.OpenAsync(
+            new OpenServiceOrderRequest(customer.Id, vehicle.Id, "Revisao"), CancellationToken.None);
+
+        return new ServiceOrderTestContext(service, stocks, history, opened.Id, part.Id, workshopService.Id);
+    }
+
+    private static async Task AdvanceToInDiagnosisAsync(ServiceOrderTestContext context)
+    {
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(context.ServiceOrderId, CheckList: "Checklist ok"), CancellationToken.None);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(context.ServiceOrderId, MechanicId: Guid.NewGuid()), CancellationToken.None);
+    }
+
+    private static async Task AdvanceToAwaitingApprovalAsync(ServiceOrderTestContext context)
+    {
+        await AdvanceToInDiagnosisAsync(context);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(context.ServiceOrderId, WorkshopServiceIds: [context.WorkshopServiceId]),
+            CancellationToken.None);
+    }
 
     private sealed class FakeCustomerRepository : ICustomerRepository
     {
@@ -101,37 +503,42 @@ public sealed class ServiceOrderContractTests
 
     private sealed class FakePartRepository : IPartRepository
     {
-        public Task<List<Part>> ListAsync(CancellationToken cancellationToken) => Task.FromResult(new List<Part>());
-        public Task<List<Part>> GetAllById(List<Guid> ids, CancellationToken cancellationToken) => Task.FromResult(new List<Part>());
-        public Task<Part?> GetByIdAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<Part?>(null);
-        public Task<Part?> GetByCodeAsync(string code, CancellationToken cancellationToken) => Task.FromResult<Part?>(null);
-        public Task AddAsync(Part part, CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task UpdateAsync(Part part, CancellationToken cancellationToken) => Task.CompletedTask;
+        private readonly Dictionary<Guid, Part> _items = new();
+        public Task<List<Part>> ListAsync(CancellationToken cancellationToken) => Task.FromResult(_items.Values.ToList());
+        public Task<List<Part>> GetAllById(List<Guid> ids, CancellationToken cancellationToken) => Task.FromResult(_items.Values.Where(part => ids.Contains(part.Id)).ToList());
+        public Task<Part?> GetByIdAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(_items.GetValueOrDefault(id));
+        public Task<Part?> GetByCodeAsync(string code, CancellationToken cancellationToken) => Task.FromResult(_items.Values.FirstOrDefault(part => string.Equals(part.Code, code.Trim(), StringComparison.OrdinalIgnoreCase)));
+        public Task AddAsync(Part part, CancellationToken cancellationToken) { _items[part.Id] = part; return Task.CompletedTask; }
+        public Task UpdateAsync(Part part, CancellationToken cancellationToken) { _items[part.Id] = part; return Task.CompletedTask; }
     }
 
     private sealed class FakeWorkshopServiceRepository : IWorkshopServiceRepository
     {
-        public Task<IReadOnlyCollection<WorkshopService>> ListAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<WorkshopService>>([]);
-        public Task<List<WorkshopService>> GetAllById(List<Guid> ids, CancellationToken cancellationToken) => Task.FromResult(new List<WorkshopService>());
-        public Task<WorkshopService?> GetByIdAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<WorkshopService?>(null);
-        public Task<WorkshopService?> GetByNameAsync(string name, CancellationToken cancellationToken) => Task.FromResult<WorkshopService?>(null);
-        public Task AddAsync(WorkshopService service, CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task UpdateAsync(WorkshopService service, CancellationToken cancellationToken) => Task.CompletedTask;
+        private readonly Dictionary<Guid, WorkshopService> _items = new();
+        public Task<IReadOnlyCollection<WorkshopService>> ListAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<WorkshopService>>(_items.Values.ToList());
+        public Task<List<WorkshopService>> GetAllById(List<Guid> ids, CancellationToken cancellationToken) => Task.FromResult(_items.Values.Where(service => ids.Contains(service.Id)).ToList());
+        public Task<WorkshopService?> GetByIdAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(_items.GetValueOrDefault(id));
+        public Task<WorkshopService?> GetByNameAsync(string name, CancellationToken cancellationToken) => Task.FromResult(_items.Values.FirstOrDefault(service => string.Equals(service.Name, name.Trim(), StringComparison.OrdinalIgnoreCase)));
+        public Task AddAsync(WorkshopService service, CancellationToken cancellationToken) { _items[service.Id] = service; return Task.CompletedTask; }
+        public Task UpdateAsync(WorkshopService service, CancellationToken cancellationToken) { _items[service.Id] = service; return Task.CompletedTask; }
     }
 
     private sealed class FakeStockRepository : IStockRepository
     {
-        public Task<IReadOnlyCollection<StockPart>> ListAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<StockPart>>([]);
-        public Task<StockPart?> GetByIdAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<StockPart?>(null);
-        public Task<StockPart?> GetByPartIdAsync(Guid partId, CancellationToken cancellationToken) => Task.FromResult<StockPart?>(null);
-        public Task AddAsync(StockPart stockPart, CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task UpdateAsync(StockPart stockPart, CancellationToken cancellationToken) => Task.CompletedTask;
+        private readonly Dictionary<Guid, StockPart> _items = new();
+        public Task<IReadOnlyCollection<StockPart>> ListAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<StockPart>>(_items.Values.ToList());
+        public Task<StockPart?> GetByIdAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(_items.GetValueOrDefault(id));
+        public Task<StockPart?> GetByPartIdAsync(Guid partId, CancellationToken cancellationToken) => Task.FromResult(_items.Values.FirstOrDefault(stock => stock.PartId == partId));
+        public Task AddAsync(StockPart stockPart, CancellationToken cancellationToken) { _items[stockPart.Id] = stockPart; return Task.CompletedTask; }
+        public Task UpdateAsync(StockPart stockPart, CancellationToken cancellationToken) { _items[stockPart.Id] = stockPart; return Task.CompletedTask; }
     }
 
     private sealed class FakeServiceOrderHistoryRepository : IServiceOrderHistoryRepository
     {
-        public Task<List<ServiceOrderHistory>> ListAsync(CancellationToken cancellationToken) => Task.FromResult(new List<ServiceOrderHistory>());
-        public Task<List<ServiceOrderHistory>> FindByServiceOrderAsync(Guid serviceOrderId, CancellationToken cancellationToken) => Task.FromResult(new List<ServiceOrderHistory>());
-        public Task AddAsync(ServiceOrderHistory history, CancellationToken cancellationToken) => Task.CompletedTask;
+        private readonly List<ServiceOrderHistory> _items = [];
+        public Task<List<ServiceOrderHistory>> ListAsync(CancellationToken cancellationToken) => Task.FromResult(_items.ToList());
+        public Task<List<ServiceOrderHistory>> FindByServiceOrderAsync(Guid serviceOrderId, CancellationToken cancellationToken) =>
+            Task.FromResult(_items.Where(item => item.OrderServiceId == serviceOrderId).ToList());
+        public Task AddAsync(ServiceOrderHistory history, CancellationToken cancellationToken) { _items.Add(history); return Task.CompletedTask; }
     }
 }

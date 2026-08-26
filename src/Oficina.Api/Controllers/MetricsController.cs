@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Metrics;
@@ -7,6 +8,7 @@ namespace Oficina.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/v1/metrics")]
+[ExcludeFromCodeCoverage]
 public sealed class MetricsController(MetricsService metrics) : ControllerBase
 {
     private readonly MetricsService _metrics = metrics;

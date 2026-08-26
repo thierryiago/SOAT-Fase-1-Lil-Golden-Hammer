@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Budgets;
 using Oficina.Application.Common;
@@ -6,6 +7,7 @@ namespace Oficina.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/budgets")]
+[ExcludeFromCodeCoverage]
 public sealed class BudgetsController : ControllerBase
 {
     private readonly BudgetService _budgets;

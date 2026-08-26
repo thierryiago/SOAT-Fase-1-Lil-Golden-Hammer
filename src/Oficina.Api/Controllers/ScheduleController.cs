@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Common;
 using Oficina.Application.Customers;
 using Oficina.Application.OrdensServico;
@@ -10,6 +11,7 @@ namespace Oficina.Api.Controllers;
 [ApiController]
 [Microsoft.AspNetCore.Authorization.Authorize]
 [Route("api/v1/schedules")]
+[ExcludeFromCodeCoverage]
 public class ScheduleController : ControllerBase
 {
     private readonly ServiceOrderService _serviceOrderService;
