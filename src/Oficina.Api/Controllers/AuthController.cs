@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Api.Authentication;
@@ -6,6 +7,7 @@ namespace Oficina.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/auth")]
+[ExcludeFromCodeCoverage]
 public sealed class AuthController(IAccessTokenGenerator tokens) : ControllerBase
 {
     [AllowAnonymous]

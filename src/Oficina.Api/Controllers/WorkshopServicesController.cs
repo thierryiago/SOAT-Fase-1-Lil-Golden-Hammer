@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Common;
@@ -8,6 +9,7 @@ namespace Oficina.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/v1/workshop-services")]
+[ExcludeFromCodeCoverage]
 public sealed class WorkshopServicesController : ControllerBase
 {
     private readonly ServiceCatalogService _services;

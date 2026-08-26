@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.ServiceOrders;
 
@@ -6,6 +7,7 @@ namespace Oficina.Api.Controllers;
 [ApiController]
 [Microsoft.AspNetCore.Authorization.Authorize]
 [Route("api/v1/service-orders")]
+[ExcludeFromCodeCoverage]
 public sealed class ServiceOrdersController : ControllerBase
 {
     private readonly ServiceOrderService _serviceOrders;

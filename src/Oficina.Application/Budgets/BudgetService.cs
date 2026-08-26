@@ -62,11 +62,11 @@ public sealed class BudgetService
 
         var budgetId = Guid.NewGuid();
 
-        var partIds = serviceOrder.Parts.Select(part => part.Id).ToList();
+        var partIds = serviceOrder.Parts.Select(part => part.PartId).ToList();
         var osParts = await _partsRepository.GetAllById(partIds, cancellationToken);
         var budgetParts = CheckBudgetParts(serviceOrder, osParts, budgetId, partIds, cancellationToken);
 
-        var workshopServicesIds = serviceOrder.WorkshopServices.Select(service => service.Id).ToList();
+        var workshopServicesIds = serviceOrder.WorkshopServices.Select(service => service.WorkshopServiceId).ToList();
         var osWorkshopServices = await _workshopServicesRepository.GetAllById(workshopServicesIds, cancellationToken);
         var workshopServices = CheckBudgetWorkShopService(serviceOrder, osWorkshopServices, budgetId, workshopServicesIds, cancellationToken);
 

@@ -9,6 +9,48 @@ namespace Oficina.Tests.Application;
 public sealed class StockServiceTests
 {
     [Fact]
+    public async Task ListAsync_should_return_registered_stocks_ordered_by_part()
+    {
+        var parts = new FakePartRepository();
+        var stocks = new FakeStockPartRepository();
+        var part = await AddActivePartAsync(parts, "FLT-100");
+        await stocks.AddAsync(StockPart.Create(part.Id, 15), CancellationToken.None);
+        var service = new StockService(stocks, parts);
+
+        var result = await service.ListAsync(new PageRequest(), CancellationToken.None);
+
+        Assert.Collection(result.Items, item => Assert.Equal(part.Id, item.PartId));
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_should_return_null_when_stock_does_not_exist()
+    {
+        var parts = new FakePartRepository();
+        var stocks = new FakeStockPartRepository();
+        var service = new StockService(stocks, parts);
+
+        var result = await service.GetByIdAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_should_return_stock_when_it_exists()
+    {
+        var parts = new FakePartRepository();
+        var stocks = new FakeStockPartRepository();
+        var part = await AddActivePartAsync(parts, "FLT-101");
+        var stock = StockPart.Create(part.Id, 8);
+        await stocks.AddAsync(stock, CancellationToken.None);
+        var service = new StockService(stocks, parts);
+
+        var result = await service.GetByIdAsync(stock.Id, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(8, result!.Quantity);
+    }
+
+    [Fact]
     public async Task CreateAsync_should_throw_conflict_when_stock_for_part_already_exists()
     {
         var parts = new FakePartRepository();

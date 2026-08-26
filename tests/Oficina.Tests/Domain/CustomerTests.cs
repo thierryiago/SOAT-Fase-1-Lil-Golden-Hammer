@@ -40,6 +40,35 @@ public sealed class CustomerTests
     }
 
     [Fact]
+    public void Create_should_accept_valid_cnpj()
+    {
+        var customer = Customer.Create("Empresa LTDA", "contato@empresa.com", "1140028922", "11.222.333/0001-81");
+
+        Assert.Equal("11222333000181", customer.Document);
+    }
+
+    [Fact]
+    public void Create_should_reject_document_with_no_digits()
+    {
+        var act = () => Customer.Create("Maria Silva", "maria@email.com", "123", "---");
+
+        Assert.Throws<ArgumentException>(act);
+    }
+
+    [Fact]
+    public void Update_should_change_name_email_phone_and_document()
+    {
+        var customer = Customer.Create("Maria Silva", "maria@email.com", "11999990000", "52998224725");
+
+        customer.Update("Maria Souza", "  SOUZA@EMAIL.COM  ", "11988880000", "10987654321");
+
+        Assert.Equal("Maria Souza", customer.Name);
+        Assert.Equal("souza@email.com", customer.Email);
+        Assert.Equal("11988880000", customer.TelephoneNumber);
+        Assert.Equal("10987654321", customer.Document);
+    }
+
+    [Fact]
     public void Vehicle_create_should_normalize_plate_with_hyphen()
     {
         var customer = Customer.Create("Maria Silva", "maria@email.com", "123", "529.982.247-25");
