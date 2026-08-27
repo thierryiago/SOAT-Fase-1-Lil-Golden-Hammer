@@ -16,6 +16,8 @@ namespace Oficina.Api.ContractTests.Domains;
 public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelper output)
     : IClassFixture<OficinaApiFactory>
 {
+    private static int _documentCounter;
+
     private readonly HttpClient _client = factory.CreateClient();
 
     [Fact]
@@ -144,9 +146,463 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         output.WriteLine("Resumo: todas as 6 transicoes ocorreram na ordem esperada.");
     }
 
+    // =====================================================================================
+    // Grupo A - um teste por status: confirma que cada status e alcancado pela acao certa.
+    // =====================================================================================
+
+    [Fact]
+    public async Task Status_should_be_null_when_order_is_just_opened()
+    {
+        var ctx = await OpenNewOrderAsync();
+        Log("null", "OS recem aberta", ctx.Order.Status);
+
+        Assert.Null(ctx.Order.Status);
+    }
+
+    [Fact]
+    public async Task Status_should_be_Received_after_checklist_is_set()
+    {
+        var ctx = await ReachReceivedAsync();
+        Log("1 - Received", "Checklist informado", ctx.Order.Status);
+
+        Assert.Equal(ServiceOrderStatus.Received, ctx.Order.Status);
+    }
+
+    [Fact]
+    public async Task Status_should_be_InDiagnosis_after_mechanic_is_assigned()
+    {
+        var ctx = await ReachInDiagnosisAsync();
+        Log("2 - InDiagnosis", "Mecanico atribuido", ctx.Order.Status);
+
+        Assert.Equal(ServiceOrderStatus.InDiagnosis, ctx.Order.Status);
+    }
+
+    [Fact]
+    public async Task Status_should_be_AwaitingApproval_after_workshop_service_is_attached()
+    {
+        var ctx = await ReachAwaitingApprovalAsync();
+        Log("3 - AwaitingApproval", "Servico de oficina anexado", ctx.Order.Status);
+
+        Assert.Equal(ServiceOrderStatus.AwaitingApproval, ctx.Order.Status);
+    }
+
+    [Fact]
+    public async Task Status_should_be_InExecution_after_client_approves()
+    {
+        var ctx = await ReachInExecutionAsync();
+        Log("4 - InExecution", "Cliente aprovou", ctx.Order.Status);
+
+        Assert.Equal(ServiceOrderStatus.InExecution, ctx.Order.Status);
+    }
+
+    [Fact]
+    public async Task Status_should_be_Finalized_after_finalize()
+    {
+        var ctx = await ReachFinalizedAsync();
+        Log("5 - Finalized", "Execucao finalizada", ctx.Order.Status);
+
+        Assert.Equal(ServiceOrderStatus.Finalized, ctx.Order.Status);
+    }
+
+    [Fact]
+    public async Task Status_should_be_Delivered_after_deliver()
+    {
+        var ctx = await ReachDeliveredAsync();
+        Log("6 - Delivered", "OS entregue", ctx.Order.Status);
+
+        Assert.Equal(ServiceOrderStatus.Delivered, ctx.Order.Status);
+    }
+
+    [Fact]
+    public async Task Status_should_be_Rejected_after_client_cancels()
+    {
+        var ctx = await ReachRejectedAsync();
+        Log("7 - Rejected", "Cliente recusou (cancelamento)", ctx.Order.Status);
+
+        Assert.Equal(ServiceOrderStatus.Rejected, ctx.Order.Status);
+    }
+
+    // =====================================================================================
+    // Grupo B - tentativas de pular status: o sistema deve barrar (400) cada uma delas.
+    // =====================================================================================
+
+    [Fact]
+    public async Task Approve_should_be_blocked_when_order_was_just_opened()
+    {
+        var ctx = await OpenNewOrderAsync();
+
+        var response = await ApproveAsync(ctx.Order.Id);
+        Log("Pular para InExecution direto do null", "POST /approve", response.StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Approve_should_be_blocked_while_status_is_Received()
+    {
+        var ctx = await ReachReceivedAsync();
+
+        var response = await ApproveAsync(ctx.Order.Id);
+        Log("Pular InDiagnosis/AwaitingApproval, aprovar direto de Received", "POST /approve", response.StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Approve_should_be_blocked_while_status_is_InDiagnosis()
+    {
+        var ctx = await ReachInDiagnosisAsync();
+
+        var response = await ApproveAsync(ctx.Order.Id);
+        Log("Pular AwaitingApproval, aprovar direto de InDiagnosis", "POST /approve", response.StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Finalize_should_be_blocked_when_order_was_just_opened()
+    {
+        var ctx = await OpenNewOrderAsync();
+
+        var response = await FinalizeAsync(ctx.Order.Id);
+        Log("Finalizar OS recem aberta (null)", "POST /finalize", response.StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Finalize_should_be_blocked_while_status_is_AwaitingApproval()
+    {
+        var ctx = await ReachAwaitingApprovalAsync();
+
+        var response = await FinalizeAsync(ctx.Order.Id);
+        Log("Pular InExecution, finalizar direto de AwaitingApproval", "POST /finalize", response.StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deliver_should_be_blocked_while_status_is_InExecution()
+    {
+        var ctx = await ReachInExecutionAsync();
+
+        var response = await DeliverAsync(ctx.Order.Id);
+        Log("Pular Finalized, entregar direto de InExecution", "POST /deliver", response.StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cancel_should_be_blocked_while_status_is_InDiagnosis()
+    {
+        var ctx = await ReachInDiagnosisAsync();
+
+        var response = await CancelAsync(ctx.Order.Id);
+        Log("Cancelar antes de chegar em AwaitingApproval (InDiagnosis)", "POST /cancel", response.StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cancel_should_be_blocked_while_status_is_InExecution()
+    {
+        var ctx = await ReachInExecutionAsync();
+
+        var response = await CancelAsync(ctx.Order.Id);
+        Log("Cancelar depois de ja aprovada (InExecution) - so cancela em AwaitingApproval", "POST /cancel", response.StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // =====================================================================================
+    // Grupo C - estados terminais: uma vez Delivered ou Rejected, nenhuma acao deve funcionar.
+    // =====================================================================================
+
+    [Fact]
+    public async Task All_transitions_should_be_blocked_after_order_is_Delivered()
+    {
+        var ctx = await ReachDeliveredAsync();
+
+        var approveResponse = await ApproveAsync(ctx.Order.Id);
+        var cancelResponse = await CancelAsync(ctx.Order.Id);
+        var finalizeResponse = await FinalizeAsync(ctx.Order.Id);
+        var deliverResponse = await DeliverAsync(ctx.Order.Id);
+        Log("Delivered -> approve", "POST /approve", approveResponse.StatusCode);
+        Log("Delivered -> cancel", "POST /cancel", cancelResponse.StatusCode);
+        Log("Delivered -> finalize", "POST /finalize", finalizeResponse.StatusCode);
+        Log("Delivered -> deliver (de novo)", "POST /deliver", deliverResponse.StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, approveResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, cancelResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, finalizeResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, deliverResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task All_transitions_should_be_blocked_after_order_is_Rejected()
+    {
+        var ctx = await ReachRejectedAsync();
+
+        var approveResponse = await ApproveAsync(ctx.Order.Id);
+        var cancelResponse = await CancelAsync(ctx.Order.Id);
+        var finalizeResponse = await FinalizeAsync(ctx.Order.Id);
+        var deliverResponse = await DeliverAsync(ctx.Order.Id);
+        Log("Rejected -> approve", "POST /approve", approveResponse.StatusCode);
+        Log("Rejected -> cancel (de novo)", "POST /cancel", cancelResponse.StatusCode);
+        Log("Rejected -> finalize", "POST /finalize", finalizeResponse.StatusCode);
+        Log("Rejected -> deliver", "POST /deliver", deliverResponse.StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, approveResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, cancelResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, finalizeResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, deliverResponse.StatusCode);
+    }
+
+    // =====================================================================================
+    // Grupo D - tentativas de "quebrar" o fluxo via Update (trocar mecanico, anexar itens
+    // novos fora do estagio permitido). Devem ser barradas (400), sem alterar o status.
+    // =====================================================================================
+
+    [Fact]
+    public async Task Update_should_block_changing_mechanic_while_InDiagnosis()
+    {
+        var ctx = await ReachInDiagnosisAsync();
+
+        var response = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = ctx.Order.Id,
+            mechanicId = Guid.NewGuid()
+        });
+        Log("Trocar mecanico durante InDiagnosis", "PUT /service-orders", response.StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_should_block_changing_mechanic_while_AwaitingApproval()
+    {
+        var ctx = await ReachAwaitingApprovalAsync();
+
+        var response = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = ctx.Order.Id,
+            mechanicId = Guid.NewGuid()
+        });
+        Log("Trocar mecanico durante AwaitingApproval", "PUT /service-orders", response.StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_should_block_changing_mechanic_while_InExecution()
+    {
+        var ctx = await ReachInExecutionAsync();
+
+        var response = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = ctx.Order.Id,
+            mechanicId = Guid.NewGuid()
+        });
+        Log("Trocar mecanico durante InExecution", "PUT /service-orders", response.StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_should_block_attaching_workshop_service_while_status_is_Received()
+    {
+        var ctx = await ReachReceivedAsync();
+
+        var response = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = ctx.Order.Id,
+            workshopServiceIds = new[] { ctx.WorkshopServiceId }
+        });
+        Log("Anexar servico de oficina antes do mecanico ser atribuido (ainda Received)", "PUT /service-orders", response.StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_should_block_adding_new_part_while_InExecution()
+    {
+        var ctx = await ReachInExecutionAsync();
+
+        var response = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = ctx.Order.Id,
+            parts = new[] { new { partId = Guid.NewGuid(), quantity = 1 } }
+        });
+        Log("Anexar peca nova depois que a OS ja esta em InExecution", "PUT /service-orders", response.StatusCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // =====================================================================================
+    // Infraestrutura de apoio: abre uma OS nova e avanca ate o estagio pedido, reutilizando
+    // cada etapa (cada "ReachX" parte do estagio anterior).
+    // =====================================================================================
+
+    private sealed record OrderContext(Guid MechanicId, Guid WorkshopServiceId, ServiceOrderDetailResponse Order);
+
+    private async Task<OrderContext> OpenNewOrderAsync()
+    {
+        await AuthenticateAsync();
+
+        var sequence = Interlocked.Increment(ref _documentCounter);
+        var customerResponse = await _client.PostAsJsonAsync("/api/v1/customers", new
+        {
+            name = "Cliente Maquina de Estados",
+            email = $"maquina.{sequence}@example.com",
+            telephoneNumber = "+5511999990000",
+            document = sequence.ToString().PadLeft(11, '0')
+        });
+        customerResponse.EnsureSuccessStatusCode();
+        var customer = (await customerResponse.Content.ReadFromJsonAsync<CustomerResponse>())!;
+
+        var vehicleResponse = await _client.PostAsJsonAsync("/api/v1/vehicles", new
+        {
+            customerId = customer.Id,
+            plate = $"MEQ{sequence:0000}",
+            brand = "Fiat",
+            model = "Uno",
+            year = 2020,
+            category = 1
+        });
+        vehicleResponse.EnsureSuccessStatusCode();
+        var vehicle = (await vehicleResponse.Content.ReadFromJsonAsync<VehicleResponse>())!;
+
+        var mechanicResponse = await _client.PostAsJsonAsync("/api/v1/mechanics", new { name = $"Mecanico Maquina de Estados {sequence}" });
+        mechanicResponse.EnsureSuccessStatusCode();
+        var mechanic = (await mechanicResponse.Content.ReadFromJsonAsync<MechanicResponse>())!;
+
+        var workshopServiceResponse = await _client.PostAsJsonAsync("/api/v1/workshop-services", new
+        {
+            name = $"Servico Maquina de Estados {sequence}",
+            description = "Servico usado para testar a maquina de estados da OS",
+            unitPrice = 100m,
+            estimatedDurationMinutes = 30
+        });
+        workshopServiceResponse.EnsureSuccessStatusCode();
+        var workshopService = (await workshopServiceResponse.Content.ReadFromJsonAsync<WorkshopServiceResponse>())!;
+
+        var openResponse = await _client.PostAsJsonAsync("/api/v1/service-orders", new
+        {
+            customerId = customer.Id,
+            vehicleId = vehicle.Id,
+            description = "OS para testar a maquina de estados"
+        });
+        openResponse.EnsureSuccessStatusCode();
+        var order = (await openResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+
+        return new OrderContext(mechanic.Id, workshopService.Id, order);
+    }
+
+    private async Task<OrderContext> ReachReceivedAsync()
+    {
+        var ctx = await OpenNewOrderAsync();
+        var response = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = ctx.Order.Id,
+            checkList = "Inspecao inicial concluida"
+        });
+        response.EnsureSuccessStatusCode();
+        var order = (await response.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        return ctx with { Order = order };
+    }
+
+    private async Task<OrderContext> ReachInDiagnosisAsync()
+    {
+        var ctx = await ReachReceivedAsync();
+        var response = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = ctx.Order.Id,
+            mechanicId = ctx.MechanicId
+        });
+        response.EnsureSuccessStatusCode();
+        var order = (await response.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        return ctx with { Order = order };
+    }
+
+    private async Task<OrderContext> ReachAwaitingApprovalAsync()
+    {
+        var ctx = await ReachInDiagnosisAsync();
+        var response = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = ctx.Order.Id,
+            workshopServiceIds = new[] { ctx.WorkshopServiceId }
+        });
+        response.EnsureSuccessStatusCode();
+        var order = (await response.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        return ctx with { Order = order };
+    }
+
+    private async Task<OrderContext> ReachInExecutionAsync()
+    {
+        var ctx = await ReachAwaitingApprovalAsync();
+        var response = await ApproveAsync(ctx.Order.Id);
+        response.EnsureSuccessStatusCode();
+        var order = (await response.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        return ctx with { Order = order };
+    }
+
+    private async Task<OrderContext> ReachFinalizedAsync()
+    {
+        var ctx = await ReachInExecutionAsync();
+        var response = await FinalizeAsync(ctx.Order.Id);
+        response.EnsureSuccessStatusCode();
+        var order = (await response.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        return ctx with { Order = order };
+    }
+
+    private async Task<OrderContext> ReachDeliveredAsync()
+    {
+        var ctx = await ReachFinalizedAsync();
+        var response = await DeliverAsync(ctx.Order.Id);
+        response.EnsureSuccessStatusCode();
+        var order = (await response.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        return ctx with { Order = order };
+    }
+
+    private async Task<OrderContext> ReachRejectedAsync()
+    {
+        var ctx = await ReachAwaitingApprovalAsync();
+        var response = await CancelAsync(ctx.Order.Id);
+        response.EnsureSuccessStatusCode();
+        var order = (await response.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        return ctx with { Order = order };
+    }
+
+    private Task<HttpResponseMessage> ApproveAsync(Guid serviceOrderId) =>
+        _client.PostAsync($"/api/v1/service-orders/{serviceOrderId}/approve", content: null);
+
+    private Task<HttpResponseMessage> CancelAsync(Guid serviceOrderId) =>
+        _client.PostAsync($"/api/v1/service-orders/{serviceOrderId}/cancel", content: null);
+
+    private Task<HttpResponseMessage> FinalizeAsync(Guid serviceOrderId) =>
+        _client.PostAsync($"/api/v1/service-orders/{serviceOrderId}/finalize", content: null);
+
+    private Task<HttpResponseMessage> DeliverAsync(Guid serviceOrderId) =>
+        _client.PostAsync($"/api/v1/service-orders/{serviceOrderId}/deliver", content: null);
+
+    private async Task AuthenticateAsync()
+    {
+        if (_client.DefaultRequestHeaders.Authorization is not null)
+        {
+            return;
+        }
+
+        var tokenResponse = await _client.PostAsync("/api/v1/auth/token", content: null);
+        var accessToken = (await tokenResponse.Content.ReadFromJsonAsync<AccessTokenResponse>())!.AccessToken;
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+    }
+
     private void Log(string step, string action, HttpStatusCode statusCode, ServiceOrderStatus? osStatus = null)
     {
         var osStatusText = osStatus is null ? "" : $" | status da OS = {osStatus}";
         output.WriteLine($"[{step}] {action} -> {(int)statusCode} {statusCode}{osStatusText}");
     }
+
+    private void Log(string step, string action, ServiceOrderStatus? osStatus) =>
+        output.WriteLine($"[{step}] {action} -> status da OS = {(osStatus is null ? "null" : osStatus.ToString())}");
 }
