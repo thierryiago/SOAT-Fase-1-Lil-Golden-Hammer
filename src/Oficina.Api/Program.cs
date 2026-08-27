@@ -114,7 +114,7 @@ if (!app.Environment.IsEnvironment("Testing"))
     try
     {
         var context = services.GetRequiredService<AppDbContext>();
-        context.Database.Migrate();
+        await context.Database.MigrateAsync();
     }
     catch (Exception ex)
     {
@@ -123,6 +123,6 @@ if (!app.Environment.IsEnvironment("Testing"))
     }
 }
 
-app.Run();
+await app.RunAsync();
 
 public partial class Program;
