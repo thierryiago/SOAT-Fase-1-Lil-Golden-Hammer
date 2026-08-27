@@ -21,12 +21,11 @@ using Xunit.Abstractions;
 
 namespace Oficina.Api.ContractTests.Domains;
 
-// BudgetsController so expoe GET (lista) e GET /{id} - nao ha endpoint HTTP para abrir um
-// orcamento (BudgetService.OpenFromServiceOrderAsync existe na camada de aplicacao mas nunca foi
-// ligado a uma rota). Por isso, ao contrario dos outros arquivos em Domains/, aqui preparamos o
-// cenario inserindo direto no AppDbContext do host de teste, e testamos a leitura via HTTP.
-// BudgetsController tambem nao tem [Authorize] hoje - as chamadas abaixo propositalmente nao
-// enviam token, refletindo o comportamento real do controller.
+// BudgetsController only exposes GET (list) and GET /{id} - there is no HTTP endpoint to open a
+// budget. Unlike the other files in Domains/, the scenario here is prepared by inserting directly
+// into the test host's AppDbContext, and reading is tested via HTTP.
+// BudgetsController also has no [Authorize] today - the calls below deliberately send no token,
+// reflecting the controller's actual behavior.
 public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper output) : IClassFixture<OficinaApiFactory>
 {
     private static int _documentCounter;
@@ -39,7 +38,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         var (budgetId, _) = await SeedBudgetAsync();
 
         var response = await _client.GetAsync("/api/v1/budgets?page=1&pageSize=20");
-        Log("Listar orcamentos (sem token de autenticacao)", response);
+        Log("List budgets (no authentication token)", response);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var budgets = (await response.Content.ReadFromJsonAsync<PagedResponse<BudgetResponse>>())!;
 
@@ -52,7 +51,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         var (budgetId, expectedTotal) = await SeedBudgetAsync();
 
         var response = await _client.GetAsync($"/api/v1/budgets/{budgetId}");
-        Log($"Buscar orcamento por id (esperado: totalValue={expectedTotal})", response);
+        Log($"Get budget by id (expected: totalValue={expectedTotal})", response);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var budget = (await response.Content.ReadFromJsonAsync<BudgetResponse>())!;
 
@@ -65,7 +64,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
     public async Task GetById_should_return_not_found_for_unknown_budget()
     {
         var response = await _client.GetAsync($"/api/v1/budgets/{Guid.NewGuid()}");
-        Log("Buscar orcamento inexistente", response);
+        Log("Get unknown budget", response);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -78,8 +77,8 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         var sequence = Interlocked.Increment(ref _documentCounter);
         var customerResponse = await _client.PostAsJsonAsync("/api/v1/customers", new
         {
-            name = "Cliente Orcamento Automatico",
-            email = $"orcamento.auto.{sequence}@example.com",
+            name = "Auto Budget Customer",
+            email = $"auto.budget.{sequence}@example.com",
             telephoneNumber = "+5511999990000",
             document = sequence.ToString().PadLeft(11, '0')
         });
@@ -98,14 +97,14 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         vehicleResponse.EnsureSuccessStatusCode();
         var vehicle = (await vehicleResponse.Content.ReadFromJsonAsync<VehicleResponse>())!;
 
-        var mechanicResponse = await _client.PostAsJsonAsync("/api/v1/mechanics", new { name = $"Mecanico Orcamento {sequence}" });
+        var mechanicResponse = await _client.PostAsJsonAsync("/api/v1/mechanics", new { name = $"Budget Test Mechanic {sequence}" });
         mechanicResponse.EnsureSuccessStatusCode();
         var mechanic = (await mechanicResponse.Content.ReadFromJsonAsync<MechanicResponse>())!;
 
         var serviceAResponse = await _client.PostAsJsonAsync("/api/v1/workshop-services", new
         {
-            name = $"Servico Orcamento A {sequence}",
-            description = "Servico de 400 reais",
+            name = $"Budget Test Service A {sequence}",
+            description = "A $400 service",
             unitPrice = 400m,
             estimatedDurationMinutes = 60
         });
@@ -114,8 +113,8 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
 
         var serviceBResponse = await _client.PostAsJsonAsync("/api/v1/workshop-services", new
         {
-            name = $"Servico Orcamento B {sequence}",
-            description = "Outro servico de 400 reais",
+            name = $"Budget Test Service B {sequence}",
+            description = "Another $400 service",
             unitPrice = 400m,
             estimatedDurationMinutes = 60
         });
@@ -126,7 +125,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         {
             customerId = customer.Id,
             vehicleId = vehicle.Id,
-            description = "OS para validar abertura automatica de orcamento"
+            description = "Order to validate automatic budget creation"
         });
         openResponse.EnsureSuccessStatusCode();
         var serviceOrder = (await openResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
@@ -134,7 +133,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         var checklistResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
         {
             serviceOrderId = serviceOrder.Id,
-            checkList = "Inspecao inicial concluida"
+            checkList = "Initial inspection completed"
         });
         checklistResponse.EnsureSuccessStatusCode();
 
@@ -152,7 +151,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         });
         awaitingApprovalResponse.EnsureSuccessStatusCode();
         var updatedOrder = (await awaitingApprovalResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
-        Log($"OS avancou para {updatedOrder.Status} apos anexar 2 servicos de R$400", awaitingApprovalResponse);
+        Log($"Order advanced to {updatedOrder.Status} after attaching 2 services of $400", awaitingApprovalResponse);
         Assert.Equal(ServiceOrderStatus.AwaitingApproval, updatedOrder.Status);
 
         var budgetsResponse = await _client.GetAsync("/api/v1/budgets?page=1&pageSize=100");
@@ -161,17 +160,10 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         var budgetForThisOrder = budgets.Items.SingleOrDefault(budget => budget.ServiceOrderId == serviceOrder.Id);
         Log(
             budgetForThisOrder is null
-                ? "Nenhum orcamento encontrado para a OS (esperado: um orcamento de R$800)"
-                : $"Orcamento encontrado para a OS: TotalValue={budgetForThisOrder.TotalValue}",
+                ? "No budget found for the order (expected: a budget of $800)"
+                : $"Budget found for the order: TotalValue={budgetForThisOrder.TotalValue}",
             budgetsResponse);
 
-        // REGRA DE NEGOCIO ESPERADA (2026-08-26, ainda NAO implementada): quando a OS atinge
-        // AwaitingApproval, o sistema deveria abrir automaticamente um Budget vinculado a ela,
-        // com TotalValue = soma dos servicos de oficina anexados (aqui, 400 + 400 = 800).
-        // Hoje isso nao acontece em lugar nenhum do codigo: ServiceOrderService nao conhece
-        // BudgetService/IBudgetRepository, e BudgetService.OpenFromServiceOrderAsync so pode
-        // ser chamado manualmente (nem isso - nao ha endpoint HTTP para ele). Este teste documenta
-        // o comportamento correto esperado e falha propositalmente ate a regra ser implementada.
         Assert.NotNull(budgetForThisOrder);
         Assert.Equal(800m, budgetForThisOrder!.TotalValue);
     }
@@ -195,17 +187,17 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
 
         var sequence = Interlocked.Increment(ref _documentCounter);
         var customer = Customer.Create(
-            "Cliente Orcamento", $"orcamento.{sequence}@example.com", "+5511999990000",
+            "Budget Test Customer", $"budget.{sequence}@example.com", "+5511999990000",
             sequence.ToString().PadLeft(11, '0'));
         db.Customers.Add(customer);
 
-        var part = Part.Create("Peca Orcamento", $"BUD-{Guid.NewGuid():N}", 50m, EnumPartKind.Part);
+        var part = Part.Create("Budget Test Part", $"BUD-{Guid.NewGuid():N}", 50m, EnumPartKind.Part);
         db.Parts.Add(part);
 
-        var workshopService = WorkshopService.Create($"Servico Orcamento {sequence}", "Descricao", 200m, 30);
+        var workshopService = WorkshopService.Create($"Budget Test Service {sequence}", "Description", 200m, 30);
         db.WorkshopServices.Add(workshopService);
 
-        var serviceOrder = ServiceOrder.Open(customer.Id, Guid.NewGuid(), "OS para orcamento");
+        var serviceOrder = ServiceOrder.Open(customer.Id, Guid.NewGuid(), "Order for budget test");
         db.ServiceOrders.Add(serviceOrder);
 
         await db.SaveChangesAsync();

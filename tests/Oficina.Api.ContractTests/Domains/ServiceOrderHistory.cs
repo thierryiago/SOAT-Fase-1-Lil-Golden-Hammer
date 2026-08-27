@@ -32,7 +32,7 @@ public sealed class ServiceOrderHistoryTests(OficinaApiFactory factory, ITestOut
         var statusSequence = string.Join(" -> ", history
             .OrderBy(entry => entry.CreatedAt)
             .Select(entry => entry.StatusName));
-        Log($"Historico da OS ({history.Count} entradas): {statusSequence}", response);
+        Log($"Order history ({history.Count} entries): {statusSequence}", response);
 
         Assert.Equal(6, history.Count);
         Assert.All(history, entry => Assert.Equal(serviceOrderId, entry.ServiceOrderId));
@@ -51,7 +51,7 @@ public sealed class ServiceOrderHistoryTests(OficinaApiFactory factory, ITestOut
         {
             customerId = customer.Id,
             vehicleId = vehicle.Id,
-            description = "OS recem aberta, sem nenhuma transicao de status"
+            description = "Freshly opened order, no status transitions yet"
         });
         openResponse.EnsureSuccessStatusCode();
         var serviceOrder = (await openResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
@@ -59,7 +59,7 @@ public sealed class ServiceOrderHistoryTests(OficinaApiFactory factory, ITestOut
         var response = await _client.GetAsync($"/api/v1/service-order-history/service-order/{serviceOrder.Id}");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var history = (await response.Content.ReadFromJsonAsync<List<ServiceOrderHistoryResponse>>())!;
-        Log($"Historico de OS recem aberta ({history.Count} entradas, esperado 0)", response);
+        Log($"History of a freshly opened order ({history.Count} entries, expected 0)", response);
 
         Assert.Empty(history);
     }
@@ -73,7 +73,7 @@ public sealed class ServiceOrderHistoryTests(OficinaApiFactory factory, ITestOut
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var history = (await response.Content.ReadFromJsonAsync<List<ServiceOrderHistoryResponse>>())!;
         var entriesForThisOrder = history.Count(entry => entry.ServiceOrderId == serviceOrderId);
-        Log($"Historico geral contem {entriesForThisOrder} entradas desta OS (esperado 6)", response);
+        Log($"Overall history contains {entriesForThisOrder} entries for this order (expected 6)", response);
 
         Assert.Equal(6, entriesForThisOrder);
     }
@@ -87,7 +87,7 @@ public sealed class ServiceOrderHistoryTests(OficinaApiFactory factory, ITestOut
         {
             customerId = customer.Id,
             vehicleId = vehicle.Id,
-            description = "OS para validar o historico de status"
+            description = "Order to validate the status history"
         });
         openResponse.EnsureSuccessStatusCode();
         var serviceOrder = (await openResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
@@ -95,7 +95,7 @@ public sealed class ServiceOrderHistoryTests(OficinaApiFactory factory, ITestOut
         (await _client.PutAsJsonAsync("/api/v1/service-orders", new
         {
             serviceOrderId = serviceOrder.Id,
-            checkList = "Inspecao inicial concluida"
+            checkList = "Initial inspection completed"
         })).EnsureSuccessStatusCode();
 
         (await _client.PutAsJsonAsync("/api/v1/service-orders", new
@@ -124,8 +124,8 @@ public sealed class ServiceOrderHistoryTests(OficinaApiFactory factory, ITestOut
 
         var customerResponse = await _client.PostAsJsonAsync("/api/v1/customers", new
         {
-            name = "Cliente Historico",
-            email = $"historico.{sequence}@example.com",
+            name = "History Test Customer",
+            email = $"history.{sequence}@example.com",
             telephoneNumber = "+5511999990000",
             document = sequence.ToString().PadLeft(11, '0')
         });
@@ -144,14 +144,14 @@ public sealed class ServiceOrderHistoryTests(OficinaApiFactory factory, ITestOut
         vehicleResponse.EnsureSuccessStatusCode();
         var vehicle = (await vehicleResponse.Content.ReadFromJsonAsync<VehicleResponse>())!;
 
-        var mechanicResponse = await _client.PostAsJsonAsync("/api/v1/mechanics", new { name = $"Mecanico Historico {sequence}" });
+        var mechanicResponse = await _client.PostAsJsonAsync("/api/v1/mechanics", new { name = $"History Test Mechanic {sequence}" });
         mechanicResponse.EnsureSuccessStatusCode();
         var mechanic = (await mechanicResponse.Content.ReadFromJsonAsync<MechanicResponse>())!;
 
         var workshopServiceResponse = await _client.PostAsJsonAsync("/api/v1/workshop-services", new
         {
-            name = $"Servico Historico {sequence}",
-            description = "Servico usado para testar o historico de status",
+            name = $"History Test Service {sequence}",
+            description = "Service used to test the status history",
             unitPrice = 100m,
             estimatedDurationMinutes = 30
         });

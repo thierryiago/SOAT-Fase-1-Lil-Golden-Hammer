@@ -16,7 +16,7 @@ public sealed class VehicleTests(OficinaApiFactory factory, ITestOutputHelper ou
 
     [Theory]
     [InlineData("ABC1234", "formato antigo sem hifen")]
-    [InlineData("ABC-1234", "formato antigo com hifen")]
+    [InlineData("XYZ-9876", "formato antigo com hifen")]
     [InlineData("ABC1D23", "formato Mercosul")]
     public async Task Create_should_accept_valid_plate(string plate, string description)
     {
@@ -59,6 +59,37 @@ public sealed class VehicleTests(OficinaApiFactory factory, ITestOutputHelper ou
         Log($"Placa invalida - {description} (\"{plate}\")", response);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_should_reject_same_plate_typed_with_different_casing_as_duplicate()
+    {
+        var customerA = await CreateCustomerAsync();
+        var customerB = await CreateCustomerAsync();
+
+        var firstResponse = await _client.PostAsJsonAsync("/api/v1/vehicles", new
+        {
+            customerId = customerA.Id,
+            plate = "DUP5678",
+            brand = "Honda",
+            model = "Civic",
+            year = 2022,
+            category = 1
+        });
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+
+        var secondResponse = await _client.PostAsJsonAsync("/api/v1/vehicles", new
+        {
+            customerId = customerB.Id,
+            plate = "dup5678",
+            brand = "Toyota",
+            model = "Corolla",
+            year = 2021,
+            category = 1
+        });
+        Log("Mesma placa fisica cadastrada de novo em minusculo (esperado: rejeitado como duplicado)", secondResponse);
+
+        Assert.Equal(HttpStatusCode.Conflict, secondResponse.StatusCode);
     }
 
     private async Task<CustomerResponse> CreateCustomerAsync()

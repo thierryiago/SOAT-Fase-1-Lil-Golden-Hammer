@@ -28,7 +28,7 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
         var part = await CreatePartAsync("STOCK-ENTRY");
 
         var response = await _client.PutAsJsonAsync($"/api/v1/stocks/stocks-part/{part.Id}/entries", new { quantity = 10 });
-        Log("Entrada de 10 unidades em estoque zerado", response);
+        Log("Entry of 10 units into a zeroed stock", response);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var stock = (await response.Content.ReadFromJsonAsync<StockResponse>())!;
 
@@ -42,7 +42,7 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
         await _client.PutAsJsonAsync($"/api/v1/stocks/stocks-part/{part.Id}/entries", new { quantity = 10 });
 
         var response = await _client.PutAsJsonAsync($"/api/v1/stocks/stocks-part/{part.Id}/consumptions", new { quantity = 4 });
-        Log("Consumo de 4 unidades (10 -> 6)", response);
+        Log("Consume 4 units (10 -> 6)", response);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var stock = (await response.Content.ReadFromJsonAsync<StockResponse>())!;
 
@@ -56,7 +56,7 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
         await _client.PutAsJsonAsync($"/api/v1/stocks/stocks-part/{part.Id}/entries", new { quantity = 3 });
 
         var response = await _client.PutAsJsonAsync($"/api/v1/stocks/stocks-part/{part.Id}/consumptions", new { quantity = 10 });
-        Log("Consumo de 10 unidades com apenas 3 em estoque (esperado: rejeitado)", response);
+        Log("Consume 10 units with only 3 in stock (expected: rejected)", response);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -68,7 +68,7 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
         await _client.PutAsJsonAsync($"/api/v1/stocks/stocks-part/{part.Id}/entries", new { quantity = 10 });
 
         var response = await _client.PutAsJsonAsync($"/api/v1/stocks/stocks-part/{part.Id}/adjustments", new { quantity = 25 });
-        Log("Ajuste absoluto para 25 unidades (independente do valor anterior)", response);
+        Log("Absolute adjustment to 25 units (regardless of the previous value)", response);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var stock = (await response.Content.ReadFromJsonAsync<StockResponse>())!;
 
@@ -93,11 +93,11 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
         Assert.Equal(HttpStatusCode.OK, attachPartResponse.StatusCode);
 
         var stockAfterAttach = await GetStockByPartIdAsync(part.Id);
-        Log($"Estoque apos anexar 3 unidades da peca a OS (10 -> {stockAfterAttach.Quantity})", attachPartResponse);
+        Log($"Stock after attaching 3 units of the part to the order (10 -> {stockAfterAttach.Quantity})", attachPartResponse);
         Assert.Equal(7, stockAfterAttach.Quantity);
 
-        // A subtracao acontece no momento em que a peca e anexada a OS (durante o Update, ainda em
-        // InDiagnosis/AwaitingApproval) - nao existe nenhuma subtracao adicional em approve/finalize/deliver.
+        // The deduction happens the moment the part is attached to the order (during Update, still in
+        // InDiagnosis/AwaitingApproval) - there is no additional deduction on approve/finalize/deliver.
         await _client.PutAsJsonAsync("/api/v1/service-orders", new
         {
             serviceOrderId = serviceOrder.Id,
@@ -111,7 +111,7 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
         Assert.Equal(HttpStatusCode.OK, deliverResponse.StatusCode);
 
         var stockAfterDelivery = await GetStockByPartIdAsync(part.Id);
-        Log($"Estoque apos aprovar/finalizar/entregar (deve permanecer em {stockAfterAttach.Quantity})", deliverResponse);
+        Log($"Stock after approve/finalize/deliver (should remain at {stockAfterAttach.Quantity})", deliverResponse);
         Assert.Equal(7, stockAfterDelivery.Quantity);
     }
 
@@ -141,13 +141,13 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
         Assert.Equal(HttpStatusCode.OK, awaitingApprovalResponse.StatusCode);
 
         var cancelResponse = await _client.PostAsync($"/api/v1/service-orders/{serviceOrder.Id}/cancel", content: null);
-        Log("Cancelar OS com 3 unidades da peca anexadas", cancelResponse);
+        Log("Cancel order with 3 units of the part attached", cancelResponse);
         Assert.Equal(HttpStatusCode.OK, cancelResponse.StatusCode);
         var cancelledOrder = await cancelResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>();
         Assert.Equal(ServiceOrderStatus.Rejected, cancelledOrder!.Status);
 
         var stockAfterCancel = await GetStockByPartIdAsync(part.Id);
-        Log($"Estoque apos cancelar a OS (7 -> {stockAfterCancel.Quantity}, esperado voltar a 10)", cancelResponse);
+        Log($"Stock after cancelling the order (7 -> {stockAfterCancel.Quantity}, expected back to 10)", cancelResponse);
         Assert.Equal(10, stockAfterCancel.Quantity);
     }
 
@@ -165,7 +165,7 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
         {
             customerId,
             vehicleId,
-            description = "OS de teste de estoque"
+            description = "Stock test order"
         });
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
@@ -176,7 +176,7 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
         var checklistResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
         {
             serviceOrderId,
-            checkList = "Inspecao inicial concluida"
+            checkList = "Initial inspection completed"
         });
         checklistResponse.EnsureSuccessStatusCode();
 
@@ -196,8 +196,8 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
         var sequence = Interlocked.Increment(ref _documentCounter);
         var customerResponse = await _client.PostAsJsonAsync("/api/v1/customers", new
         {
-            name = "Cliente Teste de Estoque",
-            email = $"estoque.{sequence}@example.com",
+            name = "Stock Test Customer",
+            email = $"stock.{sequence}@example.com",
             telephoneNumber = "+5511999990000",
             document = sequence.ToString().PadLeft(11, '0')
         });
@@ -216,14 +216,14 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
         vehicleResponse.EnsureSuccessStatusCode();
         var vehicle = (await vehicleResponse.Content.ReadFromJsonAsync<VehicleResponse>())!;
 
-        var mechanicResponse = await _client.PostAsJsonAsync("/api/v1/mechanics", new { name = $"Mecanico Estoque {sequence}" });
+        var mechanicResponse = await _client.PostAsJsonAsync("/api/v1/mechanics", new { name = $"Stock Test Mechanic {sequence}" });
         mechanicResponse.EnsureSuccessStatusCode();
         var mechanic = (await mechanicResponse.Content.ReadFromJsonAsync<MechanicResponse>())!;
 
         var workshopServiceResponse = await _client.PostAsJsonAsync("/api/v1/workshop-services", new
         {
-            name = $"Servico Estoque {sequence}",
-            description = "Servico usado para testar consumo de estoque",
+            name = $"Stock Test Service {sequence}",
+            description = "Service used to test stock consumption",
             unitPrice = 100m,
             estimatedDurationMinutes = 30
         });
@@ -239,7 +239,7 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
 
         var response = await _client.PostAsJsonAsync("/api/v1/parts", new
         {
-            name = $"Peca {codeSuffix}",
+            name = $"Part {codeSuffix}",
             code = $"{codeSuffix}-{Guid.NewGuid():N}",
             unitPrice = 10m,
             kind = 1

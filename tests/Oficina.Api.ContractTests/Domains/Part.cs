@@ -21,12 +21,12 @@ public sealed class PartTests(OficinaApiFactory factory, ITestOutputHelper outpu
 
         var createResponse = await _client.PostAsJsonAsync("/api/v1/parts", new
         {
-            name = "Filtro de oleo",
+            name = "Oil filter",
             code = "PART-TEST-001",
             unitPrice = 45.90m,
             kind = 1
         });
-        Log("Criar peca", createResponse);
+        Log("Create part", createResponse);
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         var part = (await createResponse.Content.ReadFromJsonAsync<PartResponse>())!;
 
@@ -34,7 +34,7 @@ public sealed class PartTests(OficinaApiFactory factory, ITestOutputHelper outpu
         Assert.Equal(HttpStatusCode.OK, stocksResponse.StatusCode);
         var stocks = (await stocksResponse.Content.ReadFromJsonAsync<PagedResponse<StockResponse>>())!;
         var stock = stocks.Items.SingleOrDefault(s => s.PartId == part.Id);
-        Log($"Estoque criado automaticamente para a peca (id={stock?.Id}, quantidade={stock?.Quantity})", stocksResponse);
+        Log($"Stock automatically created for the part (id={stock?.Id}, quantity={stock?.Quantity})", stocksResponse);
 
         Assert.NotNull(stock);
         Assert.Equal(0, stock!.Quantity);
@@ -47,7 +47,7 @@ public sealed class PartTests(OficinaApiFactory factory, ITestOutputHelper outpu
 
         var firstResponse = await _client.PostAsJsonAsync("/api/v1/parts", new
         {
-            name = "Filtro de ar",
+            name = "Air filter",
             code = "PART-TEST-DUP",
             unitPrice = 30m,
             kind = 1
@@ -56,12 +56,12 @@ public sealed class PartTests(OficinaApiFactory factory, ITestOutputHelper outpu
 
         var duplicateResponse = await _client.PostAsJsonAsync("/api/v1/parts", new
         {
-            name = "Outro filtro qualquer",
+            name = "Some other filter",
             code = "PART-TEST-DUP",
             unitPrice = 99m,
             kind = 1
         });
-        Log("Criar peca com codigo duplicado", duplicateResponse);
+        Log("Create part with duplicate code", duplicateResponse);
 
         Assert.Equal(HttpStatusCode.Conflict, duplicateResponse.StatusCode);
     }
@@ -73,7 +73,7 @@ public sealed class PartTests(OficinaApiFactory factory, ITestOutputHelper outpu
 
         var createResponse = await _client.PostAsJsonAsync("/api/v1/parts", new
         {
-            name = "Vela de ignicao",
+            name = "Spark plug",
             code = "PART-TEST-UPD",
             unitPrice = 20m,
             kind = 1
@@ -82,16 +82,16 @@ public sealed class PartTests(OficinaApiFactory factory, ITestOutputHelper outpu
 
         var updateResponse = await _client.PutAsJsonAsync($"/api/v1/parts/{part.Id}", new
         {
-            name = "Vela de ignicao iridium",
+            name = "Iridium spark plug",
             code = "PART-TEST-UPD",
             unitPrice = 35m,
             kind = 1
         });
-        Log("Atualizar peca", updateResponse);
+        Log("Update part", updateResponse);
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         var updated = (await updateResponse.Content.ReadFromJsonAsync<PartResponse>())!;
 
-        Assert.Equal("Vela de ignicao iridium", updated.Name);
+        Assert.Equal("Iridium spark plug", updated.Name);
         Assert.Equal(35m, updated.UnitPrice);
     }
 

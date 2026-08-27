@@ -18,12 +18,12 @@ public sealed class CustomerTests(OficinaApiFactory factory, ITestOutputHelper o
 
         var response = await _client.PostAsJsonAsync("/api/v1/customers", new
         {
-            name = "Cliente CPF Valido",
-            email = "cpf.valido@example.com",
+            name = "Valid CPF Customer",
+            email = "cpf.valid@example.com",
             telephoneNumber = "+5511999990001",
             document = "086.043.100-29"
         });
-        Log("CPF valido (086.043.100-29 - digitos verificadores conferem: 2 e 9)", response);
+        Log("Valid CPF (086.043.100-29 - check digits match: 2 and 9)", response);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
@@ -35,18 +35,13 @@ public sealed class CustomerTests(OficinaApiFactory factory, ITestOutputHelper o
 
         var response = await _client.PostAsJsonAsync("/api/v1/customers", new
         {
-            name = "Cliente CPF Invalido",
-            email = "cpf.invalido@example.com",
+            name = "Invalid CPF Customer",
+            email = "cpf.invalid@example.com",
             telephoneNumber = "+5511999990002",
             document = "123.456.789-01"
         });
-        Log("CPF com digito verificador invalido (123.456.789-01 - segundo digito deveria ser 9, nao 1)", response);
+        Log("CPF with invalid check digit (123.456.789-01 - second digit should be 9, not 1)", response);
 
-        // BUG CONHECIDO (2026-08-26): Customer.IsValidDocument (src/Oficina.Domain/Customers/Customer.cs)
-        // nao calcula o digito verificador real (mod-11) do CPF/CNPJ - so rejeita documentos com todos
-        // os digitos repetidos (ex.: 000.000.000-00). Um CPF com 11 digitos nao repetidos, mesmo com
-        // digito verificador matematicamente errado, e aceito hoje. Este teste documenta o comportamento
-        // CORRETO esperado e falha propositalmente ate a validacao real ser implementada.
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
@@ -57,12 +52,12 @@ public sealed class CustomerTests(OficinaApiFactory factory, ITestOutputHelper o
 
         var response = await _client.PostAsJsonAsync("/api/v1/customers", new
         {
-            name = "Empresa CNPJ Valido",
-            email = "cnpj.valido@example.com",
+            name = "Valid CNPJ Company",
+            email = "cnpj.valid@example.com",
             telephoneNumber = "+5511999990003",
             document = "11.222.333/0001-81"
         });
-        Log("CNPJ valido (11.222.333/0001-81 - digitos verificadores conferem: 8 e 1)", response);
+        Log("Valid CNPJ (11.222.333/0001-81 - check digits match: 8 and 1)", response);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
@@ -74,14 +69,13 @@ public sealed class CustomerTests(OficinaApiFactory factory, ITestOutputHelper o
 
         var response = await _client.PostAsJsonAsync("/api/v1/customers", new
         {
-            name = "Empresa CNPJ Invalido",
-            email = "cnpj.invalido@example.com",
+            name = "Invalid CNPJ Company",
+            email = "cnpj.invalid@example.com",
             telephoneNumber = "+5511999990004",
             document = "11.222.333/0001-00"
         });
-        Log("CNPJ com digito verificador invalido (11.222.333/0001-00 - deveria ser 81, nao 00)", response);
+        Log("CNPJ with invalid check digit (11.222.333/0001-00 - should be 81, not 00)", response);
 
-        // BUG CONHECIDO (2026-08-26): mesma causa raiz do teste de CPF acima.
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 

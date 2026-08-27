@@ -25,20 +25,20 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
     {
         var tokenResponse = await _client.PostAsync("/api/v1/auth/token", content: null);
         Assert.Equal(HttpStatusCode.OK, tokenResponse.StatusCode);
-        Log("Setup", "Emitir token JWT", tokenResponse.StatusCode);
+        Log("Setup", "Issue JWT token", tokenResponse.StatusCode);
         var accessToken = (await tokenResponse.Content.ReadFromJsonAsync<AccessTokenResponse>())!.AccessToken;
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
         var customerResponse = await _client.PostAsJsonAsync("/api/v1/customers", new
         {
-            name = "Cliente Ciclo de Vida",
-            email = "ciclo.vida@example.com",
+            name = "Lifecycle Customer",
+            email = "lifecycle@example.com",
             telephoneNumber = "+5511999990099",
             document = "12345678901"
         });
         Assert.Equal(HttpStatusCode.Created, customerResponse.StatusCode);
         var customer = (await customerResponse.Content.ReadFromJsonAsync<CustomerResponse>())!;
-        Log("Setup", $"Criar cliente (id={customer.Id})", customerResponse.StatusCode);
+        Log("Setup", $"Create customer (id={customer.Id})", customerResponse.StatusCode);
 
         var vehicleResponse = await _client.PostAsJsonAsync("/api/v1/vehicles", new
         {
@@ -51,45 +51,45 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         });
         Assert.Equal(HttpStatusCode.Created, vehicleResponse.StatusCode);
         var vehicle = (await vehicleResponse.Content.ReadFromJsonAsync<VehicleResponse>())!;
-        Log("Setup", $"Criar veiculo (id={vehicle.Id})", vehicleResponse.StatusCode);
+        Log("Setup", $"Create vehicle (id={vehicle.Id})", vehicleResponse.StatusCode);
 
-        var mechanicResponse = await _client.PostAsJsonAsync("/api/v1/mechanics", new { name = "Mecanico Ciclo de Vida" });
+        var mechanicResponse = await _client.PostAsJsonAsync("/api/v1/mechanics", new { name = "Lifecycle Mechanic" });
         Assert.Equal(HttpStatusCode.Created, mechanicResponse.StatusCode);
         var mechanic = (await mechanicResponse.Content.ReadFromJsonAsync<MechanicResponse>())!;
-        Log("Setup", $"Criar mecanico (id={mechanic.Id})", mechanicResponse.StatusCode);
+        Log("Setup", $"Create mechanic (id={mechanic.Id})", mechanicResponse.StatusCode);
 
         var workshopServiceResponse = await _client.PostAsJsonAsync("/api/v1/workshop-services", new
         {
-            name = "Servico Ciclo de Vida",
-            description = "Servico usado para exercitar todos os status da OS",
+            name = "Lifecycle Service",
+            description = "Service used to exercise every status of the order",
             unitPrice = 100.00m,
             estimatedDurationMinutes = 30
         });
         Assert.Equal(HttpStatusCode.Created, workshopServiceResponse.StatusCode);
         var workshopService = (await workshopServiceResponse.Content.ReadFromJsonAsync<WorkshopServiceResponse>())!;
-        Log("Setup", $"Criar servico de oficina (id={workshopService.Id})", workshopServiceResponse.StatusCode);
+        Log("Setup", $"Create workshop service (id={workshopService.Id})", workshopServiceResponse.StatusCode);
 
         var openResponse = await _client.PostAsJsonAsync("/api/v1/service-orders", new
         {
             customerId = customer.Id,
             vehicleId = vehicle.Id,
-            description = "OS para validar o ciclo de vida completo"
+            description = "Order to validate the full lifecycle"
         });
         Assert.Equal(HttpStatusCode.Created, openResponse.StatusCode);
         var serviceOrder = (await openResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
-        Log("0/6", "Abrir OS", openResponse.StatusCode, serviceOrder.Status);
+        Log("0/6", "Open order", openResponse.StatusCode, serviceOrder.Status);
 
         var observedStatuses = new List<ServiceOrderStatus?> { serviceOrder.Status };
 
         var receivedResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
         {
             serviceOrderId = serviceOrder.Id,
-            checkList = "Inspecao inicial concluida"
+            checkList = "Initial inspection completed"
         });
         Assert.Equal(HttpStatusCode.OK, receivedResponse.StatusCode);
         var receivedStatus = (await receivedResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!.Status;
         observedStatuses.Add(receivedStatus);
-        Log("1/6", "Definir checklist (esperado: Received)", receivedResponse.StatusCode, receivedStatus);
+        Log("1/6", "Set checklist (expected: Received)", receivedResponse.StatusCode, receivedStatus);
 
         var inDiagnosisResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
         {
@@ -99,7 +99,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         Assert.Equal(HttpStatusCode.OK, inDiagnosisResponse.StatusCode);
         var inDiagnosisStatus = (await inDiagnosisResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!.Status;
         observedStatuses.Add(inDiagnosisStatus);
-        Log("2/6", "Atribuir mecanico (esperado: InDiagnosis)", inDiagnosisResponse.StatusCode, inDiagnosisStatus);
+        Log("2/6", "Assign mechanic (expected: InDiagnosis)", inDiagnosisResponse.StatusCode, inDiagnosisStatus);
 
         var awaitingApprovalResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
         {
@@ -109,25 +109,25 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         Assert.Equal(HttpStatusCode.OK, awaitingApprovalResponse.StatusCode);
         var awaitingApprovalStatus = (await awaitingApprovalResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!.Status;
         observedStatuses.Add(awaitingApprovalStatus);
-        Log("3/6", "Anexar servico de oficina (esperado: AwaitingApproval)", awaitingApprovalResponse.StatusCode, awaitingApprovalStatus);
+        Log("3/6", "Attach workshop service (expected: AwaitingApproval)", awaitingApprovalResponse.StatusCode, awaitingApprovalStatus);
 
         var approveResponse = await _client.PostAsync($"/api/v1/service-orders/{serviceOrder.Id}/approve", content: null);
         Assert.Equal(HttpStatusCode.OK, approveResponse.StatusCode);
         var approveStatus = (await approveResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!.Status;
         observedStatuses.Add(approveStatus);
-        Log("4/6", "Cliente aprova (esperado: InExecution)", approveResponse.StatusCode, approveStatus);
+        Log("4/6", "Client approves (expected: InExecution)", approveResponse.StatusCode, approveStatus);
 
         var finalizeResponse = await _client.PostAsync($"/api/v1/service-orders/{serviceOrder.Id}/finalize", content: null);
         Assert.Equal(HttpStatusCode.OK, finalizeResponse.StatusCode);
         var finalizeStatus = (await finalizeResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!.Status;
         observedStatuses.Add(finalizeStatus);
-        Log("5/6", "Finalizar (esperado: Finalized)", finalizeResponse.StatusCode, finalizeStatus);
+        Log("5/6", "Finalize (expected: Finalized)", finalizeResponse.StatusCode, finalizeStatus);
 
         var deliverResponse = await _client.PostAsync($"/api/v1/service-orders/{serviceOrder.Id}/deliver", content: null);
         Assert.Equal(HttpStatusCode.OK, deliverResponse.StatusCode);
         var deliverStatus = (await deliverResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!.Status;
         observedStatuses.Add(deliverStatus);
-        Log("6/6", "Entregar (esperado: Delivered)", deliverResponse.StatusCode, deliverStatus);
+        Log("6/6", "Deliver (expected: Delivered)", deliverResponse.StatusCode, deliverStatus);
 
         Assert.Equal(
             new ServiceOrderStatus?[]
@@ -143,18 +143,18 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
             observedStatuses);
 
         output.WriteLine("");
-        output.WriteLine("Resumo: todas as 6 transicoes ocorreram na ordem esperada.");
+        output.WriteLine("Summary: all 6 transitions happened in the expected order.");
     }
 
     // =====================================================================================
-    // Grupo A - um teste por status: confirma que cada status e alcancado pela acao certa.
+    // Group A - one test per status: confirms each status is reached by the right action.
     // =====================================================================================
 
     [Fact]
     public async Task Status_should_be_null_when_order_is_just_opened()
     {
         var ctx = await OpenNewOrderAsync();
-        Log("null", "OS recem aberta", ctx.Order.Status);
+        Log("null", "Order just opened", ctx.Order.Status);
 
         Assert.Null(ctx.Order.Status);
     }
@@ -163,7 +163,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
     public async Task Status_should_be_Received_after_checklist_is_set()
     {
         var ctx = await ReachReceivedAsync();
-        Log("1 - Received", "Checklist informado", ctx.Order.Status);
+        Log("1 - Received", "Checklist informed", ctx.Order.Status);
 
         Assert.Equal(ServiceOrderStatus.Received, ctx.Order.Status);
     }
@@ -172,7 +172,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
     public async Task Status_should_be_InDiagnosis_after_mechanic_is_assigned()
     {
         var ctx = await ReachInDiagnosisAsync();
-        Log("2 - InDiagnosis", "Mecanico atribuido", ctx.Order.Status);
+        Log("2 - InDiagnosis", "Mechanic assigned", ctx.Order.Status);
 
         Assert.Equal(ServiceOrderStatus.InDiagnosis, ctx.Order.Status);
     }
@@ -181,7 +181,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
     public async Task Status_should_be_AwaitingApproval_after_workshop_service_is_attached()
     {
         var ctx = await ReachAwaitingApprovalAsync();
-        Log("3 - AwaitingApproval", "Servico de oficina anexado", ctx.Order.Status);
+        Log("3 - AwaitingApproval", "Workshop service attached", ctx.Order.Status);
 
         Assert.Equal(ServiceOrderStatus.AwaitingApproval, ctx.Order.Status);
     }
@@ -190,7 +190,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
     public async Task Status_should_be_InExecution_after_client_approves()
     {
         var ctx = await ReachInExecutionAsync();
-        Log("4 - InExecution", "Cliente aprovou", ctx.Order.Status);
+        Log("4 - InExecution", "Client approved", ctx.Order.Status);
 
         Assert.Equal(ServiceOrderStatus.InExecution, ctx.Order.Status);
     }
@@ -199,7 +199,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
     public async Task Status_should_be_Finalized_after_finalize()
     {
         var ctx = await ReachFinalizedAsync();
-        Log("5 - Finalized", "Execucao finalizada", ctx.Order.Status);
+        Log("5 - Finalized", "Execution finalized", ctx.Order.Status);
 
         Assert.Equal(ServiceOrderStatus.Finalized, ctx.Order.Status);
     }
@@ -208,7 +208,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
     public async Task Status_should_be_Delivered_after_deliver()
     {
         var ctx = await ReachDeliveredAsync();
-        Log("6 - Delivered", "OS entregue", ctx.Order.Status);
+        Log("6 - Delivered", "Order delivered", ctx.Order.Status);
 
         Assert.Equal(ServiceOrderStatus.Delivered, ctx.Order.Status);
     }
@@ -217,13 +217,13 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
     public async Task Status_should_be_Rejected_after_client_cancels()
     {
         var ctx = await ReachRejectedAsync();
-        Log("7 - Rejected", "Cliente recusou (cancelamento)", ctx.Order.Status);
+        Log("7 - Rejected", "Client rejected (cancellation)", ctx.Order.Status);
 
         Assert.Equal(ServiceOrderStatus.Rejected, ctx.Order.Status);
     }
 
     // =====================================================================================
-    // Grupo B - tentativas de pular status: o sistema deve barrar (400) cada uma delas.
+    // Group B - attempts to skip statuses: the system must block (400) every one of them.
     // =====================================================================================
 
     [Fact]
@@ -232,7 +232,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await OpenNewOrderAsync();
 
         var response = await ApproveAsync(ctx.Order.Id);
-        Log("Pular para InExecution direto do null", "POST /approve", response.StatusCode);
+        Log("Skip straight to InExecution from null", "POST /approve", response.StatusCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -243,7 +243,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await ReachReceivedAsync();
 
         var response = await ApproveAsync(ctx.Order.Id);
-        Log("Pular InDiagnosis/AwaitingApproval, aprovar direto de Received", "POST /approve", response.StatusCode);
+        Log("Skip InDiagnosis/AwaitingApproval, approve straight from Received", "POST /approve", response.StatusCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -254,7 +254,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await ReachInDiagnosisAsync();
 
         var response = await ApproveAsync(ctx.Order.Id);
-        Log("Pular AwaitingApproval, aprovar direto de InDiagnosis", "POST /approve", response.StatusCode);
+        Log("Skip AwaitingApproval, approve straight from InDiagnosis", "POST /approve", response.StatusCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -265,7 +265,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await OpenNewOrderAsync();
 
         var response = await FinalizeAsync(ctx.Order.Id);
-        Log("Finalizar OS recem aberta (null)", "POST /finalize", response.StatusCode);
+        Log("Finalize a freshly opened order (null)", "POST /finalize", response.StatusCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -276,7 +276,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await ReachAwaitingApprovalAsync();
 
         var response = await FinalizeAsync(ctx.Order.Id);
-        Log("Pular InExecution, finalizar direto de AwaitingApproval", "POST /finalize", response.StatusCode);
+        Log("Skip InExecution, finalize straight from AwaitingApproval", "POST /finalize", response.StatusCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -287,7 +287,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await ReachInExecutionAsync();
 
         var response = await DeliverAsync(ctx.Order.Id);
-        Log("Pular Finalized, entregar direto de InExecution", "POST /deliver", response.StatusCode);
+        Log("Skip Finalized, deliver straight from InExecution", "POST /deliver", response.StatusCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -298,7 +298,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await ReachInDiagnosisAsync();
 
         var response = await CancelAsync(ctx.Order.Id);
-        Log("Cancelar antes de chegar em AwaitingApproval (InDiagnosis)", "POST /cancel", response.StatusCode);
+        Log("Cancel before reaching AwaitingApproval (InDiagnosis)", "POST /cancel", response.StatusCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -309,13 +309,13 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await ReachInExecutionAsync();
 
         var response = await CancelAsync(ctx.Order.Id);
-        Log("Cancelar depois de ja aprovada (InExecution) - so cancela em AwaitingApproval", "POST /cancel", response.StatusCode);
+        Log("Cancel after already approved (InExecution) - can only cancel while AwaitingApproval", "POST /cancel", response.StatusCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     // =====================================================================================
-    // Grupo C - estados terminais: uma vez Delivered ou Rejected, nenhuma acao deve funcionar.
+    // Group C - terminal states: once Delivered or Rejected, no action should work anymore.
     // =====================================================================================
 
     [Fact]
@@ -330,7 +330,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         Log("Delivered -> approve", "POST /approve", approveResponse.StatusCode);
         Log("Delivered -> cancel", "POST /cancel", cancelResponse.StatusCode);
         Log("Delivered -> finalize", "POST /finalize", finalizeResponse.StatusCode);
-        Log("Delivered -> deliver (de novo)", "POST /deliver", deliverResponse.StatusCode);
+        Log("Delivered -> deliver (again)", "POST /deliver", deliverResponse.StatusCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, approveResponse.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, cancelResponse.StatusCode);
@@ -348,7 +348,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var finalizeResponse = await FinalizeAsync(ctx.Order.Id);
         var deliverResponse = await DeliverAsync(ctx.Order.Id);
         Log("Rejected -> approve", "POST /approve", approveResponse.StatusCode);
-        Log("Rejected -> cancel (de novo)", "POST /cancel", cancelResponse.StatusCode);
+        Log("Rejected -> cancel (again)", "POST /cancel", cancelResponse.StatusCode);
         Log("Rejected -> finalize", "POST /finalize", finalizeResponse.StatusCode);
         Log("Rejected -> deliver", "POST /deliver", deliverResponse.StatusCode);
 
@@ -359,8 +359,8 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
     }
 
     // =====================================================================================
-    // Grupo D - tentativas de "quebrar" o fluxo via Update (trocar mecanico, anexar itens
-    // novos fora do estagio permitido). Devem ser barradas (400), sem alterar o status.
+    // Group D - attempts to "break" the flow via Update (change mechanic, attach new items
+    // outside the allowed stage). Must be blocked (400), without changing the status.
     // =====================================================================================
 
     [Fact]
@@ -373,7 +373,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
             serviceOrderId = ctx.Order.Id,
             mechanicId = Guid.NewGuid()
         });
-        Log("Trocar mecanico durante InDiagnosis", "PUT /service-orders", response.StatusCode);
+        Log("Change mechanic while InDiagnosis", "PUT /service-orders", response.StatusCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -388,7 +388,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
             serviceOrderId = ctx.Order.Id,
             mechanicId = Guid.NewGuid()
         });
-        Log("Trocar mecanico durante AwaitingApproval", "PUT /service-orders", response.StatusCode);
+        Log("Change mechanic while AwaitingApproval", "PUT /service-orders", response.StatusCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -403,7 +403,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
             serviceOrderId = ctx.Order.Id,
             mechanicId = Guid.NewGuid()
         });
-        Log("Trocar mecanico durante InExecution", "PUT /service-orders", response.StatusCode);
+        Log("Change mechanic while InExecution", "PUT /service-orders", response.StatusCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -418,7 +418,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
             serviceOrderId = ctx.Order.Id,
             workshopServiceIds = new[] { ctx.WorkshopServiceId }
         });
-        Log("Anexar servico de oficina antes do mecanico ser atribuido (ainda Received)", "PUT /service-orders", response.StatusCode);
+        Log("Attach workshop service before a mechanic is assigned (still Received)", "PUT /service-orders", response.StatusCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -433,14 +433,14 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
             serviceOrderId = ctx.Order.Id,
             parts = new[] { new { partId = Guid.NewGuid(), quantity = 1 } }
         });
-        Log("Anexar peca nova depois que a OS ja esta em InExecution", "PUT /service-orders", response.StatusCode);
+        Log("Attach a new part after the order is already InExecution", "PUT /service-orders", response.StatusCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     // =====================================================================================
-    // Infraestrutura de apoio: abre uma OS nova e avanca ate o estagio pedido, reutilizando
-    // cada etapa (cada "ReachX" parte do estagio anterior).
+    // Support infrastructure: opens a new order and advances it to the requested stage,
+    // reusing each step (every "ReachX" builds on top of the previous stage).
     // =====================================================================================
 
     private sealed record OrderContext(Guid MechanicId, Guid WorkshopServiceId, ServiceOrderDetailResponse Order);
@@ -452,8 +452,8 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var sequence = Interlocked.Increment(ref _documentCounter);
         var customerResponse = await _client.PostAsJsonAsync("/api/v1/customers", new
         {
-            name = "Cliente Maquina de Estados",
-            email = $"maquina.{sequence}@example.com",
+            name = "State Machine Customer",
+            email = $"statemachine.{sequence}@example.com",
             telephoneNumber = "+5511999990000",
             document = sequence.ToString().PadLeft(11, '0')
         });
@@ -472,14 +472,14 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         vehicleResponse.EnsureSuccessStatusCode();
         var vehicle = (await vehicleResponse.Content.ReadFromJsonAsync<VehicleResponse>())!;
 
-        var mechanicResponse = await _client.PostAsJsonAsync("/api/v1/mechanics", new { name = $"Mecanico Maquina de Estados {sequence}" });
+        var mechanicResponse = await _client.PostAsJsonAsync("/api/v1/mechanics", new { name = $"State Machine Mechanic {sequence}" });
         mechanicResponse.EnsureSuccessStatusCode();
         var mechanic = (await mechanicResponse.Content.ReadFromJsonAsync<MechanicResponse>())!;
 
         var workshopServiceResponse = await _client.PostAsJsonAsync("/api/v1/workshop-services", new
         {
-            name = $"Servico Maquina de Estados {sequence}",
-            description = "Servico usado para testar a maquina de estados da OS",
+            name = $"State Machine Service {sequence}",
+            description = "Service used to test the order's state machine",
             unitPrice = 100m,
             estimatedDurationMinutes = 30
         });
@@ -490,7 +490,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         {
             customerId = customer.Id,
             vehicleId = vehicle.Id,
-            description = "OS para testar a maquina de estados"
+            description = "Order to test the state machine"
         });
         openResponse.EnsureSuccessStatusCode();
         var order = (await openResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
@@ -504,7 +504,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var response = await _client.PutAsJsonAsync("/api/v1/service-orders", new
         {
             serviceOrderId = ctx.Order.Id,
-            checkList = "Inspecao inicial concluida"
+            checkList = "Initial inspection completed"
         });
         response.EnsureSuccessStatusCode();
         var order = (await response.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
@@ -599,10 +599,10 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
 
     private void Log(string step, string action, HttpStatusCode statusCode, ServiceOrderStatus? osStatus = null)
     {
-        var osStatusText = osStatus is null ? "" : $" | status da OS = {osStatus}";
+        var osStatusText = osStatus is null ? "" : $" | order status = {osStatus}";
         output.WriteLine($"[{step}] {action} -> {(int)statusCode} {statusCode}{osStatusText}");
     }
 
     private void Log(string step, string action, ServiceOrderStatus? osStatus) =>
-        output.WriteLine($"[{step}] {action} -> status da OS = {(osStatus is null ? "null" : osStatus.ToString())}");
+        output.WriteLine($"[{step}] {action} -> order status = {(osStatus is null ? "null" : osStatus.ToString())}");
 }
