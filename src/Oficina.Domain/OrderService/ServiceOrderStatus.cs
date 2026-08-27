@@ -2,6 +2,7 @@ namespace Oficina.Domain.ServiceOrders;
 
 public enum ServiceOrderStatus
 {
+    Created = 0,
     Received = 1,
     InDiagnosis = 2,
     AwaitingApproval = 3,
