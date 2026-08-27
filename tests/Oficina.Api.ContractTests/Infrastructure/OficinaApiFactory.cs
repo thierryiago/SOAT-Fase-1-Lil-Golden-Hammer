@@ -29,13 +29,18 @@ public sealed class OficinaApiFactory : WebApplicationFactory<Program>
                 ["Jwt:SigningKey"] = JwtSigningKey,
                 ["Jwt:ExpirationMinutes"] = "15"
             }));
+        // O nome do banco precisa ser calculado uma unica vez fora do lambda: AddDbContext
+        // registra o DbContextOptions com ServiceLifetime.Scoped por padrao, entao um
+        // Guid.NewGuid() dentro do lambda seria reavaliado a cada request, gerando um
+        // banco InMemory novo e vazio a cada chamada.
+        var databaseName = $"oficina-contracts-{Guid.NewGuid()}";
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<DbContextOptions<AppDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<AppDbContext>>();
             services.RemoveAll<AppDbContext>();
             services.AddDbContext<AppDbContext>(options =>
-                options.UseInMemoryDatabase($"oficina-contracts-{Guid.NewGuid()}"));
+                options.UseInMemoryDatabase(databaseName));
             services.RemoveAll<INotificationEmailSender>();
             services.AddScoped<INotificationEmailSender, FakeNotificationEmailSender>();
         });

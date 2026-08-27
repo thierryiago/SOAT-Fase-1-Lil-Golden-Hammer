@@ -11,7 +11,7 @@ public sealed class CustomerRepositoryTests
     {
         await using var context = CreateContext();
         var repository = new CustomerRepository(context);
-        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "12345678901");
+        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
 
         await repository.AddAsync(customer, CancellationToken.None);
         var result = await repository.ListAsync(CancellationToken.None);
@@ -35,10 +35,10 @@ public sealed class CustomerRepositoryTests
     {
         await using var context = CreateContext();
         var repository = new CustomerRepository(context);
-        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "12345678901");
+        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
         await repository.AddAsync(customer, CancellationToken.None);
 
-        var result = await repository.GetByDocumentAsync("12345678901", CancellationToken.None);
+        var result = await repository.GetByDocumentAsync("11144477735", CancellationToken.None);
 
         Assert.NotNull(result);
         Assert.Equal(customer.Id, result!.Id);
@@ -49,10 +49,10 @@ public sealed class CustomerRepositoryTests
     {
         await using var context = CreateContext();
         var repository = new CustomerRepository(context);
-        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "12345678901");
+        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
         await repository.AddAsync(customer, CancellationToken.None);
 
-        customer.Update("Ana Souza", "ana.souza@email.com", "11988880000", "12345678901");
+        customer.Update("Ana Souza", "ana.souza@email.com", "11988880000", "11144477735");
         await repository.UpdateAsync(customer, CancellationToken.None);
 
         var result = await repository.GetByIdAsync(customer.Id, CancellationToken.None);
