@@ -6,6 +6,7 @@ using Oficina.Application.ServiceOrders;
 using Oficina.Application.WorkshopServices;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
+using Oficina.Application.Notifications;
 using Oficina.Domain.Customers;
 using Oficina.Domain.Budget;
 using Oficina.Domain.OrderService;
@@ -148,7 +149,8 @@ public sealed class ServiceOrderContractTests
             new FakeWorkshopServiceRepository(),
             new FakeStockRepository(),
             new FakeServiceOrderHistoryRepository(),
-            new FakeBudgetService());
+            new FakeBudgetService(),
+            CreateNotificationService());
 
         var schedules = await service.ListSchedulesAsync();
 
@@ -188,7 +190,7 @@ public sealed class ServiceOrderContractTests
 
         var service = new ServiceOrderService(
             orders, customers, vehicles, new FakePartRepository(), workshopServices, stocks,
-            new FakeServiceOrderHistoryRepository(), new FakeBudgetService());
+            new FakeServiceOrderHistoryRepository(), new FakeBudgetService(), CreateNotificationService());
 
         var response = await service.CancelAsync(serviceOrder.Id, CancellationToken.None);
 
@@ -326,6 +328,11 @@ public sealed class ServiceOrderContractTests
                 Assert.Equal(100m, service.UnitPrice);
             });
         Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
+        Assert.Equal("john@email.com", context.EmailSender.Recipient);
+        Assert.Equal("John Customer - Budget Awaiting to Approval", context.EmailSender.Subject);
+        Assert.Contains($"Budget ID: {budget.Id}", context.EmailSender.Body);
+        Assert.Contains("Total Value: 120.00", context.EmailSender.Body);
+        Assert.Equal(1, context.EmailSender.SendCount);
     }
 
     [Fact]
@@ -464,13 +471,15 @@ public sealed class ServiceOrderContractTests
             new FakeWorkshopServiceRepository(),
             new FakeStockRepository(),
             new FakeServiceOrderHistoryRepository(),
-            new FakeBudgetService());
+            new FakeBudgetService(),
+            CreateNotificationService());
 
     private sealed record ServiceOrderTestContext(
         ServiceOrderService Service,
         FakeStockRepository Stocks,
         FakeServiceOrderHistoryRepository History,
         FakeBudgetRepository Budgets,
+        FakeEmailSender EmailSender,
         Guid ServiceOrderId,
         Guid PartId,
         Guid WorkshopServiceId);
@@ -485,6 +494,7 @@ public sealed class ServiceOrderContractTests
         var history = new FakeServiceOrderHistoryRepository();
         var orders = new FakeServiceOrderRepository();
         var budgets = new FakeBudgetRepository();
+        var emailSender = new FakeEmailSender();
 
         var customer = Customer.Create("John Customer", "john@email.com", "11999999999", "52998224725");
         await customers.AddAsync(customer, CancellationToken.None);
@@ -507,7 +517,8 @@ public sealed class ServiceOrderContractTests
             workshopServices,
             stocks,
             history,
-            budgetService);
+            budgetService,
+            new NotificationService(emailSender));
 
         var opened = await service.OpenAsync(
             new OpenServiceOrderRequest(customer.Id, vehicle.Id, "Revisao"), CancellationToken.None);
@@ -517,6 +528,7 @@ public sealed class ServiceOrderContractTests
             stocks,
             history,
             budgets,
+            emailSender,
             opened.Id,
             part.Id,
             workshopService.Id);
@@ -608,6 +620,30 @@ public sealed class ServiceOrderContractTests
             Guid serviceOrderId,
             CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Budget creation was not expected in this test.");
+    }
+
+    private static NotificationService CreateNotificationService() =>
+        new(new FakeEmailSender());
+
+    private sealed class FakeEmailSender : INotificationEmailSender
+    {
+        public string? Recipient { get; private set; }
+        public string? Subject { get; private set; }
+        public string? Body { get; private set; }
+        public int SendCount { get; private set; }
+
+        public Task SendAsync(
+            string recipient,
+            string subject,
+            string body,
+            CancellationToken cancellationToken)
+        {
+            Recipient = recipient;
+            Subject = subject;
+            Body = body;
+            SendCount++;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeBudgetRepository : IBudgetRepository

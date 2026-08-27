@@ -1,4 +1,5 @@
 using Oficina.Application.Notifications;
+using Oficina.Application.Budgets;
 
 namespace Oficina.Tests.Application;
 
@@ -35,6 +36,35 @@ public sealed class NotificationServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.SendEmailAsync(new SendEmailNotificationRequest("cliente@example.com"), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task SendBudgetAwaitingApprovalAsync_should_send_budget_as_plain_text()
+    {
+        var sender = new FakeEmailSender();
+        var service = new NotificationService(sender);
+        var budget = new BudgetResponse(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            new DateTimeOffset(2026, 8, 27, 12, 30, 0, TimeSpan.Zero),
+            null,
+            120m,
+            [new BudgetPartResponse(Guid.NewGuid(), Guid.NewGuid(), "Filtro", 2, 10m)],
+            [new BudgetWorkshopServiceResponse(Guid.NewGuid(), Guid.NewGuid(), "Troca de oleo", 100m)]);
+
+        await service.SendBudgetAwaitingApprovalAsync(
+            "Pedro",
+            "pedro@example.com",
+            budget,
+            CancellationToken.None);
+
+        Assert.Equal("pedro@example.com", sender.Recipient);
+        Assert.Equal("Pedro - Budget Awaiting to Approval", sender.Subject);
+        Assert.Contains($"Budget ID: {budget.Id}", sender.Body);
+        Assert.Contains("- Filtro | Quantity: 2 | Unit Price: 10.00 | Total: 20.00", sender.Body);
+        Assert.Contains("- Troca de oleo | Unit Price: 100.00", sender.Body);
+        Assert.Contains("Total Value: 120.00", sender.Body);
     }
 
     private sealed class FakeEmailSender : INotificationEmailSender
