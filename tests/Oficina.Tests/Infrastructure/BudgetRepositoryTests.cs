@@ -14,7 +14,7 @@ public sealed class BudgetRepositoryTests
     public async Task AddAsync_and_ListAsync_should_persist_and_return_budget_with_items()
     {
         await using var context = CreateContext();
-        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "12345678901");
+        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
         context.Customers.Add(customer);
         var part = Part.Create("Filtro", "COD-001", 10m, EnumPartKind.Part);
         context.Parts.Add(part);

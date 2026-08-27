@@ -65,7 +65,7 @@ public sealed class VehicleRepositoryTests
 
     private static async Task<Customer> AddCustomerAsync(AppDbContext context)
     {
-        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "12345678901");
+        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
         context.Customers.Add(customer);
         await context.SaveChangesAsync();
         return customer;

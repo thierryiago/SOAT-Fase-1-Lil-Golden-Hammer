@@ -60,12 +60,12 @@ public sealed class CustomerTests
     {
         var customer = Customer.Create("Maria Silva", "maria@email.com", "11999990000", "52998224725");
 
-        customer.Update("Maria Souza", "  SOUZA@EMAIL.COM  ", "11988880000", "10987654321");
+        customer.Update("Maria Souza", "  SOUZA@EMAIL.COM  ", "11988880000", "52998224725");
 
         Assert.Equal("Maria Souza", customer.Name);
         Assert.Equal("souza@email.com", customer.Email);
         Assert.Equal("11988880000", customer.TelephoneNumber);
-        Assert.Equal("10987654321", customer.Document);
+        Assert.Equal("52998224725", customer.Document);
     }
 
     [Fact]

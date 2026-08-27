@@ -80,7 +80,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
             name = "Auto Budget Customer",
             email = $"auto.budget.{sequence}@example.com",
             telephoneNumber = "+5511999990000",
-            document = sequence.ToString().PadLeft(11, '0')
+            document = TestDocuments.ValidCpf(sequence)
         });
         customerResponse.EnsureSuccessStatusCode();
         var customer = (await customerResponse.Content.ReadFromJsonAsync<CustomerResponse>())!;
@@ -188,7 +188,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         var sequence = Interlocked.Increment(ref _documentCounter);
         var customer = Customer.Create(
             "Budget Test Customer", $"budget.{sequence}@example.com", "+5511999990000",
-            sequence.ToString().PadLeft(11, '0'));
+            TestDocuments.ValidCpf(sequence));
         db.Customers.Add(customer);
 
         var part = Part.Create("Budget Test Part", $"BUD-{Guid.NewGuid():N}", 50m, EnumPartKind.Part);

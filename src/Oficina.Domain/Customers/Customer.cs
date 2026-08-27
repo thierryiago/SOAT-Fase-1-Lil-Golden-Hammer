@@ -117,12 +117,45 @@ public sealed class Customer
         }
 
         var digits = Regex.Replace(cpfCnpj.Trim(), "\\D", string.Empty);
-        if (digits.Length == 0)
+        if (digits.Length == 0 || HasRepeatedDigits(digits))
         {
             return false;
         }
 
-        return !HasRepeatedDigits(digits);
+        return digits.Length switch
+        {
+            11 => IsValidCpf(digits),
+            14 => IsValidCnpj(digits),
+            _ => false
+        };
+    }
+
+    private static bool IsValidCpf(string digits)
+    {
+        var firstCheckDigit = CalculateCheckDigit(digits[..9], [10, 9, 8, 7, 6, 5, 4, 3, 2]);
+        var secondCheckDigit = CalculateCheckDigit(digits[..9] + firstCheckDigit, [11, 10, 9, 8, 7, 6, 5, 4, 3, 2]);
+
+        return digits[9..] == $"{firstCheckDigit}{secondCheckDigit}";
+    }
+
+    private static bool IsValidCnpj(string digits)
+    {
+        var firstCheckDigit = CalculateCheckDigit(digits[..12], [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+        var secondCheckDigit = CalculateCheckDigit(digits[..12] + firstCheckDigit, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+
+        return digits[12..] == $"{firstCheckDigit}{secondCheckDigit}";
+    }
+
+    private static int CalculateCheckDigit(string digits, int[] weights)
+    {
+        var sum = 0;
+        for (var i = 0; i < digits.Length; i++)
+        {
+            sum += (digits[i] - '0') * weights[i];
+        }
+
+        var remainder = sum % 11;
+        return remainder < 2 ? 0 : 11 - remainder;
     }
 
     private static bool HasRepeatedDigits(string value)

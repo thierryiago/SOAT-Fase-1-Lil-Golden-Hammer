@@ -34,7 +34,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
             name = "Lifecycle Customer",
             email = "lifecycle@example.com",
             telephoneNumber = "+5511999990099",
-            document = "12345678901"
+            document = TestDocuments.ValidCpf(Interlocked.Increment(ref _documentCounter))
         });
         Assert.Equal(HttpStatusCode.Created, customerResponse.StatusCode);
         var customer = (await customerResponse.Content.ReadFromJsonAsync<CustomerResponse>())!;
@@ -455,7 +455,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
             name = "State Machine Customer",
             email = $"statemachine.{sequence}@example.com",
             telephoneNumber = "+5511999990000",
-            document = sequence.ToString().PadLeft(11, '0')
+            document = TestDocuments.ValidCpf(sequence)
         });
         customerResponse.EnsureSuccessStatusCode();
         var customer = (await customerResponse.Content.ReadFromJsonAsync<CustomerResponse>())!;

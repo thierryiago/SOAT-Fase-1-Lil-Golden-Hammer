@@ -25,7 +25,7 @@ public sealed class VehicleServiceTests
     {
         var customers = new FakeCustomerRepository();
         var vehicles = new FakeVehicleRepository();
-        var customer = await AddCustomerAsync(customers, "12345678901");
+        var customer = await AddCustomerAsync(customers, "11144477735");
         customer.Deactivate();
         var service = new VehicleService(customers, vehicles);
 
@@ -39,7 +39,7 @@ public sealed class VehicleServiceTests
     {
         var customers = new FakeCustomerRepository();
         var vehicles = new FakeVehicleRepository();
-        var customer = await AddCustomerAsync(customers, "12345678901");
+        var customer = await AddCustomerAsync(customers, "11144477735");
         var existingVehicle = Vehicle.Create(customer.Id, "ABC1234", "Honda", "Civic", 2020, EnumVehicleCategory.Car);
         await vehicles.AddAsync(existingVehicle, CancellationToken.None);
         var service = new VehicleService(customers, vehicles);
@@ -54,7 +54,7 @@ public sealed class VehicleServiceTests
     {
         var customers = new FakeCustomerRepository();
         var vehicles = new FakeVehicleRepository();
-        var customer = await AddCustomerAsync(customers, "12345678901");
+        var customer = await AddCustomerAsync(customers, "11144477735");
         var service = new VehicleService(customers, vehicles);
 
         var response = await service.CreateAsync(
@@ -73,7 +73,7 @@ public sealed class VehicleServiceTests
         var service = new VehicleService(customers, vehicles);
 
         await Assert.ThrowsAsync<KeyNotFoundException>(() => service.IdentifyCustomerAndRegisterVehicleAsync(
-            new IdentifyCustomerAndRegisterVehicleRequest("12345678901", "ABC1234", "Honda", "Civic", 2020),
+            new IdentifyCustomerAndRegisterVehicleRequest("11144477735", "ABC1234", "Honda", "Civic", 2020),
             CancellationToken.None));
     }
 
@@ -82,7 +82,7 @@ public sealed class VehicleServiceTests
     {
         var customers = new FakeCustomerRepository();
         var vehicles = new FakeVehicleRepository();
-        var customer = await AddCustomerAsync(customers, "12345678901");
+        var customer = await AddCustomerAsync(customers, "11144477735");
         var service = new VehicleService(customers, vehicles);
 
         var response = await service.IdentifyCustomerAndRegisterVehicleAsync(
@@ -98,8 +98,8 @@ public sealed class VehicleServiceTests
     {
         var customers = new FakeCustomerRepository();
         var vehicles = new FakeVehicleRepository();
-        var customerA = await AddCustomerAsync(customers, "12345678901");
-        var customerB = await AddCustomerAsync(customers, "10987654321");
+        var customerA = await AddCustomerAsync(customers, "11144477735");
+        var customerB = await AddCustomerAsync(customers, "52998224725");
         var vehicleA = Vehicle.Create(customerA.Id, "AAA1111", "Honda", "Civic", 2020, EnumVehicleCategory.Car);
         var vehicleB = Vehicle.Create(customerB.Id, "BBB2222", "Fiat", "Uno", 2019, EnumVehicleCategory.Car);
         await vehicles.AddAsync(vehicleA, CancellationToken.None);
@@ -116,7 +116,7 @@ public sealed class VehicleServiceTests
     {
         var customers = new FakeCustomerRepository();
         var vehicles = new FakeVehicleRepository();
-        var customer = await AddCustomerAsync(customers, "12345678901");
+        var customer = await AddCustomerAsync(customers, "11144477735");
         var vehicle = Vehicle.Create(customer.Id, "ABC1234", "Honda", "Civic", 2020, EnumVehicleCategory.Car);
         vehicle.Deactivate();
         await vehicles.AddAsync(vehicle, CancellationToken.None);
@@ -132,7 +132,7 @@ public sealed class VehicleServiceTests
     {
         var customers = new FakeCustomerRepository();
         var vehicles = new FakeVehicleRepository();
-        var customer = await AddCustomerAsync(customers, "12345678901");
+        var customer = await AddCustomerAsync(customers, "11144477735");
         var vehicle = Vehicle.Create(customer.Id, "ABC1234", "Honda", "Civic", 2020, EnumVehicleCategory.Car);
         await vehicles.AddAsync(vehicle, CancellationToken.None);
         var service = new VehicleService(customers, vehicles);
@@ -148,7 +148,7 @@ public sealed class VehicleServiceTests
     {
         var customers = new FakeCustomerRepository();
         var vehicles = new FakeVehicleRepository();
-        var customer = await AddCustomerAsync(customers, "12345678901");
+        var customer = await AddCustomerAsync(customers, "11144477735");
         var vehicle = Vehicle.Create(customer.Id, "ABC1234", "Honda", "Civic", 2020, EnumVehicleCategory.Car);
         await vehicles.AddAsync(vehicle, CancellationToken.None);
         var service = new VehicleService(customers, vehicles);
@@ -180,7 +180,7 @@ public sealed class VehicleServiceTests
     {
         var customers = new FakeCustomerRepository();
         var vehicles = new FakeVehicleRepository();
-        var customer = await AddCustomerAsync(customers, "12345678901");
+        var customer = await AddCustomerAsync(customers, "11144477735");
         var vehicleA = Vehicle.Create(customer.Id, "AAA1111", "Honda", "Civic", 2020, EnumVehicleCategory.Car);
         var vehicleB = Vehicle.Create(customer.Id, "BBB2222", "Fiat", "Uno", 2019, EnumVehicleCategory.Car);
         await vehicles.AddAsync(vehicleA, CancellationToken.None);
@@ -198,7 +198,7 @@ public sealed class VehicleServiceTests
     {
         var customers = new FakeCustomerRepository();
         var vehicles = new FakeVehicleRepository();
-        var customer = await AddCustomerAsync(customers, "12345678901");
+        var customer = await AddCustomerAsync(customers, "11144477735");
         var vehicle = Vehicle.Create(customer.Id, "ABC1234", "Honda", "Civic", 2020, EnumVehicleCategory.Car);
         await vehicles.AddAsync(vehicle, CancellationToken.None);
         var service = new VehicleService(customers, vehicles);

@@ -127,7 +127,7 @@ public sealed class ServiceOrderHistoryTests(OficinaApiFactory factory, ITestOut
             name = "History Test Customer",
             email = $"history.{sequence}@example.com",
             telephoneNumber = "+5511999990000",
-            document = sequence.ToString().PadLeft(11, '0')
+            document = TestDocuments.ValidCpf(sequence)
         });
         customerResponse.EnsureSuccessStatusCode();
         var customer = (await customerResponse.Content.ReadFromJsonAsync<CustomerResponse>())!;
