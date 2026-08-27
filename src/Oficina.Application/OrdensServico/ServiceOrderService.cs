@@ -1,3 +1,4 @@
+using Oficina.Application.Budgets;
 using Oficina.Application.Customers;
 using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.OrdensServico;
@@ -22,6 +23,7 @@ public sealed class ServiceOrderService
     private readonly IWorkshopServiceRepository _workshopServices;
     private readonly IStockRepository _stocks;
     private readonly IServiceOrderHistoryRepository _history;
+    private readonly IBudgetService _budgets;
 
     public ServiceOrderService(
         IServiceOrderRepository serviceOrders,
@@ -30,7 +32,8 @@ public sealed class ServiceOrderService
         IPartRepository parts,
         IWorkshopServiceRepository workshopServices,
         IStockRepository stocks,
-        IServiceOrderHistoryRepository history)
+        IServiceOrderHistoryRepository history,
+        IBudgetService budgets)
     {
         _serviceOrderRepository = serviceOrders;
         _customerRepository = customers;
@@ -39,6 +42,7 @@ public sealed class ServiceOrderService
         _workshopServices = workshopServices;
         _stocks = stocks;
         _history = history;
+        _budgets = budgets;
     }
 
     public async Task<IReadOnlyCollection<ServiceOrderListItemResponse>> ListAsync(CancellationToken cancellationToken)
@@ -107,6 +111,11 @@ public sealed class ServiceOrderService
 
         await _serviceOrderRepository.UpdateAsync(serviceOrder, newParts, newWorkshopServices, cancellationToken);
         await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
+        if (previousStatus != ServiceOrderStatus.AwaitingApproval &&
+            serviceOrder.Status == ServiceOrderStatus.AwaitingApproval)
+        {
+            await _budgets.OpenFromServiceOrderAsync(serviceOrder.Id, cancellationToken);
+        }
         return MapDetail(serviceOrder);
     }
 

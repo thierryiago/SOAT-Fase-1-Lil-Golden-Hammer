@@ -123,9 +123,10 @@ public sealed class BudgetServiceTests
     private static Budget OpenBudget(ServiceOrder serviceOrder, Part part, WorkshopService workshopService)
     {
         var budgetId = Guid.NewGuid();
-        var budgetPart = BudgetParts.Create(budgetId, part.Id, 3);
+        var budgetPart = BudgetParts.Create(budgetId, part.Id, part.Name, part.UnitPrice, 3);
         budgetPart.Part = part;
-        var budgetWorkshopService = BudgetWorkshopServices.Create(budgetId, workshopService.Id);
+        var budgetWorkshopService = BudgetWorkshopServices.Create(
+            budgetId, workshopService.Id, workshopService.Name, workshopService.UnitPrice);
         budgetWorkshopService.WorkshopService = workshopService;
 
         return Budget.Open(
@@ -152,6 +153,10 @@ public sealed class BudgetServiceTests
 
         public Task<Budget?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
             Task.FromResult(_budgets.GetValueOrDefault(id));
+
+        public Task<Budget?> GetByServiceOrderIdAsync(Guid serviceOrderId, CancellationToken cancellationToken) =>
+            Task.FromResult(_budgets.Values.SingleOrDefault(
+                budget => budget.ServiceOrderId == serviceOrderId));
 
         public Task AddAsync(Budget budget, CancellationToken cancellationToken)
         {

@@ -25,8 +25,9 @@ public sealed class BudgetRepositoryTests
         await context.SaveChangesAsync();
 
         var budgetId = Guid.NewGuid();
-        var budgetPart = BudgetParts.Create(budgetId, part.Id, 2);
-        var budgetWorkshopService = BudgetWorkshopServices.Create(budgetId, workshopService.Id);
+        var budgetPart = BudgetParts.Create(budgetId, part.Id, part.Name, part.UnitPrice, 2);
+        var budgetWorkshopService = BudgetWorkshopServices.Create(
+            budgetId, workshopService.Id, workshopService.Name, workshopService.UnitPrice);
         var budget = Budget.Open(budgetId, customer.Id, serviceOrder.Id, [budgetPart], [budgetWorkshopService]);
 
         var repository = new BudgetRepository(context);
@@ -38,8 +39,12 @@ public sealed class BudgetRepositoryTests
         {
             Assert.Equal(budget.Id, item.Id);
             Assert.Single(item.Parts);
+            Assert.Equal("Filtro", item.Parts.First().PartName);
+            Assert.Equal(10m, item.Parts.First().UnitPrice);
             Assert.Equal("Filtro", item.Parts.First().Part!.Name);
             Assert.Single(item.WorkshopServices);
+            Assert.Equal("Troca de oleo", item.WorkshopServices.First().WorkshopServiceName);
+            Assert.Equal(100m, item.WorkshopServices.First().UnitPrice);
             Assert.Equal("Troca de oleo", item.WorkshopServices.First().WorkshopService!.Name);
         });
     }

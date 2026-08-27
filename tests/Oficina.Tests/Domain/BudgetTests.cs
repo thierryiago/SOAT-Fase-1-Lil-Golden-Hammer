@@ -9,7 +9,7 @@ public sealed class BudgetTests
     [Fact]
     public void Open_should_reject_empty_id()
     {
-        var workshopServices = new List<BudgetWorkshopServices> { BudgetWorkshopServices.Create(Guid.NewGuid(), Guid.NewGuid()) };
+        var workshopServices = new List<BudgetWorkshopServices> { CreateWorkshopServiceItem() };
 
         var act = () => Budget.Open(Guid.Empty, Guid.NewGuid(), Guid.NewGuid(), null, workshopServices);
 
@@ -19,7 +19,7 @@ public sealed class BudgetTests
     [Fact]
     public void Open_should_reject_empty_customer_id()
     {
-        var workshopServices = new List<BudgetWorkshopServices> { BudgetWorkshopServices.Create(Guid.NewGuid(), Guid.NewGuid()) };
+        var workshopServices = new List<BudgetWorkshopServices> { CreateWorkshopServiceItem() };
 
         var act = () => Budget.Open(Guid.NewGuid(), Guid.Empty, Guid.NewGuid(), null, workshopServices);
 
@@ -29,7 +29,7 @@ public sealed class BudgetTests
     [Fact]
     public void Open_should_reject_empty_service_order_id()
     {
-        var workshopServices = new List<BudgetWorkshopServices> { BudgetWorkshopServices.Create(Guid.NewGuid(), Guid.NewGuid()) };
+        var workshopServices = new List<BudgetWorkshopServices> { CreateWorkshopServiceItem() };
 
         var act = () => Budget.Open(Guid.NewGuid(), Guid.NewGuid(), Guid.Empty, null, workshopServices);
 
@@ -58,11 +58,12 @@ public sealed class BudgetTests
     {
         var budgetId = Guid.NewGuid();
         var part = Part.Create("Filtro", "COD-001", 10m, EnumPartKind.Part);
-        var budgetPart = BudgetParts.Create(budgetId, part.Id, 3);
+        var budgetPart = BudgetParts.Create(budgetId, part.Id, part.Name, part.UnitPrice, 3);
         budgetPart.Part = part;
 
         var workshopService = WorkshopService.Create("Troca de oleo", "Descricao", 100m, 30);
-        var budgetWorkshopService = BudgetWorkshopServices.Create(budgetId, workshopService.Id);
+        var budgetWorkshopService = BudgetWorkshopServices.Create(
+            budgetId, workshopService.Id, workshopService.Name, workshopService.UnitPrice);
         budgetWorkshopService.WorkshopService = workshopService;
 
         var budget = Budget.Open(
@@ -81,7 +82,8 @@ public sealed class BudgetTests
     {
         var budgetId = Guid.NewGuid();
         var workshopService = WorkshopService.Create("Troca de oleo", "Descricao", 100m, 30);
-        var budgetWorkshopService = BudgetWorkshopServices.Create(budgetId, workshopService.Id);
+        var budgetWorkshopService = BudgetWorkshopServices.Create(
+            budgetId, workshopService.Id, workshopService.Name, workshopService.UnitPrice);
         budgetWorkshopService.WorkshopService = workshopService;
 
         var budget = Budget.Open(
@@ -94,6 +96,9 @@ public sealed class BudgetTests
         Assert.Equal(100m, budget.TotalValue);
         Assert.Empty(budget.Parts);
     }
+
+    private static BudgetWorkshopServices CreateWorkshopServiceItem() =>
+        BudgetWorkshopServices.Create(Guid.NewGuid(), Guid.NewGuid(), "Servico", 100m);
 }
 
 public sealed class BudgetPartsTests
@@ -101,7 +106,7 @@ public sealed class BudgetPartsTests
     [Fact]
     public void Create_should_reject_non_positive_quantity()
     {
-        var act = () => BudgetParts.Create(Guid.NewGuid(), Guid.NewGuid(), 0);
+        var act = () => BudgetParts.Create(Guid.NewGuid(), Guid.NewGuid(), "Filtro", 10m, 0);
 
         Assert.Throws<ArgumentOutOfRangeException>(act);
     }
@@ -112,10 +117,12 @@ public sealed class BudgetPartsTests
         var budgetId = Guid.NewGuid();
         var partId = Guid.NewGuid();
 
-        var budgetPart = BudgetParts.Create(budgetId, partId, 5);
+        var budgetPart = BudgetParts.Create(budgetId, partId, "Filtro", 10m, 5);
 
         Assert.Equal(budgetId, budgetPart.BudgetId);
         Assert.Equal(partId, budgetPart.PartId);
+        Assert.Equal("Filtro", budgetPart.PartName);
+        Assert.Equal(10m, budgetPart.UnitPrice);
         Assert.Equal(5, budgetPart.Quantity);
     }
 }
@@ -128,9 +135,12 @@ public sealed class BudgetWorkshopServicesTests
         var budgetId = Guid.NewGuid();
         var workshopServiceId = Guid.NewGuid();
 
-        var budgetWorkshopService = BudgetWorkshopServices.Create(budgetId, workshopServiceId);
+        var budgetWorkshopService = BudgetWorkshopServices.Create(
+            budgetId, workshopServiceId, "Troca de oleo", 100m);
 
         Assert.Equal(budgetId, budgetWorkshopService.BudgetId);
         Assert.Equal(workshopServiceId, budgetWorkshopService.WorkshopServiceId);
+        Assert.Equal("Troca de oleo", budgetWorkshopService.WorkshopServiceName);
+        Assert.Equal(100m, budgetWorkshopService.UnitPrice);
     }
 }
