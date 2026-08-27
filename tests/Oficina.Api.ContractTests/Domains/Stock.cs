@@ -199,7 +199,7 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
             name = "Stock Test Customer",
             email = $"stock.{sequence}@example.com",
             telephoneNumber = "+5511999990000",
-            document = sequence.ToString().PadLeft(11, '0')
+            document = TestDocuments.ValidCpf(sequence)
         });
         customerResponse.EnsureSuccessStatusCode();
         var customer = (await customerResponse.Content.ReadFromJsonAsync<CustomerResponse>())!;

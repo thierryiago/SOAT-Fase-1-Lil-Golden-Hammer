@@ -39,7 +39,7 @@ public sealed class ServiceOrderHistoryRepositoryTests
 
     private static async Task<ServiceOrder> AddServiceOrderAsync(AppDbContext context)
     {
-        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "12345678901");
+        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
         context.Customers.Add(customer);
         var serviceOrder = ServiceOrder.Open(customer.Id, Guid.NewGuid(), "Revisao");
         context.ServiceOrders.Add(serviceOrder);

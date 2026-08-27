@@ -92,6 +92,46 @@ public sealed class VehicleTests(OficinaApiFactory factory, ITestOutputHelper ou
         Assert.Equal(HttpStatusCode.Conflict, secondResponse.StatusCode);
     }
 
+    [Fact]
+    public async Task Create_should_accept_lowercase_plate()
+    {
+        var customer = await CreateCustomerAsync();
+
+        var response = await _client.PostAsJsonAsync("/api/v1/vehicles", new
+        {
+            customerId = customer.Id,
+            plate = "low1234",
+            brand = "Honda",
+            model = "Civic",
+            year = 2022,
+            category = 1
+        });
+        Log("Placa minuscula (\"low1234\")", response);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("A#B$C%9^9&9*9", "simbolos especiais espalhados pela placa")]
+    [InlineData("AB C.999.9", "pontuacao e espaco misturados")]
+    public async Task Create_should_reject_plate_with_special_characters(string plate, string description)
+    {
+        var customer = await CreateCustomerAsync();
+
+        var response = await _client.PostAsJsonAsync("/api/v1/vehicles", new
+        {
+            customerId = customer.Id,
+            plate,
+            brand = "Honda",
+            model = "Civic",
+            year = 2022,
+            category = 1
+        });
+        Log($"Placa com caracteres especiais - {description} (\"{plate}\")", response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private async Task<CustomerResponse> CreateCustomerAsync()
     {
         await AuthenticateAsync();
@@ -102,7 +142,7 @@ public sealed class VehicleTests(OficinaApiFactory factory, ITestOutputHelper ou
             name = "Cliente Teste de Placa",
             email = $"placa.{sequence}@example.com",
             telephoneNumber = "+5511999990000",
-            document = sequence.ToString().PadLeft(11, '0')
+            document = TestDocuments.ValidCpf(sequence)
         });
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<CustomerResponse>())!;

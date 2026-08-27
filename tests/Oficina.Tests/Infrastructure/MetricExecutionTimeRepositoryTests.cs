@@ -15,7 +15,7 @@ public sealed class MetricExecutionTimeRepositoryTests
     {
         await using var context = CreateContext();
 
-        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "12345678901");
+        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
         context.Customers.Add(customer);
         var workshopService = WorkshopService.Create("Troca de oleo", "Descricao", 100m, 30);
         context.WorkshopServices.Add(workshopService);
@@ -53,7 +53,7 @@ public sealed class MetricExecutionTimeRepositoryTests
     public async Task GetAsync_should_ignore_orders_that_are_not_finalized()
     {
         await using var context = CreateContext();
-        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "12345678901");
+        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
         context.Customers.Add(customer);
         var serviceOrder = ServiceOrder.Open(customer.Id, Guid.NewGuid(), "Revisao");
         context.ServiceOrders.Add(serviceOrder);

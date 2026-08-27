@@ -78,7 +78,7 @@ public sealed class VehicleService
             throw new KeyNotFoundException("Customer was not found.");
         }
 
-        var existing = await _vehicles.GetByPlateAsync(request.Plate, cancellationToken);
+        var existing = await _vehicles.GetByPlateAsync(Vehicle.NormalizePlate(request.Plate), cancellationToken);
         if (existing is not null)
         {
             throw new ConflictException("A vehicle with the informed plate already exists.");
@@ -101,7 +101,7 @@ public sealed class VehicleService
         CancellationToken cancellationToken)
     {
         var vehicle = await GetActiveVehicleAsync(id, cancellationToken);
-        var plateOwner = await _vehicles.GetByPlateAsync(request.Plate, cancellationToken);
+        var plateOwner = await _vehicles.GetByPlateAsync(Vehicle.NormalizePlate(request.Plate), cancellationToken);
         if (plateOwner is not null && plateOwner.Id != id)
         {
             throw new ConflictException("A vehicle with the informed plate already exists.");

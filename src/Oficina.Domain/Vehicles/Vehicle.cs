@@ -96,12 +96,18 @@ public sealed class Vehicle
         }
     }
 
-    private static string NormalizePlate(string plate)
+    public static string NormalizePlate(string plate)
     {
         if (string.IsNullOrWhiteSpace(plate))
             return string.Empty;
 
-        var normalized = Regex.Replace(plate.Trim(), "[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
+        var trimmed = plate.Trim();
+        if (!Regex.IsMatch(trimmed, @"^[A-Za-z0-9-]+$"))
+        {
+            return trimmed;
+        }
+
+        var normalized = trimmed.Replace("-", string.Empty).ToUpperInvariant();
 
         if (Regex.IsMatch(normalized, @"^[A-Z]{3}[0-9]{4}$"))
             return $"{normalized.Substring(0, 3)}-{normalized.Substring(3, 4)}";
