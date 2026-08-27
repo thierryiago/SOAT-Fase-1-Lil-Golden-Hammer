@@ -204,9 +204,11 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
 
         var budgetId = Guid.NewGuid();
         const int partQuantity = 2;
-        var budgetPart = BudgetParts.Create(budgetId, part.Id, partQuantity);
+        var budgetPart = BudgetParts.Create(
+            budgetId, part.Id, part.Name, part.UnitPrice, partQuantity);
         budgetPart.Part = part;
-        var budgetWorkshopService = BudgetWorkshopServices.Create(budgetId, workshopService.Id);
+        var budgetWorkshopService = BudgetWorkshopServices.Create(
+            budgetId, workshopService.Id, workshopService.Name, workshopService.UnitPrice);
         budgetWorkshopService.WorkshopService = workshopService;
 
         var budget = Budget.Open(

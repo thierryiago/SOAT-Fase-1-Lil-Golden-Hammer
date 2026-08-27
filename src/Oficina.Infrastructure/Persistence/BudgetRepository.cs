@@ -25,6 +25,12 @@ public sealed class BudgetRepository : IBudgetRepository
             .Include(budget => budget.WorkshopServices).ThenInclude(workshopService => workshopService.WorkshopService)
             .FirstOrDefaultAsync(budget => budget.Id == id, cancellationToken);
 
+    public Task<Budget?> GetByServiceOrderIdAsync(Guid serviceOrderId, CancellationToken cancellationToken) =>
+        _appDbContext.Budgets
+            .Include(budget => budget.Parts).ThenInclude(part => part.Part)
+            .Include(budget => budget.WorkshopServices).ThenInclude(workshopService => workshopService.WorkshopService)
+            .FirstOrDefaultAsync(budget => budget.ServiceOrderId == serviceOrderId, cancellationToken);
+
     public async Task AddAsync(Budget budget, CancellationToken cancellationToken)
     {
         await _appDbContext.Budgets.AddAsync(budget, cancellationToken);

@@ -66,8 +66,8 @@ public sealed class Budget
         IReadOnlyCollection<BudgetParts> parts,
         IReadOnlyCollection<BudgetWorkshopServices> workshopServices)
     {
-        var partsTotal = parts.Sum(item => item.Quantity * (item.Part?.UnitPrice ?? 0));
-        var servicesTotal = workshopServices.Sum(item => item.WorkshopService?.UnitPrice ?? 0);
+        var partsTotal = parts.Sum(item => item.Quantity * item.UnitPrice);
+        var servicesTotal = workshopServices.Sum(item => item.UnitPrice);
         return partsTotal + servicesTotal;
     }
 }

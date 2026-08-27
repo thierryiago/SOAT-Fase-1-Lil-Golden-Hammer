@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<MechanicService>();
         services.AddScoped<MetricsService>();
         services.AddScoped<BudgetService>();
+        services.AddScoped<IBudgetService>(provider => provider.GetRequiredService<BudgetService>());
         services.AddScoped<NotificationService>();
         return services;
     }
