@@ -7,6 +7,7 @@ using Oficina.Application.Parts;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
 using Oficina.Application.WorkshopServices;
+using Oficina.Domain.Customers;
 using Oficina.Domain.OrderService;
 using Oficina.Domain.OrderServiceHistory;
 using Oficina.Domain.Parts;
@@ -59,6 +60,23 @@ public sealed class ServiceOrderService
     {
         var order = await _serviceOrderRepository.GetByIdAsync(id, cancellationToken);
         return order is null ? null : MapDetail(order);
+    }
+
+    public async Task<ServiceOrderTrackingResponse?> TrackAsync(Guid serviceOrderId, string document, CancellationToken cancellationToken)
+    {
+        var order = await _serviceOrderRepository.GetByIdAsync(serviceOrderId, cancellationToken);
+        if (order is null)
+        {
+            return null;
+        }
+
+        var customer = await _customerRepository.GetByIdAsync(order.CustomerId, cancellationToken);
+        if (customer is null || customer.Document != Customer.NormalizeDocument(document))
+        {
+            return null;
+        }
+
+        return new ServiceOrderTrackingResponse(order.Id, order.Status, order.Description, order.CreatedAt);
     }
 
     public async Task<ServiceOrderDetailResponse> OpenAsync(OpenServiceOrderRequest request, CancellationToken cancellationToken)

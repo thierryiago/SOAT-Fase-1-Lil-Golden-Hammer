@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.OrderServiceHistory;
 using System.Diagnostics.CodeAnalysis;
@@ -5,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
-[Microsoft.AspNetCore.Authorization.Authorize]
+[Authorize]
 [Route("api/v1/service-order-history")]
 [ExcludeFromCodeCoverage]
 public sealed class ServiceOrderHistoryController : ControllerBase

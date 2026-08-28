@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Common;
 using Oficina.Application.Mechanics;
 using System.Diagnostics.CodeAnalysis;
@@ -6,7 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
-[Microsoft.AspNetCore.Authorization.Authorize]
+[Authorize]
 [Route("api/v1/mechanics")]
 [ExcludeFromCodeCoverage]
 public sealed class MechanicsController : ControllerBase

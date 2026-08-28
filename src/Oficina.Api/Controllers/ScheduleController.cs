@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Common;
 using Oficina.Application.Customers;
 using Oficina.Application.OrdensServico;
@@ -9,7 +10,7 @@ namespace Oficina.Api.Controllers;
 
 
 [ApiController]
-[Microsoft.AspNetCore.Authorization.Authorize]
+[Authorize]
 [Route("api/v1/schedules")]
 [ExcludeFromCodeCoverage]
 public class ScheduleController : ControllerBase

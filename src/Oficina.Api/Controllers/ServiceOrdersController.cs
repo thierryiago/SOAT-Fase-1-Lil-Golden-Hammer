@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.ServiceOrders;
 using System.Diagnostics.CodeAnalysis;
@@ -5,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace Oficina.Api.Controllers;
 
 [ApiController]
-[Microsoft.AspNetCore.Authorization.Authorize]
+[Authorize]
 [Route("api/v1/service-orders")]
 [ExcludeFromCodeCoverage]
 public sealed class ServiceOrdersController : ControllerBase
@@ -32,6 +33,16 @@ public sealed class ServiceOrdersController : ControllerBase
     {
         var serviceOrder = await _serviceOrders.GetByIdAsync(id, cancellationToken);
         return serviceOrder is null ? NotFound() : Ok(serviceOrder);
+    }
+
+    [HttpGet("{id:guid}/track", Name = "TrackServiceOrder")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ServiceOrderTrackingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Track(Guid id, [FromQuery] string document, CancellationToken cancellationToken)
+    {
+        var result = await _serviceOrders.TrackAsync(id, document, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
     }
 
     [HttpPost(Name = "OpenServiceOrder")]
