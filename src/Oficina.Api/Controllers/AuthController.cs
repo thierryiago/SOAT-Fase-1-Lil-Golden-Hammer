@@ -1,7 +1,7 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Api.Authentication;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Oficina.Api.Controllers;
 

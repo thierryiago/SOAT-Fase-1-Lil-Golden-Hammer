@@ -3,7 +3,6 @@ using Oficina.Domain.Customers;
 using Oficina.Domain.OrderService;
 using Oficina.Domain.Parts;
 using Oficina.Domain.ServiceOrders;
-using Oficina.Domain.Vehicles;
 using Oficina.Domain.WorkshopServices;
 using Oficina.Infrastructure.Persistence;
 
@@ -22,7 +21,7 @@ public sealed class ServiceOrderRepositoryTests
         await repository.AddAsync(serviceOrder, CancellationToken.None);
         var result = await repository.ListAsync(CancellationToken.None);
 
-        Assert.Collection(result, item => Assert.Equal(serviceOrder.Id, item.Id));
+        Assert.Equal(serviceOrder.Id, Assert.Single(result).Id);
     }
 
     [Fact]
@@ -47,7 +46,7 @@ public sealed class ServiceOrderRepositoryTests
 
         var result = await repository.ListSchedulesAsync(CancellationToken.None);
 
-        Assert.Collection(result, item => Assert.Equal(serviceOrder.Id, item.Id));
+        Assert.Equal(serviceOrder.Id, Assert.Single(result).Id);
     }
 
     [Fact]

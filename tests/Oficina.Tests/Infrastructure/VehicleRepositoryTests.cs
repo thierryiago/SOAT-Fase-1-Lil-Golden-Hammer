@@ -18,7 +18,7 @@ public sealed class VehicleRepositoryTests
         await repository.AddAsync(vehicle, CancellationToken.None);
         var result = await repository.ListAsync(CancellationToken.None);
 
-        Assert.Collection(result, item => Assert.Equal(vehicle.Id, item.Id));
+        Assert.Equal(vehicle.Id, Assert.Single(result).Id);
     }
 
     [Fact]

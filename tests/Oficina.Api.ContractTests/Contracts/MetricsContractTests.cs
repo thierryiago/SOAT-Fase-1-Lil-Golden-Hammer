@@ -1,5 +1,3 @@
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using Oficina.Api.Authentication;
 using Oficina.Api.ContractTests.Infrastructure;
 using Oficina.Application.Customers;
@@ -8,6 +6,8 @@ using Oficina.Application.Metrics;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.Vehicles;
 using Oficina.Application.WorkshopServices;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 
 namespace Oficina.Api.ContractTests.Contracts;
 

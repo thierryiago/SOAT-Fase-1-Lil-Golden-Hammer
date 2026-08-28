@@ -1,8 +1,8 @@
+using Oficina.Api.Authentication;
+using Oficina.Api.ContractTests.Infrastructure;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Json;
-using Oficina.Api.Authentication;
-using Oficina.Api.ContractTests.Infrastructure;
 
 namespace Oficina.Api.ContractTests.Contracts;
 

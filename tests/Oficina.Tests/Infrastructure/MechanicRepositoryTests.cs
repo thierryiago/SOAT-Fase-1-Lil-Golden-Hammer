@@ -16,7 +16,7 @@ public sealed class MechanicRepositoryTests
         await repository.AddAsync(mechanic, CancellationToken.None);
         var result = await repository.ListAsync(CancellationToken.None);
 
-        Assert.Collection(result, item => Assert.Equal(mechanic.Id, item.Id));
+        Assert.Equal(mechanic.Id, Assert.Single(result).Id);
     }
 
     [Fact]

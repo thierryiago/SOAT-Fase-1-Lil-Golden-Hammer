@@ -94,6 +94,11 @@ public sealed class Vehicle
         {
             throw new ArgumentException("Vehicle year is invalid.", nameof(year));
         }
+
+        if (!Enum.IsDefined(typeof(EnumVehicleCategory), category))
+        {
+            throw new ArgumentException("Vehicle category is invalid.", nameof(category));
+        }
     }
 
     public static string NormalizePlate(string plate)

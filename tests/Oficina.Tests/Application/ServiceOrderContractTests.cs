@@ -1,21 +1,21 @@
 using Oficina.Application.Budgets;
 using Oficina.Application.Customers;
+using Oficina.Application.Notifications;
 using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
-using Oficina.Application.WorkshopServices;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
-using Oficina.Application.Notifications;
-using Oficina.Domain.Customers;
+using Oficina.Application.WorkshopServices;
 using Oficina.Domain.Budget;
+using Oficina.Domain.Customers;
 using Oficina.Domain.OrderService;
 using Oficina.Domain.OrderServiceHistory;
 using Oficina.Domain.Parts;
 using Oficina.Domain.ServiceOrders;
-using Oficina.Domain.WorkshopServices;
 using Oficina.Domain.Stock;
 using Oficina.Domain.Vehicles;
+using Oficina.Domain.WorkshopServices;
 
 namespace Oficina.Tests.Application;
 
@@ -54,7 +54,7 @@ public sealed class ServiceOrderContractTests
 
         IReadOnlyCollection<ServiceOrderListItemResponse> response = await service.ListAsync(CancellationToken.None);
 
-        Assert.Collection(response, item => Assert.Equal(order.Id, item.Id));
+        Assert.Equal(order.Id, Assert.Single(response).Id);
     }
 
     [Fact]
@@ -310,23 +310,15 @@ public sealed class ServiceOrderContractTests
         Assert.Equal(ServiceOrderStatus.AwaitingApproval, response.Status);
         Assert.NotNull(budget);
         Assert.Equal(120m, budget!.TotalValue);
-        Assert.Collection(
-            budget.Parts,
-            part =>
-            {
-                Assert.Equal(context.PartId, part.PartId);
-                Assert.Equal("Filtro", part.PartName);
-                Assert.Equal(10m, part.UnitPrice);
-                Assert.Equal(2, part.Quantity);
-            });
-        Assert.Collection(
-            budget.WorkshopServices,
-            service =>
-            {
-                Assert.Equal(context.WorkshopServiceId, service.WorkshopServiceId);
-                Assert.Equal("Troca de oleo", service.WorkshopServiceName);
-                Assert.Equal(100m, service.UnitPrice);
-            });
+        var budgetPart = Assert.Single(budget.Parts);
+        Assert.Equal(context.PartId, budgetPart.PartId);
+        Assert.Equal("Filtro", budgetPart.PartName);
+        Assert.Equal(10m, budgetPart.UnitPrice);
+        Assert.Equal(2, budgetPart.Quantity);
+        var budgetService = Assert.Single(budget.WorkshopServices);
+        Assert.Equal(context.WorkshopServiceId, budgetService.WorkshopServiceId);
+        Assert.Equal("Troca de oleo", budgetService.WorkshopServiceName);
+        Assert.Equal(100m, budgetService.UnitPrice);
         Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
         Assert.Equal("john@email.com", context.EmailSender.Recipient);
         Assert.Equal("John Customer - Budget Awaiting to Approval", context.EmailSender.Subject);
@@ -444,7 +436,7 @@ public sealed class ServiceOrderContractTests
 
         var schedules = await context.Service.ListSchedulesAsync();
 
-        Assert.Collection(schedules, item => Assert.Equal(context.ServiceOrderId, item.OrderServiceId));
+        Assert.Equal(context.ServiceOrderId, Assert.Single(schedules).OrderServiceId);
     }
 
     [Fact]

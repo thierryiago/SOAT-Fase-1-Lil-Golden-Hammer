@@ -1,5 +1,5 @@
-using System.Text;
 using Microsoft.Extensions.Options;
+using System.Text;
 
 namespace Oficina.Api.Authentication;
 

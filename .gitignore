@@ -49,3 +49,6 @@ desktop.ini
 
 .hermes
 docs
+coverage.xml
+.sonarqube
+RelatorioHTML

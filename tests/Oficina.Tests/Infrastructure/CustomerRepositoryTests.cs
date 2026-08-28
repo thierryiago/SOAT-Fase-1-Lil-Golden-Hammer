@@ -16,7 +16,7 @@ public sealed class CustomerRepositoryTests
         await repository.AddAsync(customer, CancellationToken.None);
         var result = await repository.ListAsync(CancellationToken.None);
 
-        Assert.Collection(result, item => Assert.Equal(customer.Id, item.Id));
+        Assert.Equal(customer.Id, Assert.Single(result).Id);
     }
 
     [Fact]

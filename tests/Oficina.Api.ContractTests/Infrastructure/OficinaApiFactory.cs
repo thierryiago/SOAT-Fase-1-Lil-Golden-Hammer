@@ -6,8 +6,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
-using Oficina.Infrastructure.Persistence;
 using Oficina.Application.Notifications;
+using Oficina.Infrastructure.Persistence;
 
 namespace Oficina.Api.ContractTests.Infrastructure;
 
