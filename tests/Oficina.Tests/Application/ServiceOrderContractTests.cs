@@ -1,3 +1,4 @@
+using Oficina.Application.Budgets;
 using Oficina.Application.Customers;
 using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.Parts;
@@ -5,7 +6,9 @@ using Oficina.Application.ServiceOrders;
 using Oficina.Application.WorkshopServices;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
+using Oficina.Application.Notifications;
 using Oficina.Domain.Customers;
+using Oficina.Domain.Budget;
 using Oficina.Domain.OrderService;
 using Oficina.Domain.OrderServiceHistory;
 using Oficina.Domain.Parts;
@@ -145,7 +148,9 @@ public sealed class ServiceOrderContractTests
             new FakePartRepository(),
             new FakeWorkshopServiceRepository(),
             new FakeStockRepository(),
-            new FakeServiceOrderHistoryRepository());
+            new FakeServiceOrderHistoryRepository(),
+            new FakeBudgetService(),
+            CreateNotificationService());
 
         var schedules = await service.ListSchedulesAsync();
 
@@ -184,7 +189,8 @@ public sealed class ServiceOrderContractTests
         await orders.AddAsync(serviceOrder, CancellationToken.None);
 
         var service = new ServiceOrderService(
-            orders, customers, vehicles, new FakePartRepository(), workshopServices, stocks, new FakeServiceOrderHistoryRepository());
+            orders, customers, vehicles, new FakePartRepository(), workshopServices, stocks,
+            new FakeServiceOrderHistoryRepository(), new FakeBudgetService(), CreateNotificationService());
 
         var response = await service.CancelAsync(serviceOrder.Id, CancellationToken.None);
 
@@ -276,6 +282,57 @@ public sealed class ServiceOrderContractTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_should_create_one_budget_with_order_parts_and_services_when_awaiting_approval()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToInDiagnosisAsync(context);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                Parts: [new AddPartToServiceOrderRequest(context.PartId, 2)]),
+            CancellationToken.None);
+
+        var response = await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                WorkshopServiceIds: [context.WorkshopServiceId]),
+            CancellationToken.None);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(context.ServiceOrderId, Description: "Diagnostico concluido"),
+            CancellationToken.None);
+
+        var budget = await context.Budgets.GetByServiceOrderIdAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
+        Assert.Equal(ServiceOrderStatus.AwaitingApproval, response.Status);
+        Assert.NotNull(budget);
+        Assert.Equal(120m, budget!.TotalValue);
+        Assert.Collection(
+            budget.Parts,
+            part =>
+            {
+                Assert.Equal(context.PartId, part.PartId);
+                Assert.Equal("Filtro", part.PartName);
+                Assert.Equal(10m, part.UnitPrice);
+                Assert.Equal(2, part.Quantity);
+            });
+        Assert.Collection(
+            budget.WorkshopServices,
+            service =>
+            {
+                Assert.Equal(context.WorkshopServiceId, service.WorkshopServiceId);
+                Assert.Equal("Troca de oleo", service.WorkshopServiceName);
+                Assert.Equal(100m, service.UnitPrice);
+            });
+        Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
+        Assert.Equal("john@email.com", context.EmailSender.Recipient);
+        Assert.Equal("John Customer - Budget Awaiting to Approval", context.EmailSender.Subject);
+        Assert.Contains($"Budget ID: {budget.Id}", context.EmailSender.Body);
+        Assert.Contains("Total Value: 120.00", context.EmailSender.Body);
+        Assert.Equal(1, context.EmailSender.SendCount);
     }
 
     [Fact]
@@ -413,12 +470,16 @@ public sealed class ServiceOrderContractTests
             new FakePartRepository(),
             new FakeWorkshopServiceRepository(),
             new FakeStockRepository(),
-            new FakeServiceOrderHistoryRepository());
+            new FakeServiceOrderHistoryRepository(),
+            new FakeBudgetService(),
+            CreateNotificationService());
 
     private sealed record ServiceOrderTestContext(
         ServiceOrderService Service,
         FakeStockRepository Stocks,
         FakeServiceOrderHistoryRepository History,
+        FakeBudgetRepository Budgets,
+        FakeEmailSender EmailSender,
         Guid ServiceOrderId,
         Guid PartId,
         Guid WorkshopServiceId);
@@ -432,6 +493,8 @@ public sealed class ServiceOrderContractTests
         var stocks = new FakeStockRepository();
         var history = new FakeServiceOrderHistoryRepository();
         var orders = new FakeServiceOrderRepository();
+        var budgets = new FakeBudgetRepository();
+        var emailSender = new FakeEmailSender();
 
         var customer = Customer.Create("John Customer", "john@email.com", "11999999999", "52998224725");
         await customers.AddAsync(customer, CancellationToken.None);
@@ -445,12 +508,30 @@ public sealed class ServiceOrderContractTests
         var workshopService = WorkshopService.Create("Troca de oleo", "Descricao", 100m, 30);
         await workshopServices.AddAsync(workshopService, CancellationToken.None);
 
-        var service = new ServiceOrderService(orders, customers, vehicles, parts, workshopServices, stocks, history);
+        var budgetService = new BudgetService(budgets, orders, parts, workshopServices);
+        var service = new ServiceOrderService(
+            orders,
+            customers,
+            vehicles,
+            parts,
+            workshopServices,
+            stocks,
+            history,
+            budgetService,
+            new NotificationService(emailSender));
 
         var opened = await service.OpenAsync(
             new OpenServiceOrderRequest(customer.Id, vehicle.Id, "Revisao"), CancellationToken.None);
 
-        return new ServiceOrderTestContext(service, stocks, history, opened.Id, part.Id, workshopService.Id);
+        return new ServiceOrderTestContext(
+            service,
+            stocks,
+            history,
+            budgets,
+            emailSender,
+            opened.Id,
+            part.Id,
+            workshopService.Id);
     }
 
     private static async Task AdvanceToInDiagnosisAsync(ServiceOrderTestContext context)
@@ -531,6 +612,61 @@ public sealed class ServiceOrderContractTests
         public Task<StockPart?> GetByPartIdAsync(Guid partId, CancellationToken cancellationToken) => Task.FromResult(_items.Values.FirstOrDefault(stock => stock.PartId == partId));
         public Task AddAsync(StockPart stockPart, CancellationToken cancellationToken) { _items[stockPart.Id] = stockPart; return Task.CompletedTask; }
         public Task UpdateAsync(StockPart stockPart, CancellationToken cancellationToken) { _items[stockPart.Id] = stockPart; return Task.CompletedTask; }
+    }
+
+    private sealed class FakeBudgetService : IBudgetService
+    {
+        public Task<BudgetResponse> OpenFromServiceOrderAsync(
+            Guid serviceOrderId,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Budget creation was not expected in this test.");
+    }
+
+    private static NotificationService CreateNotificationService() =>
+        new(new FakeEmailSender());
+
+    private sealed class FakeEmailSender : INotificationEmailSender
+    {
+        public string? Recipient { get; private set; }
+        public string? Subject { get; private set; }
+        public string? Body { get; private set; }
+        public int SendCount { get; private set; }
+
+        public Task SendAsync(
+            string recipient,
+            string subject,
+            string body,
+            CancellationToken cancellationToken)
+        {
+            Recipient = recipient;
+            Subject = subject;
+            Body = body;
+            SendCount++;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeBudgetRepository : IBudgetRepository
+    {
+        private readonly Dictionary<Guid, Budget> _items = [];
+
+        public Task<List<Budget>> ListAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(_items.Values.ToList());
+
+        public Task<Budget?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
+            Task.FromResult(_items.GetValueOrDefault(id));
+
+        public Task<Budget?> GetByServiceOrderIdAsync(
+            Guid serviceOrderId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(_items.Values.SingleOrDefault(
+                budget => budget.ServiceOrderId == serviceOrderId));
+
+        public Task AddAsync(Budget budget, CancellationToken cancellationToken)
+        {
+            _items.Add(budget.Id, budget);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeServiceOrderHistoryRepository : IServiceOrderHistoryRepository

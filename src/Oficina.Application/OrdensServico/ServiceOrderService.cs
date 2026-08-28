@@ -1,3 +1,4 @@
+using Oficina.Application.Budgets;
 using Oficina.Application.Customers;
 using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.OrdensServico;
@@ -5,6 +6,7 @@ using Oficina.Application.Parts;
 using Oficina.Application.WorkshopServices;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
+using Oficina.Application.Notifications;
 using Oficina.Domain.OrderService;
 using Oficina.Domain.OrderServiceHistory;
 using Oficina.Domain.Parts;
@@ -22,6 +24,8 @@ public sealed class ServiceOrderService
     private readonly IWorkshopServiceRepository _workshopServices;
     private readonly IStockRepository _stocks;
     private readonly IServiceOrderHistoryRepository _history;
+    private readonly IBudgetService _budgets;
+    private readonly NotificationService _notifications;
 
     public ServiceOrderService(
         IServiceOrderRepository serviceOrders,
@@ -30,7 +34,9 @@ public sealed class ServiceOrderService
         IPartRepository parts,
         IWorkshopServiceRepository workshopServices,
         IStockRepository stocks,
-        IServiceOrderHistoryRepository history)
+        IServiceOrderHistoryRepository history,
+        IBudgetService budgets,
+        NotificationService notifications)
     {
         _serviceOrderRepository = serviceOrders;
         _customerRepository = customers;
@@ -39,6 +45,8 @@ public sealed class ServiceOrderService
         _workshopServices = workshopServices;
         _stocks = stocks;
         _history = history;
+        _budgets = budgets;
+        _notifications = notifications;
     }
 
     public async Task<IReadOnlyCollection<ServiceOrderListItemResponse>> ListAsync(CancellationToken cancellationToken)
@@ -107,6 +115,19 @@ public sealed class ServiceOrderService
 
         await _serviceOrderRepository.UpdateAsync(serviceOrder, newParts, newWorkshopServices, cancellationToken);
         await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
+        if (previousStatus != ServiceOrderStatus.AwaitingApproval &&
+            serviceOrder.Status == ServiceOrderStatus.AwaitingApproval)
+        {
+            var budget = await _budgets.OpenFromServiceOrderAsync(serviceOrder.Id, cancellationToken);
+            var customer = await _customerRepository.GetByIdAsync(serviceOrder.CustomerId, cancellationToken)
+                ?? throw new InvalidOperationException("Customer was not found.");
+
+            await _notifications.SendBudgetAwaitingApprovalAsync(
+                customer.Name,
+                customer.Email,
+                budget,
+                cancellationToken);
+        }
         return MapDetail(serviceOrder);
     }
 

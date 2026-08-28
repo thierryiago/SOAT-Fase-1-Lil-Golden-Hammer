@@ -181,6 +181,7 @@ public class AppDbContext : DbContext
                 .HasForeignKey(e => e.ServiceOrderId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired();
+            e.HasIndex(e => e.ServiceOrderId).IsUnique();
             e.Property(e => e.CreatedAt).IsRequired();
             e.Property(e => e.TotalValue).HasColumnType("decimal(18,2)").IsRequired();
             e.Property(e => e.IsApproved);
@@ -197,6 +198,8 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.PartId)
                 .OnDelete(DeleteBehavior.Cascade);
+            e.Property(e => e.PartName).IsRequired().HasMaxLength(100);
+            e.Property(e => e.UnitPrice).IsRequired().HasColumnType("decimal(18,2)");
             e.Property(e => e.Quantity).IsRequired();
         });
 
@@ -211,6 +214,8 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.WorkshopServiceId)
                 .OnDelete(DeleteBehavior.Cascade);
+            e.Property(e => e.WorkshopServiceName).IsRequired().HasMaxLength(100);
+            e.Property(e => e.UnitPrice).IsRequired().HasColumnType("decimal(18,2)");
         });
     }
 }

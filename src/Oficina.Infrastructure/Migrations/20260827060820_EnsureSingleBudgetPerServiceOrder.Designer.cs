@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Oficina.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Oficina.Infrastructure.Persistence;
 namespace Oficina.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260827060820_EnsureSingleBudgetPerServiceOrder")]
+    partial class EnsureSingleBudgetPerServiceOrder
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -65,16 +68,8 @@ namespace Oficina.Infrastructure.Migrations
                     b.Property<Guid>("PartId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("PartName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.Property<int>("Quantity")
                         .HasColumnType("integer");
-
-                    b.Property<decimal>("UnitPrice")
-                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
@@ -94,16 +89,8 @@ namespace Oficina.Infrastructure.Migrations
                     b.Property<Guid>("BudgetId")
                         .HasColumnType("uuid");
 
-                    b.Property<decimal>("UnitPrice")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<Guid>("WorkshopServiceId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("WorkshopServiceName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
 
