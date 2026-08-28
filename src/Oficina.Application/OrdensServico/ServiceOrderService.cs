@@ -78,7 +78,7 @@ public sealed class ServiceOrderService
 
         var history = await _history.FindByServiceOrderAsync(serviceOrderId, cancellationToken);
         var timeline = history
-            .OrderBy(entry => entry.CreatedDate)
+            .OrderByDescending(entry => entry.CreatedDate)
             .Select(entry => new ServiceOrderTrackingHistoryItem(entry.StatusName, entry.CreatedDate))
             .ToList();
 
