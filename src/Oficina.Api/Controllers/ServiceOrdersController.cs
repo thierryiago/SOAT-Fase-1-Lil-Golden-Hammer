@@ -45,6 +45,15 @@ public sealed class ServiceOrdersController : ControllerBase
         return result is null ? NotFound() : Ok(result);
     }
 
+    [HttpGet("track", Name = "TrackServiceOrdersByDocument")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(IReadOnlyCollection<ServiceOrderTrackingSummaryResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> TrackByDocument([FromQuery] string document, CancellationToken cancellationToken)
+    {
+        var result = await _serviceOrders.TrackByDocumentAsync(document, cancellationToken);
+        return Ok(result);
+    }
+
     [HttpPost(Name = "OpenServiceOrder")]
     [ProducesResponseType(typeof(ServiceOrderDetailResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

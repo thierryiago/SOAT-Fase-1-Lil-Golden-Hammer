@@ -34,6 +34,12 @@ public sealed class ServiceOrderRepository : IServiceOrderRepository
             .Where(x => x.ScheduledAt.Date == date.Date)
             .ToListAsync(cancellationToken);
 
+    public Task<List<ServiceOrder>> ListByCustomerAsync(Guid customerId, CancellationToken cancellationToken) =>
+        _appDbContext.ServiceOrders
+            .AsNoTracking()
+            .Where(x => x.CustomerId == customerId)
+            .ToListAsync(cancellationToken);
+
 
     public Task<ServiceOrder?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         _appDbContext.ServiceOrders

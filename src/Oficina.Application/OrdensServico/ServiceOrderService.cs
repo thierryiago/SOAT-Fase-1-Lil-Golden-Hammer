@@ -85,6 +85,20 @@ public sealed class ServiceOrderService
         return new ServiceOrderTrackingResponse(order.Id, order.Status?.ToString(), order.Description, order.CreatedAt, timeline);
     }
 
+    public async Task<IReadOnlyCollection<ServiceOrderTrackingSummaryResponse>> TrackByDocumentAsync(string document, CancellationToken cancellationToken)
+    {
+        var customer = await _customerRepository.GetByDocumentAsync(Customer.NormalizeDocument(document), cancellationToken);
+        if (customer is null)
+        {
+            return [];
+        }
+
+        var orders = await _serviceOrderRepository.ListByCustomerAsync(customer.Id, cancellationToken);
+        return [.. orders
+            .OrderByDescending(order => order.CreatedAt)
+            .Select(order => new ServiceOrderTrackingSummaryResponse(order.Id, order.Status?.ToString(), order.Description, order.CreatedAt))];
+    }
+
     public async Task<ServiceOrderDetailResponse> OpenAsync(OpenServiceOrderRequest request, CancellationToken cancellationToken)
     {
         var customer = await _customerRepository.GetByIdAsync(request.CustomerId, cancellationToken);
