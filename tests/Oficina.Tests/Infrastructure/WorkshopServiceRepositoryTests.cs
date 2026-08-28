@@ -16,7 +16,7 @@ public sealed class WorkshopServiceRepositoryTests
         await repository.AddAsync(service, CancellationToken.None);
         var result = await repository.ListAsync(CancellationToken.None);
 
-        Assert.Collection(result, item => Assert.Equal(service.Id, item.Id));
+        Assert.Equal(service.Id, Assert.Single(result).Id);
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public sealed class WorkshopServiceRepositoryTests
 
         var result = await repository.GetAllById([serviceA.Id], CancellationToken.None);
 
-        Assert.Collection(result, item => Assert.Equal(serviceA.Id, item.Id));
+        Assert.Equal(serviceA.Id, Assert.Single(result).Id);
     }
 
     [Fact]

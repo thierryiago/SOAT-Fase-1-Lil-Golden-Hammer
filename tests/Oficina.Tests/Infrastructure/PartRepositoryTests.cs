@@ -16,7 +16,7 @@ public sealed class PartRepositoryTests
         await repository.AddAsync(part, CancellationToken.None);
         var result = await repository.ListAsync(CancellationToken.None);
 
-        Assert.Collection(result, item => Assert.Equal(part.Id, item.Id));
+        Assert.Equal(part.Id, Assert.Single(result).Id);
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class PartRepositoryTests
 
         var result = await repository.GetAllById([partA.Id], CancellationToken.None);
 
-        Assert.Collection(result, item => Assert.Equal(partA.Id, item.Id));
+        Assert.Equal(partA.Id, Assert.Single(result).Id);
     }
 
     [Fact]

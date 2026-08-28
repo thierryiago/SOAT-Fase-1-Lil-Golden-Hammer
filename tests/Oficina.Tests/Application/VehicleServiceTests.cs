@@ -108,7 +108,7 @@ public sealed class VehicleServiceTests
 
         var result = await service.ListAsync(new PageRequest(), customerA.Id, CancellationToken.None);
 
-        Assert.Collection(result.Items, item => Assert.Equal(vehicleA.Id, item.Id));
+        Assert.Equal(vehicleA.Id, Assert.Single(result.Items).Id);
     }
 
     [Fact]

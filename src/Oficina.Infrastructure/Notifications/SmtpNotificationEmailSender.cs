@@ -1,7 +1,7 @@
-using System.Net;
-using System.Net.Mail;
 using Microsoft.Extensions.Options;
 using Oficina.Application.Notifications;
+using System.Net;
+using System.Net.Mail;
 
 namespace Oficina.Infrastructure.Notifications;
 

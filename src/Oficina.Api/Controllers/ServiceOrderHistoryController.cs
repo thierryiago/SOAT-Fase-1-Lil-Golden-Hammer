@@ -1,6 +1,6 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.OrderServiceHistory;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Oficina.Api.Controllers;
 

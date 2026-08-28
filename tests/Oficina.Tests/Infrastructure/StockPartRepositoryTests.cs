@@ -16,7 +16,7 @@ public sealed class StockPartRepositoryTests
         await repository.AddAsync(stock, CancellationToken.None);
         var result = await repository.ListAsync(CancellationToken.None);
 
-        Assert.Collection(result, item => Assert.Equal(stock.Id, item.Id));
+        Assert.Equal(stock.Id, Assert.Single(result).Id);
     }
 
     [Fact]

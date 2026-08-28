@@ -24,7 +24,7 @@ public sealed class BudgetServiceTests
 
         var result = await service.ListAsync(new PageRequest(), CancellationToken.None);
 
-        Assert.Collection(result.Items, item => Assert.Equal(budget.Id, item.Id));
+        Assert.Equal(budget.Id, Assert.Single(result.Items).Id);
     }
 
     [Fact]

@@ -1,7 +1,7 @@
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using Oficina.Api.Authentication;
 using Oficina.Api.ContractTests.Infrastructure;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 
 namespace Oficina.Api.ContractTests.Contracts;
 

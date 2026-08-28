@@ -1,8 +1,8 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Common;
 using Oficina.Application.WorkshopServices;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Oficina.Api.Controllers;
 

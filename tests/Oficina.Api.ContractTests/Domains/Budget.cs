@@ -1,6 +1,3 @@
-using System.Net;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Oficina.Api.Authentication;
 using Oficina.Api.ContractTests.Infrastructure;
@@ -17,6 +14,9 @@ using Oficina.Domain.Parts;
 using Oficina.Domain.ServiceOrders;
 using Oficina.Domain.WorkshopServices;
 using Oficina.Infrastructure.Persistence;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using Xunit.Abstractions;
 
 namespace Oficina.Api.ContractTests.Domains;

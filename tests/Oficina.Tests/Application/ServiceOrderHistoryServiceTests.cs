@@ -29,7 +29,7 @@ public sealed class ServiceOrderHistoryServiceTests
 
         var result = await service.FindByServiceOrderAsync(serviceOrderId, CancellationToken.None);
 
-        Assert.Collection(result, item => Assert.Equal(serviceOrderId, item.ServiceOrderId));
+        Assert.Equal(serviceOrderId, Assert.Single(result).ServiceOrderId);
     }
 
     [Fact]
