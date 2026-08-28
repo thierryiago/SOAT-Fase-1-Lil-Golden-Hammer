@@ -76,7 +76,13 @@ public sealed class ServiceOrderService
             return null;
         }
 
-        return new ServiceOrderTrackingResponse(order.Id, order.Status, order.Description, order.CreatedAt);
+        var history = await _history.FindByServiceOrderAsync(serviceOrderId, cancellationToken);
+        var timeline = history
+            .OrderBy(entry => entry.CreatedDate)
+            .Select(entry => new ServiceOrderTrackingHistoryItem(entry.StatusName, entry.CreatedDate))
+            .ToList();
+
+        return new ServiceOrderTrackingResponse(order.Id, order.Status?.ToString(), order.Description, order.CreatedAt, timeline);
     }
 
     public async Task<ServiceOrderDetailResponse> OpenAsync(OpenServiceOrderRequest request, CancellationToken cancellationToken)

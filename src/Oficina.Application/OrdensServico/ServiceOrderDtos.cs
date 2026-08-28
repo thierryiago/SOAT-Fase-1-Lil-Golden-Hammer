@@ -46,6 +46,9 @@ public sealed record ServiceOrderDetailResponse(
 
 public sealed record ServiceOrderTrackingResponse(
     Guid Id,
-    ServiceOrderStatus? Status,
+    string? Status,
     string Description,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    IReadOnlyCollection<ServiceOrderTrackingHistoryItem> History);
+
+public sealed record ServiceOrderTrackingHistoryItem(string? Status, DateTime OccurredAt);
