@@ -1,7 +1,10 @@
 using Oficina.Api.Authentication;
 using Oficina.Api.ContractTests.Infrastructure;
+using Oficina.Application.Budgets;
+using Oficina.Application.Common;
 using Oficina.Application.Customers;
 using Oficina.Application.Mechanics;
+using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.Vehicles;
 using Oficina.Application.WorkshopServices;
@@ -439,6 +442,240 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
     }
 
     // =====================================================================================
+    // Group E - additional business-flow scenarios (docs/analise-gaps-e-cenarios-faltantes.md,
+    // section 2.3, items 12, 13, 23, 24).
+    // =====================================================================================
+
+    // Item 12 - cancelling the same order twice must fail the second time (400) and must not
+    // double-return stock (idempotency of cancellation).
+    [Fact]
+    public async Task Cancel_twice_in_a_row_should_fail_the_second_time()
+    {
+        var ctx = await ReachAwaitingApprovalAsync();
+
+        var firstCancel = await CancelAsync(ctx.Order.Id);
+        Log("First cancel while AwaitingApproval", "POST /cancel", firstCancel.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, firstCancel.StatusCode);
+        var cancelled = (await firstCancel.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        Assert.Equal(ServiceOrderStatus.Rejected, cancelled.Status);
+
+        var secondCancel = await CancelAsync(ctx.Order.Id);
+        Log("Second cancel on the same already-Rejected order", "POST /cancel", secondCancel.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, secondCancel.StatusCode);
+    }
+
+    // Item 13 - a full lifecycle with only a workshop service attached (no parts at all) must
+    // reach Delivered normally, and the automatically-opened budget's TotalValue must equal the
+    // sum of the attached services only.
+    [Fact]
+    public async Task Full_lifecycle_without_any_part_should_reach_delivered_and_budget_should_total_services_only()
+    {
+        await AuthenticateAsync();
+        var sequence = Interlocked.Increment(ref _documentCounter);
+
+        var customerResponse = await _client.PostAsJsonAsync("/api/v1/customers", new
+        {
+            name = "Service Only Customer",
+            email = $"service.only.{sequence}@example.com",
+            telephoneNumber = "+5511999990000",
+            document = TestDocuments.ValidCpf(sequence)
+        });
+        customerResponse.EnsureSuccessStatusCode();
+        var customer = (await customerResponse.Content.ReadFromJsonAsync<CustomerResponse>())!;
+
+        var vehicleResponse = await _client.PostAsJsonAsync("/api/v1/vehicles", new
+        {
+            customerId = customer.Id,
+            plate = $"SVO{sequence:0000}",
+            brand = "Fiat",
+            model = "Uno",
+            year = 2020,
+            category = 1
+        });
+        vehicleResponse.EnsureSuccessStatusCode();
+        var vehicle = (await vehicleResponse.Content.ReadFromJsonAsync<VehicleResponse>())!;
+
+        var mechanicResponse = await _client.PostAsJsonAsync("/api/v1/mechanics", new { name = $"Service Only Mechanic {sequence}" });
+        mechanicResponse.EnsureSuccessStatusCode();
+        var mechanic = (await mechanicResponse.Content.ReadFromJsonAsync<MechanicResponse>())!;
+
+        var workshopServiceResponse = await _client.PostAsJsonAsync("/api/v1/workshop-services", new
+        {
+            name = $"Service Only Service {sequence}",
+            description = "The only item on this order",
+            unitPrice = 250m,
+            estimatedDurationMinutes = 45
+        });
+        workshopServiceResponse.EnsureSuccessStatusCode();
+        var workshopService = (await workshopServiceResponse.Content.ReadFromJsonAsync<WorkshopServiceResponse>())!;
+
+        var openResponse = await _client.PostAsJsonAsync("/api/v1/service-orders", new
+        {
+            customerId = customer.Id,
+            vehicleId = vehicle.Id,
+            description = "Order with no parts, only a workshop service"
+        });
+        openResponse.EnsureSuccessStatusCode();
+        var order = (await openResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+
+        var checklistResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = order.Id,
+            checkList = "No parts needed, only labor"
+        });
+        checklistResponse.EnsureSuccessStatusCode();
+
+        var mechanicAssignResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = order.Id,
+            mechanicId = mechanic.Id
+        });
+        mechanicAssignResponse.EnsureSuccessStatusCode();
+
+        var awaitingApprovalResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = order.Id,
+            workshopServiceIds = new[] { workshopService.Id }
+        });
+        awaitingApprovalResponse.EnsureSuccessStatusCode();
+        var awaitingOrder = (await awaitingApprovalResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        Assert.Equal(ServiceOrderStatus.AwaitingApproval, awaitingOrder.Status);
+        Assert.Empty(awaitingOrder.Parts);
+        Assert.Equal(0m, awaitingOrder.TotalParts);
+
+        var budgetsResponse = await _client.GetAsync("/api/v1/budgets?page=1&pageSize=100");
+        budgetsResponse.EnsureSuccessStatusCode();
+        var budgets = (await budgetsResponse.Content.ReadFromJsonAsync<PagedResponse<BudgetResponse>>())!;
+        var budget = budgets.Items.Single(b => b.ServiceOrderId == order.Id);
+        Log($"Budget for a parts-free order: TotalValue={budget.TotalValue} (expected: 250)", budgetsResponse);
+        Assert.Equal(250m, budget.TotalValue);
+        Assert.Empty(budget.Parts);
+        Assert.Single(budget.WorkshopServices);
+
+        var approveResponse = await ApproveAsync(order.Id);
+        Assert.Equal(HttpStatusCode.OK, approveResponse.StatusCode);
+        var finalizeResponse = await FinalizeAsync(order.Id);
+        Assert.Equal(HttpStatusCode.OK, finalizeResponse.StatusCode);
+        var deliverResponse = await DeliverAsync(order.Id);
+        Assert.Equal(HttpStatusCode.OK, deliverResponse.StatusCode);
+        var delivered = (await deliverResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        Log("Order without any part reaches Delivered", "POST /deliver", deliverResponse.StatusCode, delivered.Status);
+
+        Assert.Equal(ServiceOrderStatus.Delivered, delivered.Status);
+    }
+
+    // Item 23 - characterization test: a mechanic soft-deleted after being assigned to an
+    // in-progress order does not break that order. Documents today's actual behavior (nothing
+    // blocks it, the mechanic stays assigned) rather than asserting a "should" rule.
+    [Fact]
+    public async Task Order_should_keep_working_after_its_assigned_mechanic_is_deactivated()
+    {
+        var ctx = await ReachInDiagnosisAsync();
+        Assert.Equal(ctx.MechanicId, ctx.Order.MechanicId);
+
+        var deleteResponse = await _client.DeleteAsync($"/api/v1/mechanics/{ctx.MechanicId}");
+        Log("Soft-delete the mechanic already assigned to this order", deleteResponse);
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+
+        // The order continues its normal flow using the now-deactivated mechanic's id - nothing
+        // in ServiceOrderService/ValidateUpdate checks Mechanic.IsActive.
+        var awaitingApprovalResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = ctx.Order.Id,
+            workshopServiceIds = new[] { ctx.WorkshopServiceId }
+        });
+        Log("Order still advances to AwaitingApproval after its mechanic was deactivated", awaitingApprovalResponse);
+        Assert.Equal(HttpStatusCode.OK, awaitingApprovalResponse.StatusCode);
+        var order = (await awaitingApprovalResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        Assert.Equal(ServiceOrderStatus.AwaitingApproval, order.Status);
+        Assert.Equal(ctx.MechanicId, order.MechanicId);
+
+        var getResponse = await _client.GetAsync($"/api/v1/service-orders/{ctx.Order.Id}");
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        var fetched = (await getResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        Assert.Equal(ctx.MechanicId, fetched.MechanicId);
+    }
+
+    // Item 24 - characterization test: a workshop service (and, symmetrically, a part) that gets
+    // soft-deleted after already being attached to an open order keeps the order/budget
+    // consistent - the catalog no longer lists it as active, but the already-attached item and
+    // the budget total remain intact.
+    [Fact]
+    public async Task Order_and_budget_should_stay_consistent_after_an_attached_workshop_service_is_deactivated()
+    {
+        var ctx = await ReachAwaitingApprovalAsync();
+
+        var deleteResponse = await _client.DeleteAsync($"/api/v1/workshop-services/{ctx.WorkshopServiceId}");
+        Log("Soft-delete the workshop service already attached to this order", deleteResponse);
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+
+        var catalogResponse = await _client.GetAsync($"/api/v1/workshop-services/{ctx.WorkshopServiceId}");
+        Assert.Equal(HttpStatusCode.NotFound, catalogResponse.StatusCode);
+
+        var getResponse = await _client.GetAsync($"/api/v1/service-orders/{ctx.Order.Id}");
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        var fetched = (await getResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        Assert.Contains(fetched.WorkshopServices, item => item.WorkshopServiceId == ctx.WorkshopServiceId);
+
+        var budgetsResponse = await _client.GetAsync("/api/v1/budgets?page=1&pageSize=100");
+        budgetsResponse.EnsureSuccessStatusCode();
+        var budgets = (await budgetsResponse.Content.ReadFromJsonAsync<PagedResponse<BudgetResponse>>())!;
+        var budget = budgets.Items.Single(b => b.ServiceOrderId == ctx.Order.Id);
+        Log($"Budget total after the attached service was deactivated (still {budget.TotalValue})", budgetsResponse);
+        Assert.True(budget.TotalValue > 0m);
+    }
+
+    // Item 24 (symmetric case) - same characterization, but for a Part instead of a
+    // WorkshopService: soft-deleting a part already attached to an open order must not corrupt
+    // the order or the automatically-opened budget.
+    [Fact]
+    public async Task Order_and_budget_should_stay_consistent_after_an_attached_part_is_deactivated()
+    {
+        var ctx = await ReachInDiagnosisAsync();
+
+        var partResponse = await _client.PostAsJsonAsync("/api/v1/parts", new
+        {
+            name = "Part attached then deactivated",
+            code = $"DEACT-{Guid.NewGuid():N}",
+            unitPrice = 20m,
+            kind = 1
+        });
+        partResponse.EnsureSuccessStatusCode();
+        var part = (await partResponse.Content.ReadFromJsonAsync<PartResponse>())!;
+        await _client.PutAsJsonAsync($"/api/v1/stocks/stocks-part/{part.Id}/entries", new { quantity = 10 });
+
+        var attachResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = ctx.Order.Id,
+            parts = new[] { new { partId = part.Id, quantity = 2 } },
+            workshopServiceIds = new[] { ctx.WorkshopServiceId }
+        });
+        attachResponse.EnsureSuccessStatusCode();
+        var afterAttach = (await attachResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        Assert.Equal(ServiceOrderStatus.AwaitingApproval, afterAttach.Status);
+
+        var deleteResponse = await _client.DeleteAsync($"/api/v1/parts/{part.Id}");
+        Log("Soft-delete the part already attached to this order", deleteResponse);
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+
+        var catalogResponse = await _client.GetAsync($"/api/v1/parts/{part.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, catalogResponse.StatusCode);
+
+        var getResponse = await _client.GetAsync($"/api/v1/service-orders/{ctx.Order.Id}");
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        var fetched = (await getResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        Assert.Contains(fetched.Parts, item => item.PartId == part.Id);
+        Assert.Equal(40m, fetched.TotalParts);
+
+        var budgetsResponse = await _client.GetAsync("/api/v1/budgets?page=1&pageSize=100");
+        budgetsResponse.EnsureSuccessStatusCode();
+        var budgets = (await budgetsResponse.Content.ReadFromJsonAsync<PagedResponse<BudgetResponse>>())!;
+        var budget = budgets.Items.Single(b => b.ServiceOrderId == ctx.Order.Id);
+        Log($"Budget still references the deactivated part (total={budget.TotalValue})", budgetsResponse);
+        Assert.Contains(budget.Parts, item => item.PartId == part.Id);
+    }
+
+    // =====================================================================================
     // Support infrastructure: opens a new order and advances it to the requested stage,
     // reusing each step (every "ReachX" builds on top of the previous stage).
     // =====================================================================================
@@ -596,6 +833,9 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var accessToken = (await tokenResponse.Content.ReadFromJsonAsync<AccessTokenResponse>())!.AccessToken;
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
     }
+
+    private void Log(string scenario, HttpResponseMessage response) =>
+        output.WriteLine($"[{scenario}] -> {(int)response.StatusCode} {response.StatusCode}");
 
     private void Log(string step, string action, HttpStatusCode statusCode, ServiceOrderStatus? osStatus = null)
     {

@@ -15,4 +15,5 @@ public interface IServiceOrderRepository
         CancellationToken cancellationToken);
     Task<List<ServiceOrder>> ListSchedulesAsync(CancellationToken cancellationToken);
     Task<List<ServiceOrder>> ListSchedulesByDateAsync(DateTimeOffset date, CancellationToken cancellationToken);
+    Task<List<ServiceOrder>> ListByCustomerAsync(Guid customerId, CancellationToken cancellationToken);
 }

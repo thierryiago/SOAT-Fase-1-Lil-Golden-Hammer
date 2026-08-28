@@ -115,6 +115,8 @@ public sealed class VehicleTests
     [InlineData("AB1234", false)]
     [InlineData("", false)]
     [InlineData(" ", false)]
+    [InlineData("ABC12345", false)] // old format with 5 digits instead of 4
+    [InlineData("ABC1DD34", false)] // two letters where Mercosul expects a single letter
     public void IsValidPlate_should_validate_old_and_mercosul_formats(string plate, bool expected)
     {
         Assert.Equal(expected, Vehicle.IsValidPlate(plate));

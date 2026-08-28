@@ -43,3 +43,18 @@ public sealed record ServiceOrderDetailResponse(
     decimal TotalParts,
     IReadOnlyCollection<ServiceOrderPartResponse> Parts,
     IReadOnlyCollection<ServiceOrderWorkshopResponse> WorkshopServices);
+
+public sealed record ServiceOrderTrackingResponse(
+    Guid Id,
+    string? Status,
+    string Description,
+    DateTimeOffset CreatedAt,
+    IReadOnlyCollection<ServiceOrderTrackingHistoryItem> History);
+
+public sealed record ServiceOrderTrackingHistoryItem(string? Status, DateTime OccurredAt);
+
+public sealed record ServiceOrderTrackingSummaryResponse(
+    Guid Id,
+    string? Status,
+    string Description,
+    DateTimeOffset CreatedAt);

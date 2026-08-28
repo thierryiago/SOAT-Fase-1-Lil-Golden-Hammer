@@ -196,6 +196,9 @@ public sealed class BudgetServiceTests
 
         public Task<List<ServiceOrder>> ListSchedulesByDateAsync(DateTimeOffset date, CancellationToken cancellationToken) =>
             Task.FromResult(_serviceOrders.Values.Where(so => so.ScheduledAt.Date == date.Date).ToList());
+
+        public Task<List<ServiceOrder>> ListByCustomerAsync(Guid customerId, CancellationToken cancellationToken) =>
+            Task.FromResult(_serviceOrders.Values.Where(so => so.CustomerId == customerId).ToList());
     }
 
     private sealed class FakePartRepository : IPartRepository

@@ -151,6 +151,73 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
         Assert.Equal(10, stockAfterCancel.Quantity);
     }
 
+    // Item 10 of docs/analise-gaps-e-cenarios-faltantes.md: increasing the quantity of a part
+    // already attached to the order, beyond what's left in stock, must be rejected with 400 - the
+    // HTTP-level mirror of the equivalent Application-layer test (ServiceOrderContractTests).
+    [Fact]
+    public async Task Service_order_should_reject_increasing_attached_part_quantity_beyond_available_stock()
+    {
+        var (customer, vehicle, mechanic, _) = await CreateOrderDependenciesAsync();
+        var part = await CreatePartAsync("STOCK-OS-INCREASE");
+        await _client.PutAsJsonAsync($"/api/v1/stocks/stocks-part/{part.Id}/entries", new { quantity = 5 });
+
+        var serviceOrder = await OpenServiceOrderAsync(customer.Id, vehicle.Id);
+        await AdvanceToInDiagnosisAsync(serviceOrder.Id, mechanic.Id);
+
+        var firstAttachResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = serviceOrder.Id,
+            parts = new[] { new { partId = part.Id, quantity = 3 } }
+        });
+        Assert.Equal(HttpStatusCode.OK, firstAttachResponse.StatusCode);
+        var stockAfterFirstAttach = await GetStockByPartIdAsync(part.Id);
+        Assert.Equal(2, stockAfterFirstAttach.Quantity);
+
+        // Only 2 left in stock; asking to raise the already-attached quantity from 3 to 10 means
+        // consuming 7 more, which is beyond what's available.
+        var increaseResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = serviceOrder.Id,
+            parts = new[] { new { partId = part.Id, quantity = 10 } }
+        });
+        Log("Increase attached part quantity from 3 to 10 with only 2 units left in stock (expected: 400)", increaseResponse);
+
+        Assert.Equal(HttpStatusCode.BadRequest, increaseResponse.StatusCode);
+    }
+
+    // Item 11 of docs/analise-gaps-e-cenarios-faltantes.md: two orders sequentially disputing the
+    // last unit(s) of the same part - the second one to attach it should be rejected once stock
+    // is exhausted by the first.
+    [Fact]
+    public async Task Two_orders_disputing_the_same_part_should_reject_the_second_once_stock_is_exhausted()
+    {
+        var (customerA, vehicleA, mechanicA, _) = await CreateOrderDependenciesAsync();
+        var (customerB, vehicleB, mechanicB, _) = await CreateOrderDependenciesAsync();
+        var part = await CreatePartAsync("STOCK-OS-DISPUTE");
+        await _client.PutAsJsonAsync($"/api/v1/stocks/stocks-part/{part.Id}/entries", new { quantity = 5 });
+
+        var orderA = await OpenServiceOrderAsync(customerA.Id, vehicleA.Id);
+        await AdvanceToInDiagnosisAsync(orderA.Id, mechanicA.Id);
+        var attachToOrderAResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = orderA.Id,
+            parts = new[] { new { partId = part.Id, quantity = 5 } }
+        });
+        Log("Order A attaches all 5 remaining units", attachToOrderAResponse);
+        Assert.Equal(HttpStatusCode.OK, attachToOrderAResponse.StatusCode);
+
+        var orderB = await OpenServiceOrderAsync(customerB.Id, vehicleB.Id);
+        await AdvanceToInDiagnosisAsync(orderB.Id, mechanicB.Id);
+        var attachToOrderBResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = orderB.Id,
+            parts = new[] { new { partId = part.Id, quantity = 1 } }
+        });
+        Log("Order B tries to attach 1 unit after order A exhausted the stock (expected: 400)", attachToOrderBResponse);
+
+        Assert.Equal(HttpStatusCode.BadRequest, attachToOrderBResponse.StatusCode);
+    }
+
     private async Task<StockResponse> GetStockByPartIdAsync(Guid partId)
     {
         var response = await _client.GetAsync("/api/v1/stocks?page=1&pageSize=100");

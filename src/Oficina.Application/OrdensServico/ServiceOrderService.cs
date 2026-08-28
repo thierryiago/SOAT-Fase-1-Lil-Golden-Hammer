@@ -7,6 +7,7 @@ using Oficina.Application.Parts;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
 using Oficina.Application.WorkshopServices;
+using Oficina.Domain.Customers;
 using Oficina.Domain.OrderService;
 using Oficina.Domain.OrderServiceHistory;
 using Oficina.Domain.Parts;
@@ -59,6 +60,43 @@ public sealed class ServiceOrderService
     {
         var order = await _serviceOrderRepository.GetByIdAsync(id, cancellationToken);
         return order is null ? null : MapDetail(order);
+    }
+
+    public async Task<ServiceOrderTrackingResponse?> TrackAsync(Guid serviceOrderId, string document, CancellationToken cancellationToken)
+    {
+        var order = await _serviceOrderRepository.GetByIdAsync(serviceOrderId, cancellationToken);
+        if (order is null)
+        {
+            return null;
+        }
+
+        var customer = await _customerRepository.GetByIdAsync(order.CustomerId, cancellationToken);
+        if (customer is null || customer.Document != Customer.NormalizeDocument(document))
+        {
+            return null;
+        }
+
+        var history = await _history.FindByServiceOrderAsync(serviceOrderId, cancellationToken);
+        var timeline = history
+            .OrderByDescending(entry => entry.CreatedDate)
+            .Select(entry => new ServiceOrderTrackingHistoryItem(entry.StatusName, entry.CreatedDate))
+            .ToList();
+
+        return new ServiceOrderTrackingResponse(order.Id, order.Status?.ToString(), order.Description, order.CreatedAt, timeline);
+    }
+
+    public async Task<IReadOnlyCollection<ServiceOrderTrackingSummaryResponse>> TrackByDocumentAsync(string document, CancellationToken cancellationToken)
+    {
+        var customer = await _customerRepository.GetByDocumentAsync(Customer.NormalizeDocument(document), cancellationToken);
+        if (customer is null)
+        {
+            return [];
+        }
+
+        var orders = await _serviceOrderRepository.ListByCustomerAsync(customer.Id, cancellationToken);
+        return [.. orders
+            .OrderByDescending(order => order.CreatedAt)
+            .Select(order => new ServiceOrderTrackingSummaryResponse(order.Id, order.Status?.ToString(), order.Description, order.CreatedAt))];
     }
 
     public async Task<ServiceOrderDetailResponse> OpenAsync(OpenServiceOrderRequest request, CancellationToken cancellationToken)
