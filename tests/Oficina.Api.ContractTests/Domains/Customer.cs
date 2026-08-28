@@ -9,6 +9,8 @@ namespace Oficina.Api.ContractTests.Domains;
 
 public sealed class CustomerTests(OficinaApiFactory factory, ITestOutputHelper output) : IClassFixture<OficinaApiFactory>
 {
+    private static int _documentCounter;
+
     private readonly HttpClient _client = factory.CreateClient();
 
     [Fact]
@@ -79,8 +81,86 @@ public sealed class CustomerTests(OficinaApiFactory factory, ITestOutputHelper o
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    // Item 7 of docs/analise-gaps-e-cenarios-faltantes.md: a document containing letters must be
+    // rejected by model validation (DocumentValidatorAttribute) with 400, before the request even
+    // reaches CustomerService/the domain.
+    [Fact]
+    public async Task Create_should_reject_document_containing_letters()
+    {
+        await AuthenticateAsync();
+
+        var response = await _client.PostAsJsonAsync("/api/v1/customers", new
+        {
+            name = "Document With Letters",
+            email = "letters.document@example.com",
+            telephoneNumber = "+5511999990005",
+            document = "123.ABC.789-01"
+        });
+        Log("Document containing letters (\"123.ABC.789-01\") - expected: 400 model validation error", response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // Item 9 of docs/analise-gaps-e-cenarios-faltantes.md: the same physical CPF, typed with a
+    // different mask/formatting, must still be detected as a duplicate (409) - not accepted as a
+    // "different" document because the raw string differs.
+    [Fact]
+    public async Task Create_should_reject_same_cpf_typed_with_different_formatting_as_duplicate()
+    {
+        await AuthenticateAsync();
+
+        var sequence = Interlocked.Increment(ref _documentCounter);
+        var document = TestDocuments.ValidCpf(sequence);
+        var formattedDocument = FormatAsCpf(document);
+
+        var firstResponse = await _client.PostAsJsonAsync("/api/v1/customers", new
+        {
+            name = "Unformatted Document Customer",
+            email = $"unformatted.{sequence}@example.com",
+            telephoneNumber = "+5511999990006",
+            document
+        });
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+
+        var secondResponse = await _client.PostAsJsonAsync("/api/v1/customers", new
+        {
+            name = "Formatted Document Customer",
+            email = $"formatted.{sequence}@example.com",
+            telephoneNumber = "+5511999990007",
+            document = formattedDocument
+        });
+        Log($"Same CPF, first unformatted (\"{document}\") then formatted (\"{formattedDocument}\") - expected: duplicate (409)", secondResponse);
+
+        Assert.Equal(HttpStatusCode.Conflict, secondResponse.StatusCode);
+    }
+
+    // Item 19 of docs/analise-gaps-e-cenarios-faltantes.md: invalid pagination parameters must
+    // surface as 400 through the real HTTP pipeline (Pagination.Create already throws
+    // ArgumentOutOfRangeException, which Program.cs's exception handler maps to 400).
+    [Theory]
+    [InlineData(0, 20)]
+    [InlineData(1, 0)]
+    [InlineData(1, 101)]
+    public async Task List_should_reject_invalid_pagination_parameters(int page, int pageSize)
+    {
+        await AuthenticateAsync();
+
+        var response = await _client.GetAsync($"/api/v1/customers?page={page}&pageSize={pageSize}");
+        Log($"List with page={page}, pageSize={pageSize} (expected: 400)", response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    private static string FormatAsCpf(string digitsOnly) =>
+        $"{digitsOnly[..3]}.{digitsOnly[3..6]}.{digitsOnly[6..9]}-{digitsOnly[9..]}";
+
     private async Task AuthenticateAsync()
     {
+        if (_client.DefaultRequestHeaders.Authorization is not null)
+        {
+            return;
+        }
+
         var tokenResponse = await _client.PostAsync("/api/v1/auth/token", content: null);
         var accessToken = (await tokenResponse.Content.ReadFromJsonAsync<AccessTokenResponse>())!.AccessToken;
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);

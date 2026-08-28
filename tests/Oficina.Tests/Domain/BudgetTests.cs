@@ -97,6 +97,35 @@ public sealed class BudgetTests
         Assert.Empty(budget.Parts);
     }
 
+    // Item 22 of docs/analise-gaps-e-cenarios-faltantes.md: an explicit, non-null empty parts
+    // list (new List<BudgetParts>()) must behave exactly like passing null - same TotalValue,
+    // same empty collection - guarding against a bug where only one of the two shapes is handled.
+    [Fact]
+    public void Open_should_calculate_the_same_total_value_for_null_and_empty_parts_list()
+    {
+        var workshopService = WorkshopService.Create("Troca de oleo", "Descricao", 100m, 30);
+
+        var budgetIdForNull = Guid.NewGuid();
+        var budgetWorkshopServiceForNull = BudgetWorkshopServices.Create(
+            budgetIdForNull, workshopService.Id, workshopService.Name, workshopService.UnitPrice);
+        budgetWorkshopServiceForNull.WorkshopService = workshopService;
+        var budgetWithNullParts = Budget.Open(
+            budgetIdForNull, Guid.NewGuid(), Guid.NewGuid(), null,
+            new List<BudgetWorkshopServices> { budgetWorkshopServiceForNull });
+
+        var budgetIdForEmpty = Guid.NewGuid();
+        var budgetWorkshopServiceForEmpty = BudgetWorkshopServices.Create(
+            budgetIdForEmpty, workshopService.Id, workshopService.Name, workshopService.UnitPrice);
+        budgetWorkshopServiceForEmpty.WorkshopService = workshopService;
+        var budgetWithEmptyParts = Budget.Open(
+            budgetIdForEmpty, Guid.NewGuid(), Guid.NewGuid(), new List<BudgetParts>(),
+            new List<BudgetWorkshopServices> { budgetWorkshopServiceForEmpty });
+
+        Assert.Equal(budgetWithNullParts.TotalValue, budgetWithEmptyParts.TotalValue);
+        Assert.Empty(budgetWithNullParts.Parts);
+        Assert.Empty(budgetWithEmptyParts.Parts);
+    }
+
     private static BudgetWorkshopServices CreateWorkshopServiceItem() =>
         BudgetWorkshopServices.Create(Guid.NewGuid(), Guid.NewGuid(), "Servico", 100m);
 }

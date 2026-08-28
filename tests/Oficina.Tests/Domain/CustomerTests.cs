@@ -55,7 +55,32 @@ public sealed class CustomerTests
         Assert.Throws<ArgumentException>(act);
     }
 
+    // Item 6 of docs/analise-gaps-e-cenarios-faltantes.md: unlike the "all digits repeated" or
+    // "no digits at all" cases above, this CPF has the right amount of non-repeated digits and
+    // *looks* well-formed, but its check digit is mathematically wrong (mirrors the HTTP-level
+    // coverage already in tests/Oficina.Api.ContractTests/Domains/Customer.cs, at the faster
+    // domain-unit level).
     [Fact]
+    public void Create_should_reject_cpf_with_correct_digit_count_but_wrong_check_digit()
+    {
+        // 111.444.777-35 is a valid CPF; flipping only the last check digit keeps the length and
+        // "non repeated digits" shape intact while making the mod-11 calculation fail.
+        var act = () => Customer.Create("Maria Silva", "maria@email.com", "123", "111.444.777-36");
+
+        Assert.Throws<ArgumentException>(act);
+    }
+
+    [Fact]
+    public void Create_should_reject_cnpj_with_correct_digit_count_but_wrong_check_digit()
+    {
+        // 11.222.333/0001-81 is a valid CNPJ; flipping only the last check digit keeps the shape
+        // intact while making the mod-11 calculation fail.
+        var act = () => Customer.Create("Empresa LTDA", "contato@empresa.com", "123", "11.222.333/0001-82");
+
+        Assert.Throws<ArgumentException>(act);
+    }
+
+[Fact]
     public void Update_should_change_name_email_phone_and_document()
     {
         var customer = Customer.Create("Maria Silva", "maria@email.com", "11999990000", "52998224725");

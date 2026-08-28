@@ -46,9 +46,23 @@ public sealed class OficinaApiFactory : WebApplicationFactory<Program>
         });
     }
 
-    private sealed class FakeNotificationEmailSender : INotificationEmailSender
+    // Public (not private) and with a static capture list so contract tests can assert that a
+    // real e-mail was "sent" (item 18 of docs/analise-gaps-e-cenarios-faltantes.md) without a
+    // real SMTP server. Static because AddScoped creates a new instance per request, but the
+    // capture needs to survive across the several HTTP calls a single test makes. Tests must
+    // filter by a unique recipient/subject per test to stay isolated from each other.
+    public sealed class FakeNotificationEmailSender : INotificationEmailSender
     {
-        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken) =>
-            Task.CompletedTask;
+        private static readonly System.Collections.Concurrent.ConcurrentQueue<SentEmail> _sentEmails = new();
+
+        public static IReadOnlyCollection<SentEmail> SentEmails => _sentEmails.ToArray();
+
+        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken)
+        {
+            _sentEmails.Enqueue(new SentEmail(recipient, subject, body));
+            return Task.CompletedTask;
+        }
     }
+
+    public sealed record SentEmail(string Recipient, string Subject, string Body);
 }

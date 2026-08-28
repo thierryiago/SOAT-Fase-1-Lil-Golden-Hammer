@@ -168,6 +168,95 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         Assert.Equal(800m, budgetForThisOrder!.TotalValue);
     }
 
+    // Item 18 of docs/analise-gaps-e-cenarios-faltantes.md: confirms the budget-awaiting-approval
+    // e-mail is actually dispatched (not just that NotificationService is called correctly with
+    // fakes, as already tested at the Application layer) when a real order reaches
+    // AwaitingApproval via HTTP. OficinaApiFactory registers a FakeNotificationEmailSender in
+    // place of the real SMTP sender, capturing every "sent" e-mail for inspection.
+    [Fact]
+    public async Task Service_order_should_actually_dispatch_the_budget_email_when_it_reaches_awaiting_approval()
+    {
+        await AuthenticateAsync();
+
+        var sequence = Interlocked.Increment(ref _documentCounter);
+        var customerEmail = $"budget.email.{sequence}@example.com";
+        var customerResponse = await _client.PostAsJsonAsync("/api/v1/customers", new
+        {
+            name = "Budget Email Customer",
+            email = customerEmail,
+            telephoneNumber = "+5511999990000",
+            document = TestDocuments.ValidCpf(sequence)
+        });
+        customerResponse.EnsureSuccessStatusCode();
+        var customer = (await customerResponse.Content.ReadFromJsonAsync<CustomerResponse>())!;
+
+        var vehicleResponse = await _client.PostAsJsonAsync("/api/v1/vehicles", new
+        {
+            customerId = customer.Id,
+            plate = $"MAI{sequence:0000}",
+            brand = "Fiat",
+            model = "Uno",
+            year = 2020,
+            category = 1
+        });
+        vehicleResponse.EnsureSuccessStatusCode();
+        var vehicle = (await vehicleResponse.Content.ReadFromJsonAsync<VehicleResponse>())!;
+
+        var mechanicResponse = await _client.PostAsJsonAsync("/api/v1/mechanics", new { name = $"Budget Email Mechanic {sequence}" });
+        mechanicResponse.EnsureSuccessStatusCode();
+        var mechanic = (await mechanicResponse.Content.ReadFromJsonAsync<MechanicResponse>())!;
+
+        var workshopServiceResponse = await _client.PostAsJsonAsync("/api/v1/workshop-services", new
+        {
+            name = $"Budget Email Service {sequence}",
+            description = "A $500 service",
+            unitPrice = 500m,
+            estimatedDurationMinutes = 60
+        });
+        workshopServiceResponse.EnsureSuccessStatusCode();
+        var workshopService = (await workshopServiceResponse.Content.ReadFromJsonAsync<WorkshopServiceResponse>())!;
+
+        var openResponse = await _client.PostAsJsonAsync("/api/v1/service-orders", new
+        {
+            customerId = customer.Id,
+            vehicleId = vehicle.Id,
+            description = "Order to validate the real budget e-mail dispatch"
+        });
+        openResponse.EnsureSuccessStatusCode();
+        var serviceOrder = (await openResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+
+        (await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = serviceOrder.Id,
+            checkList = "Initial inspection completed"
+        })).EnsureSuccessStatusCode();
+
+        (await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = serviceOrder.Id,
+            mechanicId = mechanic.Id
+        })).EnsureSuccessStatusCode();
+
+        var awaitingApprovalResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = serviceOrder.Id,
+            workshopServiceIds = new[] { workshopService.Id }
+        });
+        awaitingApprovalResponse.EnsureSuccessStatusCode();
+
+        var sentEmail = OficinaApiFactory.FakeNotificationEmailSender.SentEmails
+            .SingleOrDefault(email => email.Recipient == customerEmail);
+        Log(
+            sentEmail is null
+                ? "No budget e-mail captured for this customer"
+                : $"Budget e-mail captured: subject=\"{sentEmail.Subject}\"",
+            awaitingApprovalResponse);
+
+        Assert.NotNull(sentEmail);
+        Assert.Contains("Budget Awaiting to Approval", sentEmail!.Subject);
+        Assert.Contains("500.00", sentEmail.Body);
+    }
+
     private async Task AuthenticateAsync()
     {
         if (_client.DefaultRequestHeaders.Authorization is not null)

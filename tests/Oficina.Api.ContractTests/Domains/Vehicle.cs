@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using Oficina.Api.Authentication;
 using Oficina.Api.ContractTests.Infrastructure;
 using Oficina.Application.Customers;
+using Oficina.Application.Vehicles;
 using Xunit.Abstractions;
 
 namespace Oficina.Api.ContractTests.Domains;
@@ -130,6 +131,103 @@ public sealed class VehicleTests(OficinaApiFactory factory, ITestOutputHelper ou
         Log($"Placa com caracteres especiais - {description} (\"{plate}\")", response);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // Item 25 of docs/analise-gaps-e-cenarios-faltantes.md - DELIBERATELY RED: EnumVehicleCategory
+    // has no [EnumDataType]/JsonStringEnumConverter validation anywhere in the pipeline (verified
+    // in src/Oficina.Application/Clientes/VehicleDtos.cs and Vehicle.Validate), so System.Text.Json
+    // happily deserializes any integer into the enum and Vehicle.Create stores it as-is. The API
+    // should reject an out-of-range category with 400; today it accepts it with 201. Documents a
+    // real gap - do not add [EnumDataType] here, only the test.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(5)]
+    [InlineData(-1)]
+    public async Task Create_should_reject_category_outside_the_enum_range(int category)
+    {
+        var customer = await CreateCustomerAsync();
+
+        var response = await _client.PostAsJsonAsync("/api/v1/vehicles", new
+        {
+            customerId = customer.Id,
+            plate = $"CAT{Math.Abs(category):0000}",
+            brand = "Honda",
+            model = "Civic",
+            year = 2022,
+            category
+        });
+        Log($"Category outside EnumVehicleCategory's range (\"{category}\") - expected: 400", response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // Item 14 of docs/analise-gaps-e-cenarios-faltantes.md: POST /api/v1/vehicles/identify-customer-and-register.
+    [Fact]
+    public async Task IdentifyCustomerAndRegister_should_register_vehicle_for_existing_customer()
+    {
+        var customer = await CreateCustomerAsync();
+
+        var response = await _client.PostAsJsonAsync("/api/v1/vehicles/identify-customer-and-register", new
+        {
+            document = customer.Document,
+            plate = $"IDE{Interlocked.Increment(ref _documentCounter):0000}",
+            brand = "Honda",
+            model = "Civic",
+            year = 2022,
+            category = 1
+        });
+        Log("Identify customer by document and register a new vehicle", response);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var registration = (await response.Content.ReadFromJsonAsync<CustomerVehicleRegistrationResponse>())!;
+        Assert.Equal(customer.Id, registration.CustomerId);
+        Assert.Equal(customer.Document, registration.Document);
+    }
+
+    [Fact]
+    public async Task IdentifyCustomerAndRegister_should_fail_when_document_is_not_found()
+    {
+        await AuthenticateAsync();
+        var sequence = Interlocked.Increment(ref _documentCounter);
+
+        var response = await _client.PostAsJsonAsync("/api/v1/vehicles/identify-customer-and-register", new
+        {
+            document = TestDocuments.ValidCpf(sequence + 800_000),
+            plate = $"NFD{sequence:0000}",
+            brand = "Honda",
+            model = "Civic",
+            year = 2022,
+            category = 1
+        });
+        Log("Identify customer by a document that was never registered", response);
+
+        // VehicleService throws KeyNotFoundException, which Program.cs's exception handler maps to 404.
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task IdentifyCustomerAndRegister_should_fail_when_customer_is_inactive()
+    {
+        var customer = await CreateCustomerAsync();
+
+        var deleteResponse = await _client.DeleteAsync($"/api/v1/customers/{customer.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+
+        var response = await _client.PostAsJsonAsync("/api/v1/vehicles/identify-customer-and-register", new
+        {
+            document = customer.Document,
+            plate = $"INA{Interlocked.Increment(ref _documentCounter):0000}",
+            brand = "Honda",
+            model = "Civic",
+            year = 2022,
+            category = 1
+        });
+        Log("Identify customer by document after the customer was soft-deleted (inactive)", response);
+
+        // GetByDocumentAsync (see CustomerRepository) may or may not still return the inactive
+        // customer; either way VehicleService checks IsActive and throws KeyNotFoundException,
+        // mapped to 404 by Program.cs's exception handler.
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     private async Task<CustomerResponse> CreateCustomerAsync()
