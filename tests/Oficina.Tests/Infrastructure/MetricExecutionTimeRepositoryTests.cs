@@ -39,14 +39,11 @@ public sealed class MetricExecutionTimeRepositoryTests
 
         var result = await repository.GetAsync(CancellationToken.None);
 
-        Assert.Collection(result.WorkshopServices,
-            item => Assert.Equal(workshopService.Id, item.WorkshopServiceId));
-        Assert.Collection(result.ServiceOrders, item =>
-        {
-            Assert.Equal(serviceOrder.Id, item.ServiceOrderId);
-            Assert.Single(item.WorkshopServices);
-            Assert.Equal(2, item.Histories.Count);
-        });
+        Assert.Equal(workshopService.Id, Assert.Single(result.WorkshopServices).WorkshopServiceId);
+        var serviceOrderData = Assert.Single(result.ServiceOrders);
+        Assert.Equal(serviceOrder.Id, serviceOrderData.ServiceOrderId);
+        Assert.Single(serviceOrderData.WorkshopServices);
+        Assert.Equal(2, serviceOrderData.Histories.Count);
     }
 
     [Fact]

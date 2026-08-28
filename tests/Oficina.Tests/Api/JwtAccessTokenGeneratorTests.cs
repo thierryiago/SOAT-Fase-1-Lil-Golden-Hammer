@@ -1,7 +1,7 @@
-using System.IdentityModel.Tokens.Jwt;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Oficina.Api.Authentication;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Oficina.Tests.Api;
 

@@ -19,7 +19,7 @@ public sealed class StockServiceTests
 
         var result = await service.ListAsync(new PageRequest(), CancellationToken.None);
 
-        Assert.Collection(result.Items, item => Assert.Equal(part.Id, item.PartId));
+        Assert.Equal(part.Id, Assert.Single(result.Items).PartId);
     }
 
     [Fact]

@@ -19,7 +19,7 @@ public sealed class ServiceOrderHistoryRepositoryTests
         await repository.AddAsync(history, CancellationToken.None);
         var result = await repository.ListAsync(CancellationToken.None);
 
-        Assert.Collection(result, item => Assert.Equal(history.Id, item.Id));
+        Assert.Equal(history.Id, Assert.Single(result).Id);
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class ServiceOrderHistoryRepositoryTests
 
         var result = await repository.FindByServiceOrderAsync(serviceOrderA.Id, CancellationToken.None);
 
-        Assert.Collection(result, item => Assert.Equal(serviceOrderA.Id, item.OrderServiceId));
+        Assert.Equal(serviceOrderA.Id, Assert.Single(result).OrderServiceId);
     }
 
     private static async Task<ServiceOrder> AddServiceOrderAsync(AppDbContext context)

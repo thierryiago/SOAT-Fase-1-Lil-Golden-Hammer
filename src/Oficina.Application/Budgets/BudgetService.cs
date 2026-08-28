@@ -136,17 +136,18 @@ public sealed class BudgetService : IBudgetService
 
         var servicesById = osWorkshopServices.ToDictionary(service => service.Id);
         var workshopServices = new List<BudgetWorkshopServices>();
-        foreach (var item in serviceOrder.WorkshopServices)
+        foreach (var item in serviceOrder.WorkshopServices.Select(x => x.WorkshopServiceId))
         {
-            var workshopService = servicesById[item.WorkshopServiceId];
+            var workshopService = servicesById[item];
             var budgetWorkshopService = BudgetWorkshopServices.Create(
                 budgetId,
-                item.WorkshopServiceId,
+                item,
                 workshopService.Name,
                 workshopService.UnitPrice);
             budgetWorkshopService.WorkshopService = workshopService;
             workshopServices.Add(budgetWorkshopService);
         }
+
         return workshopServices;
     }
 

@@ -7,9 +7,9 @@ using Oficina.Application.Metrics;
 using Oficina.Application.Notifications;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
+using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
 using Oficina.Application.WorkshopServices;
-using Oficina.Application.Stocks;
 
 namespace Oficina.Tests.Application;
 

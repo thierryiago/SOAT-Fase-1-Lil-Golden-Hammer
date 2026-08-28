@@ -1,7 +1,7 @@
-using System.Net;
-using System.Net.Sockets;
 using Microsoft.Extensions.Options;
 using Oficina.Infrastructure.Notifications;
+using System.Net;
+using System.Net.Sockets;
 
 namespace Oficina.Tests.Infrastructure;
 

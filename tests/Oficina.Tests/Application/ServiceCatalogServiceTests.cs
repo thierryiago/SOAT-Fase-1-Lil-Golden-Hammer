@@ -19,7 +19,7 @@ public sealed class ServiceCatalogServiceTests
 
         var result = await service.ListAsync(new PageRequest(), CancellationToken.None);
 
-        Assert.Collection(result.Items, item => Assert.Equal(active.Id, item.Id));
+        Assert.Equal(active.Id, Assert.Single(result.Items).Id);
     }
 
     [Fact]

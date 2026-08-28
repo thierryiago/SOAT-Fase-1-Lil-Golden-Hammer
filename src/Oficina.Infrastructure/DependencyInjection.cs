@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Oficina.Application.Budgets;
-using Microsoft.Extensions.Configuration;
 using Oficina.Application.Customers;
 using Oficina.Application.Mechanics;
 using Oficina.Application.Metrics;
@@ -9,11 +9,11 @@ using Oficina.Application.Notifications;
 using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
-using Oficina.Application.WorkshopServices;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
-using Oficina.Infrastructure.Persistence;
+using Oficina.Application.WorkshopServices;
 using Oficina.Infrastructure.Notifications;
+using Oficina.Infrastructure.Persistence;
 
 namespace Oficina.Infrastructure;
 

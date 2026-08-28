@@ -1,4 +1,3 @@
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -7,12 +6,13 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Oficina.Api.Authentication;
+using Oficina.Api.Configuration;
 using Oficina.Api.OpenApi;
 using Oficina.Application;
 using Oficina.Application.Common;
 using Oficina.Infrastructure;
 using Oficina.Infrastructure.Persistence;
-using Oficina.Api.Configuration;
+using System.Text;
 
 DotEnvLoader.LoadFromProjectRoot();
 var builder = WebApplication.CreateBuilder(args);
