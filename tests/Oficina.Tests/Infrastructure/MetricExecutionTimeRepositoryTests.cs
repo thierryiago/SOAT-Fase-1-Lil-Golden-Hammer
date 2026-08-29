@@ -47,6 +47,44 @@ public sealed class MetricExecutionTimeRepositoryTests
     }
 
     [Fact]
+    public async Task GetAsync_should_include_delivered_orders_using_the_finalized_history()
+    {
+        await using var context = CreateContext();
+
+        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
+        context.Customers.Add(customer);
+        var workshopService = WorkshopService.Create("Troca de oleo", "Descricao", 100m, 30);
+        context.WorkshopServices.Add(workshopService);
+
+        var serviceOrder = ServiceOrder.Open(customer.Id, Guid.NewGuid(), "Revisao");
+        var serviceOrderWorkshop = ServiceOrderWorkshop.Create(serviceOrder.Id, workshopService.Id);
+        serviceOrder.Update(null, null, "Checklist ok", null, [serviceOrderWorkshop]);
+        serviceOrder.UpdateStatus(); // -> Received
+        serviceOrder.Update(Guid.NewGuid(), null, null, null, null);
+        serviceOrder.UpdateStatus(); // -> InDiagnosis
+        serviceOrder.UpdateStatus(); // -> AwaitingApproval
+        serviceOrder.UpdateStatus(clientApproved: true); // -> InExecution
+        serviceOrder.UpdateStatus(finalized: true); // -> Finalized
+        serviceOrder.UpdateStatus(delivered: true); // -> Delivered
+        context.ServiceOrders.Add(serviceOrder);
+
+        context.ServiceOrderHistories.Add(ServiceOrderHistory.Create(serviceOrder.Id, "InExecution"));
+        context.ServiceOrderHistories.Add(ServiceOrderHistory.Create(serviceOrder.Id, "Finalized"));
+        context.ServiceOrderHistories.Add(ServiceOrderHistory.Create(serviceOrder.Id, "Delivered"));
+        await context.SaveChangesAsync();
+
+        var repository = new MetricExecutionTimeRepository(context);
+
+        var result = await repository.GetAsync(CancellationToken.None);
+
+        var serviceOrderData = Assert.Single(result.ServiceOrders);
+        Assert.Equal(serviceOrder.Id, serviceOrderData.ServiceOrderId);
+        Assert.Equal(
+            ["InExecution", "Finalized"],
+            serviceOrderData.Histories.Select(history => history.StatusName));
+    }
+
+    [Fact]
     public async Task GetAsync_should_ignore_orders_that_are_not_finalized()
     {
         await using var context = CreateContext();

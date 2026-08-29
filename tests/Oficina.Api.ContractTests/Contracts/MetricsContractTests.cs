@@ -33,13 +33,13 @@ public sealed class MetricsContractTests(OficinaApiFactory factory) : IClassFixt
     }
 
     // Item 16 of docs/analise-gaps-e-cenarios-faltantes.md: runs a real order through
-    // InExecution -> Finalized via HTTP and confirms the metric reflects an actually-calculated
+    // InExecution -> Finalized -> Delivered via HTTP and confirms the metric reflects an actually-calculated
     // duration (not just that the route responds). The wall-clock gap between the two
     // transitions in a fast test run is tiny, so this asserts the shape of a real calculation
     // (non-null, non-negative) plus that the estimated duration matches what was registered,
     // rather than pinning an exact number of minutes.
     [Fact]
-    public async Task Workshop_service_execution_time_should_reflect_a_real_finalized_order()
+    public async Task Workshop_service_execution_time_should_reflect_a_real_delivered_order()
     {
         var tokenResponse = await _client.PostAsync("/api/v1/auth/token", content: null);
         var token = await tokenResponse.Content.ReadFromJsonAsync<AccessTokenResponse>();
@@ -111,6 +111,7 @@ public sealed class MetricsContractTests(OficinaApiFactory factory) : IClassFixt
 
         (await _client.PostAsync($"/api/v1/service-orders/{order.Id}/approve", content: null)).EnsureSuccessStatusCode();
         (await _client.PostAsync($"/api/v1/service-orders/{order.Id}/finalize", content: null)).EnsureSuccessStatusCode();
+        (await _client.PostAsync($"/api/v1/service-orders/{order.Id}/deliver", content: null)).EnsureSuccessStatusCode();
 
         var metricsResponse = await _client.GetAsync("/api/v1/metrics/workshop-service/execution-time");
         metricsResponse.EnsureSuccessStatusCode();
