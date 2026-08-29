@@ -23,9 +23,11 @@ public sealed class MetricExecutionTimeRepository(AppDbContext appDbContext)
             })
             .ToListAsync(cancellationToken);
 
-        var finalizedServiceOrderIds = await _appDbContext.ServiceOrders
+        var completedServiceOrderIds = await _appDbContext.ServiceOrders
             .AsNoTracking()
-            .Where(serviceOrder => serviceOrder.Status == ServiceOrderStatus.Finalized)
+            .Where(serviceOrder =>
+                serviceOrder.Status == ServiceOrderStatus.Finalized ||
+                serviceOrder.Status == ServiceOrderStatus.Delivered)
             .Select(serviceOrder => serviceOrder.Id)
             .ToListAsync(cancellationToken);
 
@@ -33,7 +35,7 @@ public sealed class MetricExecutionTimeRepository(AppDbContext appDbContext)
                 from serviceOrderWorkshop in _appDbContext.ServiceOrderWorkshops.AsNoTracking()
                 join workshopService in _appDbContext.WorkshopServices.AsNoTracking()
                     on serviceOrderWorkshop.WorkshopServiceId equals workshopService.Id
-                where finalizedServiceOrderIds.Contains(serviceOrderWorkshop.ServiceOrderId)
+                where completedServiceOrderIds.Contains(serviceOrderWorkshop.ServiceOrderId)
                 select new
                 {
                     serviceOrderWorkshop.ServiceOrderId,
@@ -45,7 +47,7 @@ public sealed class MetricExecutionTimeRepository(AppDbContext appDbContext)
         var histories = await _appDbContext.ServiceOrderHistories
             .AsNoTracking()
             .Where(history =>
-                finalizedServiceOrderIds.Contains(history.OrderServiceId) &&
+                completedServiceOrderIds.Contains(history.OrderServiceId) &&
                 (history.StatusName == nameof(ServiceOrderStatus.InExecution) ||
                  history.StatusName == nameof(ServiceOrderStatus.Finalized)))
             .Select(history => new
@@ -67,7 +69,7 @@ public sealed class MetricExecutionTimeRepository(AppDbContext appDbContext)
                     service.Name,
                     service.EstimatedDurationMinutes))
                 .ToList(),
-            finalizedServiceOrderIds
+            completedServiceOrderIds
                 .Select(serviceOrderId => new ServiceOrderExecutionTimeData(
                     serviceOrderId,
                     workshopServicesLookup[serviceOrderId]
