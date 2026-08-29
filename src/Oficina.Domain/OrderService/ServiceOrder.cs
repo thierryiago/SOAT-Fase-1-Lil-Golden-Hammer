@@ -53,7 +53,8 @@ public sealed class ServiceOrder
 
         var serviceOrder = new ServiceOrder(Guid.NewGuid(), customerId, vehicleId, description.Trim())
         {
-            ScheduledAt = DateTimeOffset.UtcNow
+            ScheduledAt = DateTimeOffset.UtcNow,
+            Status = ServiceOrderStatus.Created
         };
 
         return serviceOrder;
@@ -94,7 +95,6 @@ public sealed class ServiceOrder
     private void SetParts(IReadOnlyCollection<ServiceOrderPart> parts)
     {
         Parts = parts.ToList();
-
         TotalParts = Parts.Sum(item => item.QuantityUsed * (item.Part?.UnitPrice ?? 0));
     }
 
@@ -152,6 +152,17 @@ public sealed class ServiceOrder
         {
             throw new InvalidOperationException("A rejected service order cannot be changed.");
         }
+    }
+
+    private bool Created()
+    {
+        if (Status is not null)
+        {
+            return false;
+        }
+
+        Status = ServiceOrderStatus.Created;
+        return true;
     }
 
     private bool Receive()
