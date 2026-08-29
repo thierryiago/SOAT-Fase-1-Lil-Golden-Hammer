@@ -29,7 +29,10 @@ public sealed class BudgetRepository : IBudgetRepository
         _appDbContext.Budgets
             .Include(budget => budget.Parts).ThenInclude(part => part.Part)
             .Include(budget => budget.WorkshopServices).ThenInclude(workshopService => workshopService.WorkshopService)
-            .FirstOrDefaultAsync(budget => budget.ServiceOrderId == serviceOrderId, cancellationToken);
+            .Where(budget => budget.ServiceOrderId == serviceOrderId)
+            .OrderByDescending(budget => budget.CreatedAt)
+            .ThenByDescending(budget => budget.Id)
+            .FirstOrDefaultAsync(cancellationToken);
 
     public async Task AddAsync(Budget budget, CancellationToken cancellationToken)
     {

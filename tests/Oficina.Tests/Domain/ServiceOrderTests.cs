@@ -71,7 +71,7 @@ public sealed class ServiceOrderTests
         var serviceOrder = OpenAndAdvanceToInDiagnosis();
 
         var exception = Record.Exception(() =>
-            serviceOrder.ValidateUpdate(newMechanicId: null, hasNewItems: false));
+            serviceOrder.ValidateUpdate(newMechanicId: null, hasItemChanges: false));
 
         Assert.Null(exception);
     }
@@ -266,9 +266,9 @@ public sealed class ServiceOrderTests
         var rejected = OpenAndAdvanceToAwaitingApproval();
         rejected.UpdateStatus(clientApproved: false);
 
-        Assert.Throws<InvalidOperationException>(() => finalized.ValidateUpdate(finalized.MechanicId, hasNewItems: false));
-        Assert.Throws<InvalidOperationException>(() => delivered.ValidateUpdate(delivered.MechanicId, hasNewItems: false));
-        Assert.Throws<InvalidOperationException>(() => rejected.ValidateUpdate(rejected.MechanicId, hasNewItems: false));
+        Assert.Throws<InvalidOperationException>(() => finalized.ValidateUpdate(finalized.MechanicId, hasItemChanges: false));
+        Assert.Throws<InvalidOperationException>(() => delivered.ValidateUpdate(delivered.MechanicId, hasItemChanges: false));
+        Assert.Throws<InvalidOperationException>(() => rejected.ValidateUpdate(rejected.MechanicId, hasItemChanges: false));
     }
 
     [Fact]
@@ -277,7 +277,7 @@ public sealed class ServiceOrderTests
         var serviceOrder = OpenAndAdvanceToInDiagnosis();
 
         Assert.Throws<InvalidOperationException>(() =>
-            serviceOrder.ValidateUpdate(Guid.NewGuid(), hasNewItems: false));
+            serviceOrder.ValidateUpdate(Guid.NewGuid(), hasItemChanges: false));
     }
 
     [Fact]
@@ -286,16 +286,43 @@ public sealed class ServiceOrderTests
         var serviceOrder = ServiceOrder.Open(Guid.NewGuid(), Guid.NewGuid(), "Initial description");
 
         Assert.Throws<InvalidOperationException>(() =>
-            serviceOrder.ValidateUpdate(newMechanicId: null, hasNewItems: true));
+            serviceOrder.ValidateUpdate(newMechanicId: null, hasItemChanges: true));
     }
 
     [Fact]
-    public void ValidateUpdate_blocks_new_items_while_in_execution()
+    public void ValidateUpdate_allows_item_changes_while_in_execution()
     {
         var serviceOrder = OpenAndAdvanceToInExecution();
 
+        var exception = Record.Exception(() =>
+            serviceOrder.ValidateUpdate(serviceOrder.MechanicId, hasItemChanges: true));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void RequestReapproval_moves_an_in_execution_order_to_awaiting_approval()
+    {
+        var serviceOrder = OpenAndAdvanceToInExecution();
+
+        serviceOrder.RequestReapproval(hasItemChanges: true);
+
+        Assert.Equal(ServiceOrderStatus.AwaitingApproval, serviceOrder.Status);
+    }
+
+    [Fact]
+    public void RequestReapproval_requires_at_least_one_workshop_service()
+    {
+        var serviceOrder = OpenAndAdvanceToInExecution();
+        serviceOrder.Update(
+            serviceOrder.MechanicId,
+            description: null,
+            checkList: null,
+            parts: null,
+            workshopServices: Array.Empty<ServiceOrderWorkshop>());
+
         Assert.Throws<InvalidOperationException>(() =>
-            serviceOrder.ValidateUpdate(serviceOrder.MechanicId, hasNewItems: true));
+            serviceOrder.RequestReapproval(hasItemChanges: true));
     }
 
     [Fact]

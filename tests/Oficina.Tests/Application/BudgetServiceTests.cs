@@ -99,6 +99,33 @@ public sealed class BudgetServiceTests
         Assert.NotNull(await budgets.GetByIdAsync(response.Id, CancellationToken.None));
     }
 
+    [Fact]
+    public async Task OpenFromServiceOrderAsync_should_preserve_previous_budget_and_create_a_new_version()
+    {
+        var serviceOrders = new FakeServiceOrderRepository();
+        var (serviceOrder, part, workshopService) = CreateServiceOrderWithItems();
+        await serviceOrders.AddAsync(serviceOrder, CancellationToken.None);
+        var partsRepository = new FakePartRepository();
+        await partsRepository.AddAsync(part, CancellationToken.None);
+        var workshopServices = new FakeWorkshopServiceRepository();
+        await workshopServices.AddAsync(workshopService, CancellationToken.None);
+        var budgets = new FakeBudgetRepository();
+        var service = CreateService(budgets, serviceOrders, partsRepository, workshopServices);
+
+        var first = await service.OpenFromServiceOrderAsync(serviceOrder.Id, CancellationToken.None);
+        await service.SetApprovalByServiceOrderAsync(serviceOrder.Id, true, CancellationToken.None);
+        var second = await service.OpenFromServiceOrderAsync(serviceOrder.Id, CancellationToken.None);
+
+        var storedBudgets = await budgets.ListAsync(CancellationToken.None);
+        Assert.Equal(2, storedBudgets.Count);
+        Assert.NotEqual(first.Id, second.Id);
+        Assert.True((await budgets.GetByIdAsync(first.Id, CancellationToken.None))!.IsApproved);
+        Assert.Null((await budgets.GetByIdAsync(second.Id, CancellationToken.None))!.IsApproved);
+        Assert.Equal(second.Id, (await budgets.GetByServiceOrderIdAsync(
+            serviceOrder.Id,
+            CancellationToken.None))!.Id);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -181,8 +208,11 @@ public sealed class BudgetServiceTests
             Task.FromResult(_budgets.GetValueOrDefault(id));
 
         public Task<Budget?> GetByServiceOrderIdAsync(Guid serviceOrderId, CancellationToken cancellationToken) =>
-            Task.FromResult(_budgets.Values.SingleOrDefault(
-                budget => budget.ServiceOrderId == serviceOrderId));
+            Task.FromResult(_budgets.Values
+                .Where(budget => budget.ServiceOrderId == serviceOrderId)
+                .OrderByDescending(budget => budget.CreatedAt)
+                .ThenByDescending(budget => budget.Id)
+                .FirstOrDefault());
 
         public Task AddAsync(Budget budget, CancellationToken cancellationToken)
         {

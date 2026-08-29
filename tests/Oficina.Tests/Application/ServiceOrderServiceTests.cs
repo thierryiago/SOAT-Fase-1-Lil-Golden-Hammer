@@ -182,6 +182,7 @@ public sealed class ServiceOrderServiceTests
     private sealed class FakeBudgetService : IBudgetService
     {
         public Task<BudgetResponse> OpenFromServiceOrderAsync(Guid serviceOrderId, CancellationToken cancellationToken) => throw new InvalidOperationException("Budget creation was not expected in this test.");
+        public Task SetApprovalByServiceOrderAsync(Guid serviceOrderId, bool isApproved, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class FakeEmailSender : INotificationEmailSender

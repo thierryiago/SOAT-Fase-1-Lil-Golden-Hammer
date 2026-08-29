@@ -21,7 +21,7 @@ public sealed class AppDbContextModelTests
     }
 
     [Fact]
-    public void Budget_service_order_index_should_be_unique()
+    public void Budget_service_order_index_should_allow_multiple_versions()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql("Host=localhost;Database=test;Username=test;Password=test")
@@ -32,6 +32,19 @@ public sealed class AppDbContextModelTests
         var index = entityType!.GetIndexes().Single(candidate =>
             candidate.Properties.Single().Name == nameof(Budget.ServiceOrderId));
 
-        Assert.True(index.IsUnique);
+        Assert.False(index.IsUnique);
+    }
+
+    [Fact]
+    public void Migrations_should_include_multiple_budget_versions_change()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql("Host=localhost;Database=test;Username=test;Password=test")
+            .Options;
+        using var context = new AppDbContext(options);
+
+        Assert.Contains(
+            "20260829120000_AllowMultipleBudgetsPerServiceOrder",
+            context.Database.GetMigrations());
     }
 }

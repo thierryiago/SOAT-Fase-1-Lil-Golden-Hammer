@@ -48,14 +48,6 @@ public sealed class BudgetService : IBudgetService
 
     public async Task<BudgetResponse> OpenFromServiceOrderAsync(Guid serviceOrderId, CancellationToken cancellationToken)
     {
-        var existingBudget = await _budgetsRepository.GetByServiceOrderIdAsync(
-            serviceOrderId,
-            cancellationToken);
-        if (existingBudget is not null)
-        {
-            return Map(existingBudget);
-        }
-
         var serviceOrder = await _serviceOrdersRepository.GetByIdAsync(serviceOrderId, cancellationToken);
         if (serviceOrder is null)
         {

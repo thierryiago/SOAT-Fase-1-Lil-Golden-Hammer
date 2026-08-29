@@ -181,7 +181,7 @@ public class AppDbContext : DbContext
                 .HasForeignKey(e => e.ServiceOrderId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired();
-            e.HasIndex(e => e.ServiceOrderId).IsUnique();
+            e.HasIndex(e => e.ServiceOrderId);
             e.Property(e => e.CreatedAt).IsRequired();
             e.Property(e => e.TotalValue).HasColumnType("decimal(18,2)").IsRequired();
             e.Property(e => e.IsApproved);

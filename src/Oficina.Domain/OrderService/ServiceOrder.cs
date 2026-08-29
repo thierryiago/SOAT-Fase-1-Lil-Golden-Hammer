@@ -53,8 +53,7 @@ public sealed class ServiceOrder
 
         var serviceOrder = new ServiceOrder(Guid.NewGuid(), customerId, vehicleId, description.Trim())
         {
-            ScheduledAt = DateTimeOffset.UtcNow,
-            Status = ServiceOrderStatus.Created
+            ScheduledAt = DateTimeOffset.UtcNow
         };
 
         return serviceOrder;
@@ -234,7 +233,7 @@ public sealed class ServiceOrder
 
     public void ValidateUpdate(
         Guid? newMechanicId,
-        bool hasNewItems)
+        bool hasItemChanges)
     {
         EnsureNotTerminal();
 
@@ -250,12 +249,36 @@ public sealed class ServiceOrder
             }
         }
 
-        if (hasNewItems &&
-            Status is null or ServiceOrderStatus.Received or ServiceOrderStatus.InExecution)
+        if (hasItemChanges &&
+            Status is null or ServiceOrderStatus.Received)
         {
             throw new InvalidOperationException(
                 "Services and parts cannot be added at this stage.");
         }
+    }
+
+    public void RequestReapproval(bool hasItemChanges)
+    {
+        EnsureNotTerminal();
+
+        if (!hasItemChanges)
+        {
+            return;
+        }
+
+        if (Status != ServiceOrderStatus.InExecution)
+        {
+            throw new InvalidOperationException(
+                "Only a service order in execution can be submitted for reapproval.");
+        }
+
+        if (WorkshopServices.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "The service order must have at least one workshop service for reapproval.");
+        }
+
+        Status = ServiceOrderStatus.AwaitingApproval;
     }
 
 }
