@@ -99,6 +99,32 @@ public sealed class BudgetServiceTests
         Assert.NotNull(await budgets.GetByIdAsync(response.Id, CancellationToken.None));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SetApprovalByServiceOrderAsync_should_update_budget(bool isApproved)
+    {
+        var budgets = new FakeBudgetRepository();
+        var (serviceOrder, part, workshopService) = CreateServiceOrderWithItems();
+        var budget = OpenBudget(serviceOrder, part, workshopService);
+        await budgets.AddAsync(budget, CancellationToken.None);
+        var service = CreateService(
+            budgets,
+            new FakeServiceOrderRepository(),
+            new FakePartRepository(),
+            new FakeWorkshopServiceRepository());
+
+        await service.SetApprovalByServiceOrderAsync(
+            serviceOrder.Id,
+            isApproved,
+            CancellationToken.None);
+
+        var updatedBudget = await budgets.GetByServiceOrderIdAsync(
+            serviceOrder.Id,
+            CancellationToken.None);
+        Assert.Equal(isApproved, updatedBudget!.IsApproved);
+    }
+
     private static (ServiceOrder ServiceOrder, Part Part, WorkshopService WorkshopService) CreateServiceOrderWithItems()
     {
         var serviceOrder = ServiceOrder.Open(Guid.NewGuid(), Guid.NewGuid(), "Revisao");
@@ -161,6 +187,12 @@ public sealed class BudgetServiceTests
         public Task AddAsync(Budget budget, CancellationToken cancellationToken)
         {
             _budgets.Add(budget.Id, budget);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(Budget budget, CancellationToken cancellationToken)
+        {
+            _budgets[budget.Id] = budget;
             return Task.CompletedTask;
         }
     }

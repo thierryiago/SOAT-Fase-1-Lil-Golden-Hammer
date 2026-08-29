@@ -193,6 +193,7 @@ public sealed class ServiceOrderService
             Array.Empty<ServiceOrderWorkshop>(),
             cancellationToken);
         await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
+        await _budgets.SetApprovalByServiceOrderAsync(serviceOrder.Id, true, cancellationToken);
 
         return MapDetail(serviceOrder);
     }
@@ -212,6 +213,7 @@ public sealed class ServiceOrderService
             Array.Empty<ServiceOrderWorkshop>(),
             cancellationToken);
         await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
+        await _budgets.SetApprovalByServiceOrderAsync(serviceOrder.Id, false, cancellationToken);
 
         return MapDetail(serviceOrder);
     }

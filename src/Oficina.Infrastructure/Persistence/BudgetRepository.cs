@@ -36,4 +36,10 @@ public sealed class BudgetRepository : IBudgetRepository
         await _appDbContext.Budgets.AddAsync(budget, cancellationToken);
         await _appDbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task UpdateAsync(Budget budget, CancellationToken cancellationToken)
+    {
+        _appDbContext.Budgets.Update(budget);
+        await _appDbContext.SaveChangesAsync(cancellationToken);
+    }
 }

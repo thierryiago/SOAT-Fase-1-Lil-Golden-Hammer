@@ -334,8 +334,12 @@ public sealed class ServiceOrderContractTests
         await AdvanceToAwaitingApprovalAsync(context);
 
         var response = await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        var budget = await context.Budgets.GetByServiceOrderIdAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
 
         Assert.Equal(ServiceOrderStatus.InExecution, response.Status);
+        Assert.True(budget!.IsApproved);
     }
 
     [Fact]
@@ -363,8 +367,12 @@ public sealed class ServiceOrderContractTests
         var response = await context.Service.CancelAsync(context.ServiceOrderId, CancellationToken.None);
 
         var stock = await context.Stocks.GetByPartIdAsync(context.PartId, CancellationToken.None);
+        var budget = await context.Budgets.GetByServiceOrderIdAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
         Assert.Equal(ServiceOrderStatus.Rejected, response.Status);
         Assert.Equal(10, stock!.Quantity);
+        Assert.False(budget!.IsApproved);
     }
 
     [Fact]
@@ -614,6 +622,11 @@ public sealed class ServiceOrderContractTests
             Guid serviceOrderId,
             CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Budget creation was not expected in this test.");
+
+        public Task SetApprovalByServiceOrderAsync(
+            Guid serviceOrderId,
+            bool isApproved,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private static NotificationService CreateNotificationService() =>
@@ -659,6 +672,12 @@ public sealed class ServiceOrderContractTests
         public Task AddAsync(Budget budget, CancellationToken cancellationToken)
         {
             _items.Add(budget.Id, budget);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(Budget budget, CancellationToken cancellationToken)
+        {
+            _items[budget.Id] = budget;
             return Task.CompletedTask;
         }
     }
