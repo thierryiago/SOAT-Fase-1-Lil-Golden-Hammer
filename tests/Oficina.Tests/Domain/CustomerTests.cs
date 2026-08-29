@@ -80,7 +80,7 @@ public sealed class CustomerTests
         Assert.Throws<ArgumentException>(act);
     }
 
-[Fact]
+    [Fact]
     public void Update_should_change_name_email_phone_and_document()
     {
         var customer = Customer.Create("Maria Silva", "maria@email.com", "11999990000", "52998224725");

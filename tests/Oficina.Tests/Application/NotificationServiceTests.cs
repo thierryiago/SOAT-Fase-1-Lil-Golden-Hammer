@@ -67,6 +67,31 @@ public sealed class NotificationServiceTests
         Assert.Contains("Total Value: 120.00", sender.Body);
     }
 
+    [Fact]
+    public async Task SendVehicleReadyForPickupAsync_should_notify_customer()
+    {
+        var sender = new FakeEmailSender();
+        var service = new NotificationService(sender);
+
+        await service.SendVehicleReadyForPickupAsync(
+            "Pedro",
+            "pedro@example.com",
+            "ABC-1234",
+            "Fiat",
+            "Uno",
+            2020,
+            CancellationToken.None);
+
+        Assert.Equal("pedro@example.com", sender.Recipient);
+        Assert.Equal("Vehicle ready for pickup", sender.Subject);
+        Assert.Contains("Hello, Pedro!", sender.Body);
+        Assert.Contains("Your vehicle is ready to be picked up at the workshop.", sender.Body);
+        Assert.Contains("- Plate: ABC-1234", sender.Body);
+        Assert.Contains("- Brand: Fiat", sender.Body);
+        Assert.Contains("- Model: Uno", sender.Body);
+        Assert.Contains("- Year: 2020", sender.Body);
+    }
+
     private sealed class FakeEmailSender : INotificationEmailSender
     {
         public string? Recipient { get; private set; }

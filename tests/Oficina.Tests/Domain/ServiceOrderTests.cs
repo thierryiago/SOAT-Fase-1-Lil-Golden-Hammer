@@ -13,7 +13,7 @@ public sealed class ServiceOrderTests
         Assert.Null(serviceOrder.Status);
     }
 
-[Fact]
+    [Fact]
     public void Update_preserves_optional_text_when_it_is_not_provided()
     {
         var serviceOrder = ServiceOrder.Open(Guid.NewGuid(), Guid.NewGuid(), "Initial description");
