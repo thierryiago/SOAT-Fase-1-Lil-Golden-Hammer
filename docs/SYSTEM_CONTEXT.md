@@ -1,6 +1,6 @@
 # Oficina — Contexto Completo do Sistema
 
-> Gerado em 2026-08-25 a partir do repositório `SOAT-Fase-1-Lil-Golden-Hammer` (branch `feature/issue-13`).
+> Atualizado em 2026-08-29 a partir do estado atual do repositório `SOAT-Fase-1-Lil-Golden-Hammer` (branch `feature/issue-13`).
 > Este documento é uma **fotografia** do estado atual do código-fonte, para servir de contexto/base a mudanças futuras. Não é uma fonte viva — releia os arquivos citados antes de confiar em detalhes finos.
 
 ## 1. Visão geral
@@ -138,6 +138,149 @@ Um *Service* por bounded context, registrado em `DependencyInjection.AddApplicat
   `AppDbContextModelSnapshot.cs` reflete o estado atual do modelo — **sempre gerar migration (`dotnet ef migrations add`) ao alterar entidades/mapeamento**, nunca editar o snapshot manualmente.
 - **`Notifications/`** — `SmtpNotificationEmailSender` (implementa `INotificationEmailSender`), `SmtpOptions` (Host/Port/From/EnableSsl, seção `Smtp` do `appsettings.json`).
 - **`DependencyInjection.cs`** — `AddInfrastructure(connectionString, configuration)`: registra `AppDbContext` com Npgsql, todos os repositórios acima, `ServiceOrderHistoryService`, `SmtpOptions` e `INotificationEmailSender`.
+
+### Diagrama Mermaid do banco de dados
+
+```mermaid
+erDiagram
+    CUSTOMER {
+        Guid Id PK
+        string Name
+        string Email
+        string TelephoneNumber
+        string Document
+        bool IsActive
+        DateTime CreateDate
+    }
+
+    VEHICLE {
+        Guid Id PK
+        Guid CustomerId FK
+        string Plate
+        string Brand
+        string Model
+        int Year
+        string Category
+        bool IsActive
+    }
+
+    MECHANIC {
+        Guid Id PK
+        string Name
+        bool IsActive
+    }
+
+    PART {
+        Guid Id PK
+        string Name
+        string Code
+        string Kind
+        decimal UnitPrice
+        DateTime CreateDate
+        DateTime UpdateDate
+        bool IsActive
+    }
+
+    STOCK_PART {
+        Guid Id PK
+        Guid PartId FK
+        int Quantity
+        DateTime CreatedDate
+    }
+
+    SERVICE_ORDER {
+        Guid Id PK
+        Guid CustomerId FK
+        Guid VehicleId FK
+        Guid MechanicId FK
+        string Description
+        string CheckList
+        string Status
+        DateTimeOffset CreatedAt
+        DateTimeOffset ScheduledAt
+        decimal TotalParts
+    }
+
+    SERVICE_ORDER_PART {
+        Guid Id PK
+        Guid OrderServiceId FK
+        Guid PartId FK
+        int QuantityUsed
+    }
+
+    WORKSHOP_SERVICE {
+        Guid Id PK
+        string Name
+        string Description
+        decimal UnitPrice
+        int EstimatedDurationMinutes
+        bool IsActive
+    }
+
+    SERVICE_ORDER_WORKSHOP {
+        Guid Id PK
+        Guid ServiceOrderId FK
+        Guid WorkshopServiceId FK
+    }
+
+    SERVICE_ORDER_HISTORY {
+        Guid Id PK
+        Guid OrderServiceId FK
+        string StatusName
+        DateTime CreatedDate
+    }
+
+    BUDGET {
+        Guid Id PK
+        Guid CustomerId FK
+        Guid ServiceOrderId FK
+        DateTimeOffset CreatedAt
+        decimal TotalValue
+        bool IsApproved
+    }
+
+    BUDGET_PART {
+        Guid Id PK
+        Guid BudgetId FK
+        Guid PartId FK
+        string PartName
+        decimal UnitPrice
+        int Quantity
+    }
+
+    BUDGET_WORKSHOP_SERVICE {
+        Guid Id PK
+        Guid BudgetId FK
+        Guid WorkshopServiceId FK
+        string WorkshopServiceName
+        decimal UnitPrice
+    }
+
+    CUSTOMER ||--o{ VEHICLE : possui
+    CUSTOMER ||--o{ SERVICE_ORDER : solicita
+    CUSTOMER ||--o{ BUDGET : gera
+
+    VEHICLE ||--o{ SERVICE_ORDER : usa
+    MECHANIC ||--o{ SERVICE_ORDER : atende
+
+    PART ||--o{ SERVICE_ORDER_PART : usa
+    SERVICE_ORDER ||--o{ SERVICE_ORDER_PART : contém
+
+    PART ||--o{ STOCK_PART : controla
+
+    WORKSHOP_SERVICE ||--o{ SERVICE_ORDER_WORKSHOP : referencia
+    SERVICE_ORDER ||--o{ SERVICE_ORDER_WORKSHOP : inclui
+
+    SERVICE_ORDER ||--o{ SERVICE_ORDER_HISTORY : historiza
+
+    PART ||--o{ BUDGET_PART : participa
+    BUDGET ||--o{ BUDGET_PART : contém
+
+    WORKSHOP_SERVICE ||--o{ BUDGET_WORKSHOP_SERVICE : participa
+    BUDGET ||--o{ BUDGET_WORKSHOP_SERVICE : inclui
+
+    SERVICE_ORDER ||--|| BUDGET : tem_orcamento
+```
 
 ## 9. Camada Api — Controllers e rotas (`src/Oficina.Api/Controllers/`)
 
