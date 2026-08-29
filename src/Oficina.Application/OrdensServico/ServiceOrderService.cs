@@ -240,6 +240,25 @@ public sealed class ServiceOrderService
             cancellationToken);
         await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
 
+        var customer = await _customerRepository.GetByIdAsync(serviceOrder.CustomerId, cancellationToken)
+            ?? throw new InvalidOperationException("Customer was not found.");
+        var vehicle = serviceOrder.VehicleId is { } vehicleId
+            ? await _vehicleRepository.GetByIdAsync(vehicleId, cancellationToken)
+            : null;
+        if (vehicle is null)
+        {
+            throw new InvalidOperationException("Vehicle was not found.");
+        }
+
+        await _notifications.SendVehicleReadyForPickupAsync(
+            customer.Name,
+            customer.Email,
+            vehicle.Plate,
+            vehicle.Brand,
+            vehicle.Model,
+            vehicle.Year,
+            cancellationToken);
+
         return MapDetail(serviceOrder);
     }
 

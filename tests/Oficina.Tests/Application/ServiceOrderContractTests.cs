@@ -387,6 +387,15 @@ public sealed class ServiceOrderContractTests
         var response = await context.Service.FinalizeAsync(context.ServiceOrderId, CancellationToken.None);
 
         Assert.Equal(ServiceOrderStatus.Finalized, response.Status);
+        Assert.Equal("john@email.com", context.EmailSender.Recipient);
+        Assert.Equal("Vehicle ready for pickup", context.EmailSender.Subject);
+        Assert.Contains("Hello, John Customer!", context.EmailSender.Body);
+        Assert.Contains("Your vehicle is ready to be picked up at the workshop.", context.EmailSender.Body);
+        Assert.Contains("- Plate: ABC-1234", context.EmailSender.Body);
+        Assert.Contains("- Brand: Fiat", context.EmailSender.Body);
+        Assert.Contains("- Model: Uno", context.EmailSender.Body);
+        Assert.Contains("- Year: 2020", context.EmailSender.Body);
+        Assert.Equal(2, context.EmailSender.SendCount);
     }
 
     [Fact]
