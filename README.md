@@ -312,7 +312,7 @@ A maior parte da API exige JWT, incluindo:
 
 ## 🔄 Fluxo de ordens de serviço
 
-O ciclo de vida da OS é governado pelo domínio e por regras de negócio da aplicação. A entidade `ServiceOrder` inclui o status inicial `Created`, que representa a ordem recém-aberta antes de qualquer checklist ou encaminhamento.
+O ciclo de vida da OS é governado pelo domínio e por regras de negócio da aplicação. Uma ordem recém-aberta possui o status `Created` até o checklist ser informado.
 
 Estados principais:
 
@@ -329,7 +329,8 @@ Fluxo geral:
 
 ```text
 Created -> Received -> InDiagnosis -> AwaitingApproval -> InExecution -> Finalized -> Delivered
-                                  \-> Rejected
+InDiagnosis -> AwaitingApproval -> Rejected
+InExecution -- alteração de peças/serviços --> AwaitingApproval
 ```
 
 ### Como o status evolui
@@ -343,7 +344,16 @@ Created -> Received -> InDiagnosis -> AwaitingApproval -> InExecution -> Finaliz
 - `Delivered`: entrega finalizada;
 - `Rejected`: aprovação negada, encerrando o processo.
 
-Sempre que houver mudança de status, o sistema registra um histórico em `ServiceOrderHistory` para auditoria.
+Se peças ou serviços forem alterados durante `InExecution`, a OS retorna para
+`AwaitingApproval`. O sistema ajusta o estoque pelos deltas, preserva o orçamento
+aprovado, cria uma nova versão pendente e envia outro e-mail ao cliente. Reenviar a
+mesma composição não solicita reaprovação, e ao menos um serviço de oficina deve
+permanecer na OS.
+
+Cada entrada em `AwaitingApproval` cria um novo orçamento. Os endpoints `approve` e
+`cancel` registram a decisão no orçamento mais recente, enquanto as versões
+anteriores permanecem inalteradas. Sempre que houver mudança de status, o sistema
+registra um histórico em `ServiceOrderHistory` para auditoria.
 
 ---
 
@@ -491,7 +501,7 @@ erDiagram
     WORKSHOP_SERVICE ||--o{ BUDGET_WORKSHOP_SERVICE : participa
     BUDGET ||--o{ BUDGET_WORKSHOP_SERVICE : inclui
 
-    SERVICE_ORDER ||--|| BUDGET : tem_orcamento
+    SERVICE_ORDER ||--o{ BUDGET : possui_versoes
 ```
 
 ---

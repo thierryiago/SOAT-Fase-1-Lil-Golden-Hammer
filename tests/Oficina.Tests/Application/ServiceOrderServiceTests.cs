@@ -54,7 +54,7 @@ public sealed class ServiceOrderServiceTests
         Assert.Equal(second.Id, result.First().Id);
         Assert.Equal(first.Id, result.Last().Id);
         Assert.Equal("Second", result.First().Description);
-        Assert.Null(result.First().Status);
+        Assert.Equal(ServiceOrderStatus.Created.ToString(), result.First().Status);
     }
 
     private static NotificationService CreateNotificationService() => new(new FakeEmailSender());

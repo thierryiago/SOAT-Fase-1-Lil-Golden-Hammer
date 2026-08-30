@@ -13,7 +13,7 @@ public sealed class ServiceOrder
         CustomerId = customerId;
         VehicleId = vehicleId;
         Description = description;
-        Status = null;
+        Status = ServiceOrderStatus.Created;
         CreatedAt = DateTimeOffset.UtcNow;
         Parts = new List<ServiceOrderPart>();
         WorkshopServices = new List<ServiceOrderWorkshop>();
@@ -153,20 +153,9 @@ public sealed class ServiceOrder
         }
     }
 
-    private bool Created()
-    {
-        if (Status is not null)
-        {
-            return false;
-        }
-
-        Status = ServiceOrderStatus.Created;
-        return true;
-    }
-
     private bool Receive()
     {
-        if (Status is not null || string.IsNullOrWhiteSpace(CheckList))
+        if (Status is not (null or ServiceOrderStatus.Created) || string.IsNullOrWhiteSpace(CheckList))
         {
             return false;
         }
@@ -250,7 +239,7 @@ public sealed class ServiceOrder
         }
 
         if (hasItemChanges &&
-            Status is null or ServiceOrderStatus.Received)
+            Status is null or ServiceOrderStatus.Created or ServiceOrderStatus.Received)
         {
             throw new InvalidOperationException(
                 "Services and parts cannot be added at this stage.");

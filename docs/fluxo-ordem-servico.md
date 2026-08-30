@@ -1,27 +1,31 @@
 # Fluxo da Ordem de Serviço
 
-> Atualizado em 27/08/2026: a entrada real em `AwaitingApproval` cria um único
-> `Budget` e envia suas informações por e-mail ao cliente. O envio é síncrono,
-> em texto simples, por meio da infraestrutura SMTP configurada para o Mailpit no
-> ambiente de desenvolvimento.
+> Atualizado em 29/08/2026: toda entrada real em `AwaitingApproval` cria uma nova
+> versão de `Budget` e envia suas informações por e-mail ao cliente. Isso inclui a
+> reaprovação provocada por alterações de peças ou serviços em uma OS `InExecution`.
+> O envio é síncrono, em texto simples, por meio da infraestrutura SMTP configurada
+> para o Mailpit no ambiente de desenvolvimento.
 
 ## Fluxo de orçamento e notificação implementado
 
 ```text
 InDiagnosis -> AwaitingApproval
+InExecution -- alteração de peças/serviços --> AwaitingApproval
   -> persiste a OS e o histórico AwaitingApproval
-  -> cria/reutiliza Budget por ServiceOrderId
+  -> cria um novo Budget para a composição atual
   -> persiste snapshots de nome, quantidade e preço
   -> carrega nome e e-mail do cliente
   -> monta assunto e corpo em texto simples
   -> envia imediatamente pelo SMTP/Mailpit
 ```
 
-- `Budgets(ServiceOrderId)` possui índice único.
-- `BudgetService.OpenFromServiceOrderAsync()` também consulta por `ServiceOrderId`
-  antes de criar, evitando duplicidade na aplicação.
+- `Budgets(ServiceOrderId)` possui índice não único e mantém as versões anteriores.
+- `BudgetRepository.GetByServiceOrderIdAsync()` retorna o orçamento mais recente,
+  ordenado por `CreatedAt` e, em caso de empate, por `Id`.
 - O e-mail é enviado somente quando ocorre a transição real para
-  `AwaitingApproval`; atualizações posteriores nesse status não disparam outro envio.
+  `AwaitingApproval`; alterações posteriores enquanto a OS já está nesse status não
+  criam outro orçamento nem disparam outro envio.
+- Aprovação e rejeição atualizam `IsApproved` somente no orçamento mais recente.
 - Não há outbox, worker ou retry automático: a chamada HTTP aguarda o SMTP.
 - O corpo usa os snapshots do budget e `IsBodyHtml = false`.
 
@@ -87,7 +91,7 @@ Todos os endpoints de `ServiceOrdersController` exigem JWT por meio do atributo 
 | `GET /api/v1/service-orders` | Lista todas as OSs | `200 OK` com itens resumidos |
 | `GET /api/v1/service-orders/{id}` | Obtém uma OS completa | `200 OK` ou `404 Not Found` |
 | `POST /api/v1/service-orders` | Abre uma OS | `201 Created` |
-| `PUT /api/v1/service-orders` | Atualiza dados e tenta avançar um status | `200 OK` |
+| `PUT /api/v1/service-orders` | Atualiza dados, avança o fluxo ou solicita reaprovação | `200 OK` |
 | `POST /api/v1/service-orders/{id}/approve` | Aprova a OS aguardando decisão | `200 OK` |
 | `POST /api/v1/service-orders/{id}/cancel` | Rejeita a OS aguardando decisão | `200 OK` |
 | `POST /api/v1/service-orders/{id}/finalize` | Finaliza uma OS em execução | `200 OK` |
@@ -133,7 +137,7 @@ Na atualização, propriedades omitidas chegam como `null` e preservam o valor a
 
 | Valor | Status | Significado no fluxo |
 |---:|---|---|
-| — | `null` | OS aberta, ainda sem recebimento/checklist concluído |
+| 0 | `Created` | OS aberta, ainda sem recebimento/checklist concluído |
 | 1 | `Received` | Veículo/OS recebido e checklist informado |
 | 2 | `InDiagnosis` | Mecânico atribuído e diagnóstico iniciado |
 | 3 | `AwaitingApproval` | Existe ao menos um serviço e a OS aguarda decisão do cliente |
@@ -144,11 +148,12 @@ Na atualização, propriedades omitidas chegam como `null` e preservam o valor a
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Open: POST /service-orders\nStatus = null
-    Open --> Received: PUT com CheckList
+    [*] --> Created: POST /service-orders
+    Created --> Received: PUT com CheckList
     Received --> InDiagnosis: PUT após atribuir MechanicId
     InDiagnosis --> AwaitingApproval: PUT com WorkshopServiceIds
     AwaitingApproval --> InExecution: POST /{id}/approve
+    InExecution --> AwaitingApproval: PUT com alteração de peças/serviços
     AwaitingApproval --> Rejected: POST /{id}/cancel
     InExecution --> Finalized: POST /{id}/finalize
     Finalized --> Delivered: POST /{id}/deliver
@@ -160,15 +165,16 @@ stateDiagram-v2
 
 | Origem | Destino | Condição avaliada pelo domínio | Operação usual |
 |---|---|---|---|
-| `null` | `Received` | `CheckList` não vazio | `PUT` |
+| `Created` | `Received` | `CheckList` não vazio | `PUT` |
 | `Received` | `InDiagnosis` | `MechanicId` preenchido | `PUT` |
 | `InDiagnosis` | `AwaitingApproval` | ao menos um `WorkshopService` vinculado | `PUT` |
 | `AwaitingApproval` | `InExecution` | `clientApproved = true` | `approve` |
+| `InExecution` | `AwaitingApproval` | coleção de peças ou serviços informada com composição diferente e ao menos um serviço mantido | `PUT` |
 | `AwaitingApproval` | `Rejected` | `clientApproved = false` | `cancel` |
 | `InExecution` | `Finalized` | `finalized = true` | `finalize` |
 | `Finalized` | `Delivered` | `delivered = true` | `deliver` |
 
-`UpdateStatus()` testa as regras nessa ordem e retorna assim que uma transição acontece. Consequentemente, uma única chamada avança no máximo um status. Se checklist e mecânico forem enviados juntos quando o status ainda for `null`, a OS vai apenas para `Received`; uma chamada posterior a `PUT`, mesmo que altere outro campo, poderá avançá-la para `InDiagnosis`, pois o mecânico já estará persistido.
+`UpdateStatus()` testa as regras nessa ordem e retorna assim que uma transição acontece. Consequentemente, uma única chamada avança no máximo um status. Se checklist e mecânico forem enviados juntos quando o status for `Created`, a OS vai apenas para `Received`; uma chamada posterior a `PUT`, mesmo que altere outro campo, poderá avançá-la para `InDiagnosis`, pois o mecânico já estará persistido.
 
 ## 5. Fluxo completo
 
@@ -184,7 +190,7 @@ Antes da OS, o fluxo normal precisa de:
 
 O teste de contrato `ServiceOrderLifecycleContractTests` cria cliente, veículo, mecânico e serviço de oficina antes de percorrer os status.
 
-### 5.2 Abertura — status `null`
+### 5.2 Abertura — status `Created`
 
 Endpoint:
 
@@ -202,7 +208,7 @@ POST /api/v1/service-orders
 6. persiste a OS por `IServiceOrderRepository.AddAsync()`;
 7. devolve `ServiceOrderDetailResponse`.
 
-`ServiceOrder.Open()` valida GUIDs e descrição, gera um novo `Id`, define `CreatedAt` e `ScheduledAt` com o horário UTC atual e deixa `Status = null`.
+`ServiceOrder.Open()` valida GUIDs e descrição, gera um novo `Id`, define `CreatedAt` e `ScheduledAt` com o horário UTC atual e atribui `Status = Created`.
 
 Observações:
 
@@ -210,9 +216,9 @@ Observações:
 - o código verifica se cliente e veículo existem, mas não verifica se o veículo pertence ao cliente informado;
 - não há validação explícita de cliente/veículo ativo nesse método.
 
-### 5.3 Recebimento — `null` para `Received`
+### 5.3 Recebimento — `Created` para `Received`
 
-Uma atualização com checklist preenche `CheckList`. Ao executar `UpdateStatus()`, o domínio detecta status nulo e checklist não vazio e define `Received`.
+Uma atualização com checklist preenche `CheckList`. Ao executar `UpdateStatus()`, o domínio detecta `Created` e checklist não vazio e define `Received`.
 
 ```json
 {
@@ -259,19 +265,21 @@ Durante o diagnóstico podem ser informadas peças e serviços de oficina. A tra
 
 Para cada serviço, `ResolveWorkshopServicesAsync()`:
 
-1. busca o serviço no catálogo;
-2. falha se ele não existir;
-3. reutiliza um vínculo existente ou cria `ServiceOrderWorkshop`;
-4. anexa a entidade de catálogo ao vínculo para uso durante a operação.
+1. rejeita IDs repetidos na coleção recebida;
+2. busca o serviço no catálogo;
+3. falha se ele não existir;
+4. reutiliza um vínculo existente ou cria `ServiceOrderWorkshop`;
+5. anexa a entidade de catálogo ao vínculo para uso durante a operação.
 
 Para cada peça, `ResolvePartsAsync()`:
 
-1. busca a peça;
-2. exige um registro de estoque para ela;
-3. cria ou atualiza `ServiceOrderPart`;
-4. consome a quantidade nova ou o delta positivo;
-5. devolve ao estoque o delta quando a quantidade é reduzida;
-6. recalcula `TotalParts` com `quantidade × preço unitário`.
+1. rejeita peças repetidas e quantidades menores ou iguais a zero;
+2. busca a peça;
+3. exige um registro de estoque quando há diferença a movimentar;
+4. cria, atualiza ou remove o vínculo conforme a coleção completa recebida;
+5. consome a quantidade nova ou o delta positivo;
+6. devolve ao estoque o delta reduzido e a quantidade das peças removidas;
+7. recalcula `TotalParts` com `quantidade × preço unitário`.
 
 Quando existe ao menos um serviço, a OS passa de `InDiagnosis` para `AwaitingApproval`,
 o histórico é registrado, o budget é criado e suas informações são enviadas por
@@ -282,8 +290,8 @@ e-mail ao cliente.
 Ao detectar a transição real para `AwaitingApproval`, `ServiceOrderService.UpdateAsync()`:
 
 1. chama `BudgetService.OpenFromServiceOrderAsync(serviceOrderId)`;
-2. cria o budget a partir das peças e serviços diagnosticados, ou reutiliza o já
-   existente para a mesma OS;
+2. cria um novo budget a partir das peças e serviços atuais, preservando os
+   anteriores como histórico de versões;
 3. carrega o cliente pelo `CustomerId` da OS;
 4. chama `NotificationService.SendBudgetAwaitingApprovalAsync()` com nome, e-mail
    e o `BudgetResponse` criado;
@@ -323,9 +331,11 @@ POST /api/v1/service-orders/{id}/approve
 3. chama `UpdateStatus(clientApproved: true)`;
 4. muda o status para `InExecution`;
 5. persiste a OS;
-6. registra o histórico `InExecution`.
+6. registra o histórico `InExecution`;
+7. marca o orçamento mais recente com `IsApproved = true`.
 
-Nenhum orçamento é consultado ou marcado como aprovado. A aprovação atua diretamente na OS.
+Em uma reaprovação, os orçamentos anteriores preservam sua decisão; apenas a nova
+versão pendente é marcada como aprovada.
 
 ### 5.8 Recusa/cancelamento — `AwaitingApproval` para `Rejected`
 
@@ -345,13 +355,39 @@ Apesar do nome da rota ser `cancel`, o status resultante é `Rejected`.
 4. muda o status para `Rejected`;
 5. devolve ao estoque todas as quantidades registradas em `ServiceOrderPart`;
 6. persiste a OS;
-7. registra o histórico `Rejected`.
+7. registra o histórico `Rejected`;
+8. marca o orçamento mais recente com `IsApproved = false`.
 
 Se uma peça não possuir mais registro de estoque, a devolução dessa peça é ignorada. A OS continua sendo rejeitada.
 
-Assim como na aprovação, nenhum `Budget.IsApproved` é atualizado.
+Orçamentos anteriores não são modificados pela rejeição da versão vigente.
 
-### 5.9 Execução e finalização — `InExecution` para `Finalized`
+### 5.9 Reaprovação — `InExecution` para `AwaitingApproval`
+
+Não existe endpoint exclusivo de reaprovação. Um `PUT /api/v1/service-orders` em
+uma OS `InExecution` solicita nova aprovação quando a coleção informada de peças ou
+serviços difere da composição persistida. São consideradas mudanças:
+
+- inclusão ou remoção de uma peça;
+- alteração da quantidade de uma peça;
+- inclusão, remoção ou substituição de um serviço de oficina.
+
+Coleções omitidas (`null`) preservam os itens atuais. Enviar exatamente a mesma
+composição não altera o status, não cria orçamento e não envia e-mail. Se houver
+mudança, a operação:
+
+1. valida toda a nova composição e os deltas de estoque;
+2. exige que ao menos um serviço de oficina permaneça na OS;
+3. aplica os consumos ou devoluções de estoque;
+4. persiste a OS em `AwaitingApproval` e registra o histórico;
+5. cria um novo orçamento com `IsApproved = null` e snapshots atualizados;
+6. envia o novo orçamento ao cliente.
+
+O orçamento aprovado anteriormente é preservado. Se a validação falhar, por
+exemplo por estoque insuficiente ou tentativa de remover todos os serviços, a OS
+permanece `InExecution` e nenhum novo orçamento é criado.
+
+### 5.10 Execução e finalização — `InExecution` para `Finalized`
 
 Endpoint:
 
@@ -363,7 +399,7 @@ POST /api/v1/service-orders/{id}/finalize
 
 Não há controle de etapas de execução ou progresso intermediário. A duração usada pelas métricas é derivada posteriormente da diferença entre os horários dos históricos `InExecution` e `Finalized`.
 
-### 5.10 Entrega — `Finalized` para `Delivered`
+### 5.11 Entrega — `Finalized` para `Delivered`
 
 Endpoint:
 
@@ -383,11 +419,15 @@ POST /api/v1/service-orders/{id}/deliver
 
 - bloqueia qualquer `PUT` em OS `Finalized`, `Delivered` ou `Rejected`;
 - de `InDiagnosis` em diante, bloqueia a troca do mecânico;
-- bloqueia novos serviços ou novas peças quando o status é `null`, `Received` ou `InExecution`.
+- bloqueia alterações de peças ou serviços quando o status é `Created` ou `Received`;
+- em `InExecution`, permite alterações de itens, mas exige reaprovação.
 
 Novos itens são permitidos em `InDiagnosis` e também em `AwaitingApproval`.
 
-`HasNewItems()` considera “novo” apenas um identificador ainda não vinculado. A alteração de quantidade de uma peça existente não é classificada como novo item e pode ocorrer enquanto a OS estiver em execução. Essa é uma consequência da regra atual, não uma transição adicional.
+`HasItemChanges()` compara quantidade e IDs das coleções informadas com os vínculos
+persistidos. A ordem dos itens não importa. Coleções vazias significam remover todos
+os itens daquele tipo; durante a reaprovação, porém, remover todos os serviços é
+rejeitado.
 
 ### Movimentação de estoque
 
@@ -398,6 +438,9 @@ Nova peça ou aumento de quantidade
 
 Redução da quantidade
   -> StockPart.AddQuantity(delta devolvido)
+
+Remoção de uma peça da coleção
+  -> devolve toda a QuantityUsed ao estoque
 
 Rejeição da OS
   -> devolve QuantityUsed de todas as peças
@@ -436,24 +479,18 @@ sequenceDiagram
     participant WSR as IWorkshopServiceRepository
 
     SOS->>BS: OpenFromServiceOrderAsync(serviceOrderId)
-    BS->>BR: GetByServiceOrderIdAsync(serviceOrderId)
-    alt budget já existe
-        BR-->>BS: Budget existente
-        BS-->>SOS: BudgetResponse existente
-    else budget ainda não existe
-        BS->>OSR: GetByIdAsync(serviceOrderId)
-        OSR-->>BS: OS + vínculos
-        BS->>BS: exige ao menos um serviço
-        BS->>PR: GetAllById(partIds)
-        PR-->>BS: peças existentes
-        BS->>WSR: GetAllById(workshopServiceIds)
-        WSR-->>BS: serviços existentes
-        BS->>BS: cria BudgetParts e BudgetWorkshopServices
-        BS->>BS: Budget.Open() calcula TotalValue
-        BS->>BR: AddAsync(budget)
-        BR-->>BS: orçamento persistido
-        BS-->>SOS: novo BudgetResponse
-    end
+    BS->>OSR: GetByIdAsync(serviceOrderId)
+    OSR-->>BS: OS + vínculos atuais
+    BS->>BS: exige ao menos um serviço
+    BS->>PR: GetAllById(partIds)
+    PR-->>BS: peças existentes
+    BS->>WSR: GetAllById(workshopServiceIds)
+    WSR-->>BS: serviços existentes
+    BS->>BS: cria nova versão com snapshots
+    BS->>BS: Budget.Open() calcula TotalValue
+    BS->>BR: AddAsync(budget)
+    BR-->>BS: orçamento persistido
+    BS-->>SOS: novo BudgetResponse
 ```
 
 Pré-condições:
@@ -476,13 +513,14 @@ A criação faz parte do fluxo HTTP da OS por meio de `ServiceOrderService`. Nã
 endpoint `POST` público para criar budgets diretamente; o gatilho de produção é a
 transição para `AwaitingApproval`.
 
-`BudgetsController` expõe somente a listagem paginada e a consulta por ID. A
-unicidade de `ServiceOrderId` é protegida pela consulta prévia no serviço e por um
-índice único no PostgreSQL.
+`BudgetsController` expõe somente a listagem paginada e a consulta por ID. Uma OS
+pode possuir vários budgets; o índice de `ServiceOrderId` não é único. A consulta
+interna por OS seleciona a versão mais recente.
 
 Os itens usam snapshots gravados no momento da criação. Assim, alterações futuras
 nos nomes ou preços do catálogo não mudam o conteúdo nem o total do budget já
-emitido. A aprovação ou recusa da OS ainda não atualiza `Budget.IsApproved`.
+emitido. A aprovação ou recusa da OS atualiza `IsApproved` somente na versão mais
+recente.
 
 ### Envio da notificação do budget
 
@@ -524,7 +562,7 @@ Sempre que o status muda, `RecordHistoryAsync()` cria `ServiceOrderHistory` com:
 
 Não há histórico quando:
 
-- a OS é aberta com status `null`;
+- a OS é aberta com status `Created` (a abertura em si não gera histórico);
 - um `PUT` altera dados, mas não muda o status.
 
 Consultas disponíveis, ambas autenticadas:
@@ -612,11 +650,11 @@ O teste de contrato percorre o caminho feliz nesta ordem:
 3. POST /api/v1/vehicles
 4. POST /api/v1/mechanics
 5. POST /api/v1/workshop-services
-6. POST /api/v1/service-orders                 -> status null
+6. POST /api/v1/service-orders                 -> Created
 7. PUT  /api/v1/service-orders (checkList)     -> Received
 8. PUT  /api/v1/service-orders (mechanicId)    -> InDiagnosis
 9. PUT  /api/v1/service-orders (service IDs)   -> AwaitingApproval
-10. cria/reutiliza o Budget e envia o e-mail pelo SMTP/Mailpit
+10. cria um novo Budget e envia o e-mail pelo SMTP/Mailpit
 11. POST /api/v1/service-orders/{id}/approve   -> InExecution
 12. POST /api/v1/service-orders/{id}/finalize  -> Finalized
 13. POST /api/v1/service-orders/{id}/deliver   -> Delivered
@@ -631,11 +669,21 @@ AwaitingApproval
   -> peças devolvidas ao estoque
 ```
 
+Reaprovação durante a execução:
+
+```text
+InExecution
+  -> PUT /api/v1/service-orders (composição alterada)
+  -> AwaitingApproval + novo Budget + novo e-mail
+  -> POST /api/v1/service-orders/{id}/approve
+  -> InExecution
+```
+
 ## 14. Comportamentos confirmados pelos testes
 
 Os testes de domínio e aplicação verificam, entre outros pontos:
 
-- abertura com status nulo;
+- abertura com status `Created`;
 - avanço de apenas um status por chamada;
 - necessidade de checklist, mecânico e serviço;
 - peça sozinha não solicita aprovação;
@@ -647,8 +695,12 @@ Os testes de domínio e aplicação verificam, entre outros pontos:
 - bloqueio da troca de mecânico após o início do diagnóstico;
 - um histórico por transição real;
 - criação automática e cálculo do orçamento ao entrar em `AwaitingApproval`;
+- reaprovação após mudança real de peças ou serviços em `InExecution`;
+- preservação dos orçamentos anteriores e decisão aplicada à versão mais recente;
+- ajuste do estoque por delta, inclusive devolução de peças removidas;
+- ausência de reaprovação quando a composição informada não mudou;
 - envio do budget ao e-mail do cliente com assunto, itens e valor total;
-- ciclo HTTP esperado: `null -> Received -> InDiagnosis -> AwaitingApproval -> InExecution -> Finalized -> Delivered`.
+- ciclo HTTP esperado: `Created -> Received -> InDiagnosis -> AwaitingApproval -> InExecution -> Finalized -> Delivered`, com retorno opcional de `InExecution` para `AwaitingApproval`.
 
 ## 15. Pontos de atenção
 
@@ -656,7 +708,9 @@ Os testes de domínio e aplicação verificam, entre outros pontos:
    podem já estar persistidos quando o envio falhar.
 2. **Reenvio:** como o gatilho é a transição de status, uma OS que já esteja em
    `AwaitingApproval` não dispara novamente o e-mail.
-3. **Decisão duplicada/incompleta:** aprovar ou cancelar a OS não atualiza `Budget.IsApproved`.
+3. **Alteração enquanto já aguarda aprovação:** peças e serviços ainda podem ser
+   alterados em `AwaitingApproval`, mas isso não cria uma nova versão do budget nem
+   reenvia a notificação.
 4. **Ausência de transação de aplicação:** estoque, OS, histórico e budget são salvos separadamente.
 5. **Validação de mecânico:** o ID não é validado pela aplicação antes de persistir.
 6. **Relação cliente/veículo:** a abertura não confirma que o veículo pertence ao cliente.

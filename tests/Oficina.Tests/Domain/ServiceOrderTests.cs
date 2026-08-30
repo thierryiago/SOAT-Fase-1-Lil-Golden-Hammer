@@ -6,11 +6,11 @@ namespace Oficina.Tests.Domain;
 public sealed class ServiceOrderTests
 {
     [Fact]
-    public void Open_starts_with_null_status()
+    public void Open_starts_with_Created_status()
     {
         var serviceOrder = ServiceOrder.Open(Guid.NewGuid(), Guid.NewGuid(), "Initial description");
 
-        Assert.Null(serviceOrder.Status);
+        Assert.Equal(ServiceOrderStatus.Created, serviceOrder.Status);
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public sealed class ServiceOrderTests
 
         serviceOrder.UpdateStatus();
 
-        Assert.Null(serviceOrder.Status);
+        Assert.Equal(ServiceOrderStatus.Created, serviceOrder.Status);
     }
 
     [Fact]
@@ -355,7 +355,7 @@ public sealed class ServiceOrderTests
         Assert.Equal(
             new ServiceOrderStatus?[]
             {
-                null,
+                ServiceOrderStatus.Created,
                 ServiceOrderStatus.Received,
                 ServiceOrderStatus.InDiagnosis,
                 ServiceOrderStatus.AwaitingApproval,
