@@ -49,8 +49,7 @@ namespace Oficina.Infrastructure.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.HasIndex("ServiceOrderId")
-                        .IsUnique();
+                    b.HasIndex("ServiceOrderId");
 
                     b.ToTable("Budgets");
                 });

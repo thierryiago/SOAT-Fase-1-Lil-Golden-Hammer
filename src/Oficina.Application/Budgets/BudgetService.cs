@@ -48,14 +48,6 @@ public sealed class BudgetService : IBudgetService
 
     public async Task<BudgetResponse> OpenFromServiceOrderAsync(Guid serviceOrderId, CancellationToken cancellationToken)
     {
-        var existingBudget = await _budgetsRepository.GetByServiceOrderIdAsync(
-            serviceOrderId,
-            cancellationToken);
-        if (existingBudget is not null)
-        {
-            return Map(existingBudget);
-        }
-
         var serviceOrder = await _serviceOrdersRepository.GetByIdAsync(serviceOrderId, cancellationToken);
         if (serviceOrder is null)
         {
@@ -85,6 +77,18 @@ public sealed class BudgetService : IBudgetService
         var budget = Budget.Open(budgetId, serviceOrder.CustomerId, serviceOrder.Id, budgetParts, workshopServices);
         await _budgetsRepository.AddAsync(budget, cancellationToken);
         return Map(budget);
+    }
+
+    public async Task SetApprovalByServiceOrderAsync(
+        Guid serviceOrderId,
+        bool isApproved,
+        CancellationToken cancellationToken)
+    {
+        var budget = await _budgetsRepository.GetByServiceOrderIdAsync(serviceOrderId, cancellationToken)
+            ?? throw new InvalidOperationException("Budget was not found for the service order.");
+
+        budget.SetApproval(isApproved);
+        await _budgetsRepository.UpdateAsync(budget, cancellationToken);
     }
 
     private static List<BudgetParts> CheckBudgetParts(

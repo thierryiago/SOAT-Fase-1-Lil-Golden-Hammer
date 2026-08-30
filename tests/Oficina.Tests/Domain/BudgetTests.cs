@@ -97,6 +97,37 @@ public sealed class BudgetTests
         Assert.Empty(budget.Parts);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void SetApproval_should_record_customer_decision(bool isApproved)
+    {
+        var budget = Budget.Open(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            null,
+            [CreateWorkshopServiceItem()]);
+
+        budget.SetApproval(isApproved);
+
+        Assert.Equal(isApproved, budget.IsApproved);
+    }
+
+    [Fact]
+    public void SetApproval_should_reject_a_second_decision()
+    {
+        var budget = Budget.Open(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            null,
+            [CreateWorkshopServiceItem()]);
+        budget.SetApproval(true);
+
+        Assert.Throws<InvalidOperationException>(() => budget.SetApproval(false));
+    }
+
     // Item 22 of docs/analise-gaps-e-cenarios-faltantes.md: an explicit, non-null empty parts
     // list (new List<BudgetParts>()) must behave exactly like passing null - same TotalValue,
     // same empty collection - guarding against a bug where only one of the two shapes is handled.

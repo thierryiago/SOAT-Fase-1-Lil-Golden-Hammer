@@ -54,7 +54,7 @@ public sealed class ServiceOrderServiceTests
         Assert.Equal(second.Id, result.First().Id);
         Assert.Equal(first.Id, result.Last().Id);
         Assert.Equal("Second", result.First().Description);
-        Assert.Null(result.First().Status);
+        Assert.Equal(ServiceOrderStatus.Created.ToString(), result.First().Status);
     }
 
     private static NotificationService CreateNotificationService() => new(new FakeEmailSender());
@@ -182,6 +182,7 @@ public sealed class ServiceOrderServiceTests
     private sealed class FakeBudgetService : IBudgetService
     {
         public Task<BudgetResponse> OpenFromServiceOrderAsync(Guid serviceOrderId, CancellationToken cancellationToken) => throw new InvalidOperationException("Budget creation was not expected in this test.");
+        public Task SetApprovalByServiceOrderAsync(Guid serviceOrderId, bool isApproved, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class FakeEmailSender : INotificationEmailSender

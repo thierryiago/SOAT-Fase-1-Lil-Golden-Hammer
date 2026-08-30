@@ -13,7 +13,7 @@ public sealed class ServiceOrder
         CustomerId = customerId;
         VehicleId = vehicleId;
         Description = description;
-        Status = null;
+        Status = ServiceOrderStatus.Created;
         CreatedAt = DateTimeOffset.UtcNow;
         Parts = new List<ServiceOrderPart>();
         WorkshopServices = new List<ServiceOrderWorkshop>();
@@ -53,8 +53,7 @@ public sealed class ServiceOrder
 
         var serviceOrder = new ServiceOrder(Guid.NewGuid(), customerId, vehicleId, description.Trim())
         {
-            ScheduledAt = DateTimeOffset.UtcNow,
-            Status = ServiceOrderStatus.Created
+            ScheduledAt = DateTimeOffset.UtcNow
         };
 
         return serviceOrder;
@@ -154,20 +153,9 @@ public sealed class ServiceOrder
         }
     }
 
-    private bool Created()
-    {
-        if (Status is not null)
-        {
-            return false;
-        }
-
-        Status = ServiceOrderStatus.Created;
-        return true;
-    }
-
     private bool Receive()
     {
-        if (Status is not null || string.IsNullOrWhiteSpace(CheckList))
+        if (Status is not (null or ServiceOrderStatus.Created) || string.IsNullOrWhiteSpace(CheckList))
         {
             return false;
         }
@@ -234,7 +222,7 @@ public sealed class ServiceOrder
 
     public void ValidateUpdate(
         Guid? newMechanicId,
-        bool hasNewItems)
+        bool hasItemChanges)
     {
         EnsureNotTerminal();
 
@@ -250,12 +238,36 @@ public sealed class ServiceOrder
             }
         }
 
-        if (hasNewItems &&
-            Status is null or ServiceOrderStatus.Received or ServiceOrderStatus.InExecution)
+        if (hasItemChanges &&
+            Status is null or ServiceOrderStatus.Created or ServiceOrderStatus.Received)
         {
             throw new InvalidOperationException(
                 "Services and parts cannot be added at this stage.");
         }
+    }
+
+    public void RequestReapproval(bool hasItemChanges)
+    {
+        EnsureNotTerminal();
+
+        if (!hasItemChanges)
+        {
+            return;
+        }
+
+        if (Status != ServiceOrderStatus.InExecution)
+        {
+            throw new InvalidOperationException(
+                "Only a service order in execution can be submitted for reapproval.");
+        }
+
+        if (WorkshopServices.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "The service order must have at least one workshop service for reapproval.");
+        }
+
+        Status = ServiceOrderStatus.AwaitingApproval;
     }
 
 }

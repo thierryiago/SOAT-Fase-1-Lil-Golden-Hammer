@@ -334,8 +334,195 @@ public sealed class ServiceOrderContractTests
         await AdvanceToAwaitingApprovalAsync(context);
 
         var response = await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        var budget = await context.Budgets.GetByServiceOrderIdAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
 
         Assert.Equal(ServiceOrderStatus.InExecution, response.Status);
+        Assert.True(budget!.IsApproved);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_should_reapprove_in_execution_order_and_create_a_new_budget()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToInDiagnosisAsync(context);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                Parts: [new AddPartToServiceOrderRequest(context.PartId, 2)]),
+            CancellationToken.None);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                WorkshopServiceIds: [context.WorkshopServiceId]),
+            CancellationToken.None);
+        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+
+        var firstBudget = Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
+        var response = await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                Parts: [new AddPartToServiceOrderRequest(context.PartId, 3)]),
+            CancellationToken.None);
+
+        var budgets = await context.Budgets.ListAsync(CancellationToken.None);
+        var latestBudget = await context.Budgets.GetByServiceOrderIdAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
+        var stock = await context.Stocks.GetByPartIdAsync(context.PartId, CancellationToken.None);
+        var history = await context.History.FindByServiceOrderAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
+
+        Assert.Equal(ServiceOrderStatus.AwaitingApproval, response.Status);
+        Assert.Equal(2, budgets.Count);
+        Assert.True(firstBudget.IsApproved);
+        Assert.Null(latestBudget!.IsApproved);
+        Assert.NotEqual(firstBudget.Id, latestBudget.Id);
+        Assert.Equal(3, Assert.Single(latestBudget.Parts).Quantity);
+        Assert.Equal(7, stock!.Quantity);
+        Assert.Equal(ServiceOrderStatus.AwaitingApproval.ToString(), history.Last().StatusName);
+        Assert.Equal(2, context.EmailSender.SendCount);
+        Assert.Contains($"Budget ID: {latestBudget.Id}", context.EmailSender.Body);
+        Assert.Contains("Total Value: 130.00", context.EmailSender.Body);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_should_return_removed_parts_to_stock_during_reapproval()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToInDiagnosisAsync(context);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                Parts: [new AddPartToServiceOrderRequest(context.PartId, 5)]),
+            CancellationToken.None);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                WorkshopServiceIds: [context.WorkshopServiceId]),
+            CancellationToken.None);
+        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+
+        var response = await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                Parts: Array.Empty<AddPartToServiceOrderRequest>()),
+            CancellationToken.None);
+
+        var stock = await context.Stocks.GetByPartIdAsync(context.PartId, CancellationToken.None);
+        var budget = await context.Budgets.GetByServiceOrderIdAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
+        Assert.Equal(ServiceOrderStatus.AwaitingApproval, response.Status);
+        Assert.Empty(response.Parts);
+        Assert.Equal(10, stock!.Quantity);
+        Assert.Empty(budget!.Parts);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_should_reapprove_when_workshop_services_are_replaced()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToAwaitingApprovalAsync(context);
+        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        var replacement = WorkshopService.Create("Alinhamento", "Descricao", 80m, 45);
+        await context.WorkshopServices.AddAsync(replacement, CancellationToken.None);
+
+        var response = await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                WorkshopServiceIds: [replacement.Id]),
+            CancellationToken.None);
+
+        var budget = await context.Budgets.GetByServiceOrderIdAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
+        Assert.Equal(ServiceOrderStatus.AwaitingApproval, response.Status);
+        Assert.Equal(replacement.Id, Assert.Single(response.WorkshopServices).WorkshopServiceId);
+        Assert.Equal(replacement.Id, Assert.Single(budget!.WorkshopServices).WorkshopServiceId);
+        Assert.Equal(2, (await context.Budgets.ListAsync(CancellationToken.None)).Count);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_should_reject_reapproval_without_a_workshop_service()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToAwaitingApprovalAsync(context);
+        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                WorkshopServiceIds: Array.Empty<Guid>()),
+            CancellationToken.None));
+
+        var response = await context.Service.GetByIdAsync(context.ServiceOrderId, CancellationToken.None);
+        Assert.Equal(ServiceOrderStatus.InExecution, response!.Status);
+        Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
+        Assert.Equal(1, context.EmailSender.SendCount);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_should_not_reapprove_when_items_are_unchanged()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToInDiagnosisAsync(context);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                Parts: [new AddPartToServiceOrderRequest(context.PartId, 2)]),
+            CancellationToken.None);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                WorkshopServiceIds: [context.WorkshopServiceId]),
+            CancellationToken.None);
+        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+
+        var response = await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                Description: "Descricao atualizada",
+                Parts: [new AddPartToServiceOrderRequest(context.PartId, 2)],
+                WorkshopServiceIds: [context.WorkshopServiceId]),
+            CancellationToken.None);
+
+        Assert.Equal(ServiceOrderStatus.InExecution, response.Status);
+        Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
+        Assert.Equal(1, context.EmailSender.SendCount);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_should_keep_in_execution_when_reapproval_stock_is_insufficient()
+    {
+        var context = await CreateOpenedOrderAsync(initialStock: 3);
+        await AdvanceToInDiagnosisAsync(context);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                Parts: [new AddPartToServiceOrderRequest(context.PartId, 2)]),
+            CancellationToken.None);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                WorkshopServiceIds: [context.WorkshopServiceId]),
+            CancellationToken.None);
+        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(
+                context.ServiceOrderId,
+                Parts: [new AddPartToServiceOrderRequest(context.PartId, 4)]),
+            CancellationToken.None));
+
+        var response = await context.Service.GetByIdAsync(context.ServiceOrderId, CancellationToken.None);
+        var stock = await context.Stocks.GetByPartIdAsync(context.PartId, CancellationToken.None);
+        Assert.Equal(ServiceOrderStatus.InExecution, response!.Status);
+        Assert.Equal(2, Assert.Single(response.Parts).QuantityUsed);
+        Assert.Equal(1, stock!.Quantity);
+        Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
     }
 
     [Fact]
@@ -363,8 +550,12 @@ public sealed class ServiceOrderContractTests
         var response = await context.Service.CancelAsync(context.ServiceOrderId, CancellationToken.None);
 
         var stock = await context.Stocks.GetByPartIdAsync(context.PartId, CancellationToken.None);
+        var budget = await context.Budgets.GetByServiceOrderIdAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
         Assert.Equal(ServiceOrderStatus.Rejected, response.Status);
         Assert.Equal(10, stock!.Quantity);
+        Assert.False(budget!.IsApproved);
     }
 
     [Fact]
@@ -481,6 +672,7 @@ public sealed class ServiceOrderContractTests
         FakeServiceOrderHistoryRepository History,
         FakeBudgetRepository Budgets,
         FakeEmailSender EmailSender,
+        FakeWorkshopServiceRepository WorkshopServices,
         Guid ServiceOrderId,
         Guid PartId,
         Guid WorkshopServiceId);
@@ -530,6 +722,7 @@ public sealed class ServiceOrderContractTests
             history,
             budgets,
             emailSender,
+            workshopServices,
             opened.Id,
             part.Id,
             workshopService.Id);
@@ -623,6 +816,11 @@ public sealed class ServiceOrderContractTests
             Guid serviceOrderId,
             CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Budget creation was not expected in this test.");
+
+        public Task SetApprovalByServiceOrderAsync(
+            Guid serviceOrderId,
+            bool isApproved,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private static NotificationService CreateNotificationService() =>
@@ -662,12 +860,21 @@ public sealed class ServiceOrderContractTests
         public Task<Budget?> GetByServiceOrderIdAsync(
             Guid serviceOrderId,
             CancellationToken cancellationToken) =>
-            Task.FromResult(_items.Values.SingleOrDefault(
-                budget => budget.ServiceOrderId == serviceOrderId));
+            Task.FromResult(_items.Values
+                .Where(budget => budget.ServiceOrderId == serviceOrderId)
+                .OrderByDescending(budget => budget.CreatedAt)
+                .ThenByDescending(budget => budget.Id)
+                .FirstOrDefault());
 
         public Task AddAsync(Budget budget, CancellationToken cancellationToken)
         {
             _items.Add(budget.Id, budget);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(Budget budget, CancellationToken cancellationToken)
+        {
+            _items[budget.Id] = budget;
             return Task.CompletedTask;
         }
     }

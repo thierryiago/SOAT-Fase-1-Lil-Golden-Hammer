@@ -62,6 +62,16 @@ public sealed class Budget
         return budget;
     }
 
+    public void SetApproval(bool isApproved)
+    {
+        if (IsApproved is not null)
+        {
+            throw new InvalidOperationException("The budget has already been reviewed.");
+        }
+
+        IsApproved = isApproved;
+    }
+
     private static decimal CalculateTotalValue(
         IReadOnlyCollection<BudgetParts> parts,
         IReadOnlyCollection<BudgetWorkshopServices> workshopServices)

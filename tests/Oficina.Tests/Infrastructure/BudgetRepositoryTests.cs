@@ -58,6 +58,42 @@ public sealed class BudgetRepositoryTests
         Assert.Null(result);
     }
 
+    [Fact]
+    public async Task GetByServiceOrderIdAsync_should_return_latest_budget_version()
+    {
+        await using var context = CreateContext();
+        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
+        context.Customers.Add(customer);
+        var workshopService = WorkshopService.Create("Troca de oleo", "Descricao", 100m, 30);
+        context.WorkshopServices.Add(workshopService);
+        var serviceOrder = ServiceOrder.Open(customer.Id, Guid.NewGuid(), "Revisao");
+        context.ServiceOrders.Add(serviceOrder);
+        await context.SaveChangesAsync();
+
+        var firstId = Guid.NewGuid();
+        var first = Budget.Open(
+            firstId,
+            customer.Id,
+            serviceOrder.Id,
+            [],
+            [BudgetWorkshopServices.Create(firstId, workshopService.Id, workshopService.Name, workshopService.UnitPrice)]);
+        var secondId = Guid.NewGuid();
+        var second = Budget.Open(
+            secondId,
+            customer.Id,
+            serviceOrder.Id,
+            [],
+            [BudgetWorkshopServices.Create(secondId, workshopService.Id, workshopService.Name, workshopService.UnitPrice)]);
+        var repository = new BudgetRepository(context);
+
+        await repository.AddAsync(first, CancellationToken.None);
+        await repository.AddAsync(second, CancellationToken.None);
+
+        var result = await repository.GetByServiceOrderIdAsync(serviceOrder.Id, CancellationToken.None);
+        Assert.Equal(second.Id, result!.Id);
+        Assert.Equal(2, (await repository.ListAsync(CancellationToken.None)).Count);
+    }
+
     private static AppDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()

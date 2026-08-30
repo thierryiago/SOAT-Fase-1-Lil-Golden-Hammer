@@ -135,7 +135,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         Assert.Equal(
             new ServiceOrderStatus?[]
             {
-                null,
+                ServiceOrderStatus.Created,
                 ServiceOrderStatus.Received,
                 ServiceOrderStatus.InDiagnosis,
                 ServiceOrderStatus.AwaitingApproval,
@@ -154,12 +154,12 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
     // =====================================================================================
 
     [Fact]
-    public async Task Status_should_be_null_when_order_is_just_opened()
+    public async Task Status_should_be_Created_when_order_is_just_opened()
     {
         var ctx = await OpenNewOrderAsync();
-        Log("null", "Order just opened", ctx.Order.Status);
+        Log("0 - Created", "Order just opened", ctx.Order.Status);
 
-        Assert.Null(ctx.Order.Status);
+        Assert.Equal(ServiceOrderStatus.Created, ctx.Order.Status);
     }
 
     [Fact]

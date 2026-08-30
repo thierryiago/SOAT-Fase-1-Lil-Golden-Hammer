@@ -121,14 +121,15 @@ public sealed class ServiceOrderService
         {
             throw new InvalidOperationException("Service Order was not found!");
         }
-        var hasNewItems = HasNewItems(serviceOrder, request);
-        serviceOrder.ValidateUpdate(request.MechanicId, hasNewItems);
+        var hasItemChanges = HasItemChanges(serviceOrder, request);
+        serviceOrder.ValidateUpdate(request.MechanicId, hasItemChanges);
 
-        IReadOnlyCollection<ServiceOrderPart>? parts = null;
-        IReadOnlyCollection<ServiceOrderPart> newParts = Array.Empty<ServiceOrderPart>();
-        if (request.Parts is not null)
+        if (serviceOrder.Status == ServiceOrderStatus.InExecution &&
+            hasItemChanges &&
+            request.WorkshopServiceIds is { Count: 0 })
         {
-            (parts, newParts) = await ResolvePartsAsync(serviceOrder, request.Parts, cancellationToken);
+            throw new InvalidOperationException(
+                "The service order must have at least one workshop service for reapproval.");
         }
 
         IReadOnlyCollection<ServiceOrderWorkshop>? workshopServices = null;
@@ -141,6 +142,14 @@ public sealed class ServiceOrderService
                 cancellationToken);
         }
 
+        IReadOnlyCollection<ServiceOrderPart>? parts = null;
+        IReadOnlyCollection<ServiceOrderPart> newParts = Array.Empty<ServiceOrderPart>();
+        if (request.Parts is not null)
+        {
+            (parts, newParts) = await ResolvePartsAsync(serviceOrder, request.Parts, cancellationToken);
+        }
+
+        var previousStatus = serviceOrder.Status;
         serviceOrder.Update(
             request.MechanicId,
             request.Description,
@@ -148,8 +157,14 @@ public sealed class ServiceOrderService
             parts,
             workshopServices);
 
-        var previousStatus = serviceOrder.Status;
-        serviceOrder.UpdateStatus();
+        if (previousStatus == ServiceOrderStatus.InExecution && hasItemChanges)
+        {
+            serviceOrder.RequestReapproval(hasItemChanges);
+        }
+        else
+        {
+            serviceOrder.UpdateStatus();
+        }
 
         await _serviceOrderRepository.UpdateAsync(serviceOrder, newParts, newWorkshopServices, cancellationToken);
         await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
@@ -169,15 +184,20 @@ public sealed class ServiceOrderService
         return MapDetail(serviceOrder);
     }
 
-    private static bool HasNewItems(ServiceOrder serviceOrder, UpdateServiceOrderRequest request)
+    private static bool HasItemChanges(ServiceOrder serviceOrder, UpdateServiceOrderRequest request)
     {
-        var hasNewParts = request.Parts?.Any(item =>
-            serviceOrder.Parts.All(existing => existing.PartId != item.PartId)) ?? false;
+        var partsChanged = request.Parts is not null &&
+            (request.Parts.Count != serviceOrder.Parts.Count ||
+             request.Parts.Any(item =>
+                 serviceOrder.Parts.All(existing =>
+                     existing.PartId != item.PartId || existing.QuantityUsed != item.Quantity)));
 
-        var hasNewWorkshopServices = request.WorkshopServiceIds?.Any(id =>
-            serviceOrder.WorkshopServices.All(existing => existing.WorkshopServiceId != id)) ?? false;
+        var workshopServicesChanged = request.WorkshopServiceIds is not null &&
+            (request.WorkshopServiceIds.Count != serviceOrder.WorkshopServices.Count ||
+             request.WorkshopServiceIds.Any(id =>
+                 serviceOrder.WorkshopServices.All(existing => existing.WorkshopServiceId != id)));
 
-        return hasNewParts || hasNewWorkshopServices;
+        return partsChanged || workshopServicesChanged;
     }
 
     public async Task<ServiceOrderDetailResponse> ApproveAsync(Guid serviceOrderId, CancellationToken cancellationToken)
@@ -193,6 +213,7 @@ public sealed class ServiceOrderService
             Array.Empty<ServiceOrderWorkshop>(),
             cancellationToken);
         await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
+        await _budgets.SetApprovalByServiceOrderAsync(serviceOrder.Id, true, cancellationToken);
 
         return MapDetail(serviceOrder);
     }
@@ -212,6 +233,7 @@ public sealed class ServiceOrderService
             Array.Empty<ServiceOrderWorkshop>(),
             cancellationToken);
         await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
+        await _budgets.SetApprovalByServiceOrderAsync(serviceOrder.Id, false, cancellationToken);
 
         return MapDetail(serviceOrder);
     }
@@ -345,42 +367,84 @@ public sealed class ServiceOrderService
         var parts = new List<ServiceOrderPart>();
         var newParts = new List<ServiceOrderPart>();
         var touchedStocks = new Dictionary<Guid, StockPart>();
+        var stockDeltas = new Dictionary<Guid, int>();
+        var quantitiesToUpdate = new List<(ServiceOrderPart Part, int Quantity)>();
+
+        if (items.Select(item => item.PartId).Distinct().Count() != items.Count)
+        {
+            throw new InvalidOperationException("A part cannot be repeated in the service order.");
+        }
 
         foreach (var item in items)
         {
+            if (item.Quantity <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(item.Quantity),
+                    "Quantity must be greater than zero.");
+            }
+
             var part = await _parts.GetByIdAsync(item.PartId, cancellationToken);
             if (part is null)
             {
                 throw new InvalidOperationException($"Part '{item.PartId}' was not found.");
             }
 
-            var stock = await GetTouchedStockAsync(touchedStocks, part, cancellationToken);
-
             var serviceOrderPart = serviceOrder.Parts.FirstOrDefault(existing => existing.PartId == item.PartId);
+            var currentQuantity = serviceOrderPart?.QuantityUsed ?? 0;
+            var delta = item.Quantity - currentQuantity;
+            if (delta != 0)
+            {
+                var stock = await GetTouchedStockAsync(touchedStocks, part, cancellationToken);
+                stockDeltas[part.Id] = delta;
+                if (delta > 0 && stock.Quantity < delta)
+                {
+                    throw new InvalidOperationException(
+                        $"Insufficient stock for part '{part.Name}'. Available: {stock.Quantity}, requested: {delta}.");
+                }
+            }
+
             if (serviceOrderPart is null)
             {
-                ConsumeStock(stock, part, item.Quantity);
                 serviceOrderPart = ServiceOrderPart.Create(part.Id, serviceOrder.Id, item.Quantity);
                 serviceOrderPart.OrderService = serviceOrder;
                 newParts.Add(serviceOrderPart);
             }
             else
             {
-                var delta = item.Quantity - serviceOrderPart.QuantityUsed;
-                if (delta > 0)
-                {
-                    ConsumeStock(stock, part, delta);
-                }
-                else if (delta < 0)
-                {
-                    stock.AddQuantity(-delta);
-                }
-
-                serviceOrderPart.UpdateQuantity(item.Quantity);
+                quantitiesToUpdate.Add((serviceOrderPart, item.Quantity));
             }
 
             serviceOrderPart.Part = part;
             parts.Add(serviceOrderPart);
+        }
+
+        var requestedPartIds = items.Select(item => item.PartId).ToHashSet();
+        foreach (var removedPart in serviceOrder.Parts.Where(part => !requestedPartIds.Contains(part.PartId)))
+        {
+            var stock = await _stocks.GetByPartIdAsync(removedPart.PartId, cancellationToken)
+                ?? throw new InvalidOperationException(
+                    $"There is no stock registered for part '{removedPart.PartId}'.");
+            touchedStocks[removedPart.PartId] = stock;
+            stockDeltas[removedPart.PartId] = -removedPart.QuantityUsed;
+        }
+
+        foreach (var (part, quantity) in quantitiesToUpdate)
+        {
+            part.UpdateQuantity(quantity);
+        }
+
+        foreach (var (partId, delta) in stockDeltas)
+        {
+            var stock = touchedStocks[partId];
+            if (delta > 0)
+            {
+                stock.RemoveQuantity(delta);
+            }
+            else
+            {
+                stock.AddQuantity(-delta);
+            }
         }
 
         foreach (var stock in touchedStocks.Values)
@@ -411,17 +475,6 @@ public sealed class ServiceOrderService
         return stock;
     }
 
-    private static void ConsumeStock(StockPart stock, Part part, int quantity)
-    {
-        if (stock.Quantity < quantity)
-        {
-            throw new InvalidOperationException(
-                $"Insufficient stock for part '{part.Name}'. Available: {stock.Quantity}, requested: {quantity}.");
-        }
-
-        stock.RemoveQuantity(quantity);
-    }
-
     private async Task<(IReadOnlyCollection<ServiceOrderWorkshop> All, IReadOnlyCollection<ServiceOrderWorkshop> New)> ResolveWorkshopServicesAsync(
         ServiceOrder serviceOrder,
         IReadOnlyCollection<Guid> workshopServiceIds,
@@ -429,6 +482,12 @@ public sealed class ServiceOrderService
     {
         var workshopServices = new List<ServiceOrderWorkshop>();
         var newWorkshopServices = new List<ServiceOrderWorkshop>();
+
+        if (workshopServiceIds.Distinct().Count() != workshopServiceIds.Count)
+        {
+            throw new InvalidOperationException(
+                "A workshop service cannot be repeated in the service order.");
+        }
 
         foreach (var id in workshopServiceIds)
         {

@@ -145,7 +145,7 @@ Smtp__EnableSsl=false
 Na raiz do projeto:
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
 Isso sobe a API, PostgreSQL e Mailpit.
@@ -312,7 +312,7 @@ A maior parte da API exige JWT, incluindo:
 
 ## 🔄 Fluxo de ordens de serviço
 
-O ciclo de vida da OS é governado pelo domínio e por regras de negócio da aplicação. A entidade `ServiceOrder` inclui o status inicial `Created`, que representa a ordem recém-aberta antes de qualquer checklist ou encaminhamento.
+O ciclo de vida da OS é governado pelo domínio e por regras de negócio da aplicação. Uma ordem recém-aberta possui o status `Created` até o checklist ser informado.
 
 Estados principais:
 
@@ -329,7 +329,8 @@ Fluxo geral:
 
 ```text
 Created -> Received -> InDiagnosis -> AwaitingApproval -> InExecution -> Finalized -> Delivered
-                                  \-> Rejected
+InDiagnosis -> AwaitingApproval -> Rejected
+InExecution -- alteração de peças/serviços --> AwaitingApproval
 ```
 
 ### Como o status evolui
@@ -343,7 +344,16 @@ Created -> Received -> InDiagnosis -> AwaitingApproval -> InExecution -> Finaliz
 - `Delivered`: entrega finalizada;
 - `Rejected`: aprovação negada, encerrando o processo.
 
-Sempre que houver mudança de status, o sistema registra um histórico em `ServiceOrderHistory` para auditoria.
+Se peças ou serviços forem alterados durante `InExecution`, a OS retorna para
+`AwaitingApproval`. O sistema ajusta o estoque pelos deltas, preserva o orçamento
+aprovado, cria uma nova versão pendente e envia outro e-mail ao cliente. Reenviar a
+mesma composição não solicita reaprovação, e ao menos um serviço de oficina deve
+permanecer na OS.
+
+Cada entrada em `AwaitingApproval` cria um novo orçamento. Os endpoints `approve` e
+`cancel` registram a decisão no orçamento mais recente, enquanto as versões
+anteriores permanecem inalteradas. Sempre que houver mudança de status, o sistema
+registra um histórico em `ServiceOrderHistory` para auditoria.
 
 ---
 
@@ -491,7 +501,7 @@ erDiagram
     WORKSHOP_SERVICE ||--o{ BUDGET_WORKSHOP_SERVICE : participa
     BUDGET ||--o{ BUDGET_WORKSHOP_SERVICE : inclui
 
-    SERVICE_ORDER ||--|| BUDGET : tem_orcamento
+    SERVICE_ORDER ||--o{ BUDGET : possui_versoes
 ```
 
 ---
@@ -577,28 +587,6 @@ Recomendação de uso:
 2. confirme `GET /health`;
 3. execute o fluxo principal do `oficina.http`;
 4. respeite a ordem das chamadas para reaproveitar IDs gerados.
-
----
-
-## ⚠️ Observações importantes
-
-- `BudgetsController` e `NotificationsController` estão sem `[Authorize]` na configuração atual e devem ser revisados conforme a regra de acesso desejada;
-- o estoque real é controlado em `StockPart`;
-- alterações em entidades e mapeamento exigem nova migration;
-- a API aplica migrations automaticamente fora do ambiente de testes;
-- o fluxo de ordem de serviço é governado por regras de negócio que validam transições e integridade.
-
----
-
-## 🤝 Contribuição
-
-Para contribuir:
-
-1. crie uma branch de trabalho;
-2. mantenha a arquitetura e os padrões do projeto;
-3. execute os testes relevantes antes do PR;
-4. documente mudanças importantes;
-5. abra um PR com descrição clara do problema e da correção.
 
 ---
 
