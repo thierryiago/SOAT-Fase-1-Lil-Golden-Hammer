@@ -145,7 +145,7 @@ Smtp__EnableSsl=false
 Na raiz do projeto:
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
 Isso sobe a API, PostgreSQL e Mailpit.
@@ -587,28 +587,6 @@ Recomendação de uso:
 2. confirme `GET /health`;
 3. execute o fluxo principal do `oficina.http`;
 4. respeite a ordem das chamadas para reaproveitar IDs gerados.
-
----
-
-## ⚠️ Observações importantes
-
-- `BudgetsController` e `NotificationsController` estão sem `[Authorize]` na configuração atual e devem ser revisados conforme a regra de acesso desejada;
-- o estoque real é controlado em `StockPart`;
-- alterações em entidades e mapeamento exigem nova migration;
-- a API aplica migrations automaticamente fora do ambiente de testes;
-- o fluxo de ordem de serviço é governado por regras de negócio que validam transições e integridade.
-
----
-
-## 🤝 Contribuição
-
-Para contribuir:
-
-1. crie uma branch de trabalho;
-2. mantenha a arquitetura e os padrões do projeto;
-3. execute os testes relevantes antes do PR;
-4. documente mudanças importantes;
-5. abra um PR com descrição clara do problema e da correção.
 
 ---
 
