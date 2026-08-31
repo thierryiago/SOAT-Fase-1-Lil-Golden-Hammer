@@ -2,6 +2,29 @@
 
 API REST em .NET 10 para gestão operacional de uma oficina mecânica, cobrindo clientes, veículos, peças, estoque, mecânicos, serviços, ordens de serviço, orçamentos, histórico, métricas e notificações por e-mail.
 
+## Sumário
+
+- [Objetivo do projeto](#objetivo-do-projeto)
+- [Arquitetura](#arquitetura)
+- [Stack tecnológica](#stack-tecnológica)
+- [Estrutura do repositório](#estrutura-do-repositório)
+- [Requisitos mínimos](#requisitos-mínimos)
+- [Como rodar a aplicação](#como-rodar-a-aplicação)
+  - [Configuração inicial](#passo-2-configure-a-aplicação)
+  - [Docker Compose](#passo-3-inicialize-os-serviços-com-docker)
+  - [Validação da aplicação](#passo-4-verifique-se-a-api-subiu)
+  - [Teste da API](#passo-5-teste-a-api)
+- [Executando direto com .NET](#executando-direto-com-net)
+- [Autenticação e autorização](#autenticação-e-autorização)
+- [Endpoints principais](#endpoints-principais)
+- [Fluxo de ordens de serviço](#fluxo-de-ordens-de-serviço)
+- [Banco de dados](#banco-de-dados)
+- [Migrations](#migrations)
+- [Testes](#testes)
+- [Mailpit para desenvolvimento](#mailpit-para-desenvolvimento)
+- [Arquivo de chamadas HTTP](#arquivo-de-chamadas-http)
+- [Resumo](#resumo)
+
 ## 🧭 Objetivo do projeto
 
 O sistema foi concebido para centralizar e automatizar os processos da oficina, com foco em:
