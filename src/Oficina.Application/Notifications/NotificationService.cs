@@ -9,6 +9,8 @@ public sealed class NotificationService
 {
     private const string Subject = "Notificação da Oficina";
     private const string Body = "Esta é uma notificação enviada pela Oficina.";
+    private const string ApproveBudgetUrl = "https://localhost:5001/api/v1/notifications/approveBudget";
+    private const string RejectBudgetUrl = "https://localhost:5001/api/v1/notifications/rejectBudget";
 
     private readonly INotificationEmailSender _emailSender;
 
@@ -34,7 +36,7 @@ public sealed class NotificationService
             throw new ArgumentException("Email is invalid.");
         }
 
-        return _emailSender.SendAsync(email, Subject, Body, cancellationToken);
+        return _emailSender.SendAsync(email, Subject, Body, isHtml: false, cancellationToken);
     }
 
     public Task SendBudgetAwaitingApprovalAsync(
@@ -46,7 +48,7 @@ public sealed class NotificationService
         var subject = $"{customerName} - Budget Awaiting to Approval";
         var body = BuildBudgetBody(budget);
 
-        return _emailSender.SendAsync(customerEmail, subject, body, cancellationToken);
+        return _emailSender.SendAsync(customerEmail, subject, body, isHtml: true, cancellationToken);
     }
 
     public Task SendVehicleReadyForPickupAsync(
@@ -71,21 +73,23 @@ public sealed class NotificationService
             .Append($"- Year: {vehicleYear}")
             .ToString();
 
-        return _emailSender.SendAsync(customerEmail, subject, body, cancellationToken);
+        return _emailSender.SendAsync(customerEmail, subject, body, isHtml: false, cancellationToken);
     }
 
     private static string BuildBudgetBody(BudgetResponse budget)
     {
         var body = new StringBuilder()
-            .AppendLine($"Budget ID: {budget.Id}")
-            .AppendLine($"Service Order ID: {budget.ServiceOrderId}")
-            .AppendLine($"Created At: {budget.CreatedAt:O}")
-            .AppendLine()
-            .AppendLine("Parts:");
+            .AppendLine("<html><body>")
+            .AppendLine("<h2>Budget awaiting approval</h2>")
+            .AppendLine($"<p><strong>Budget ID:</strong> {budget.Id}</p>")
+            .AppendLine($"<p><strong>Service Order ID:</strong> {budget.ServiceOrderId}</p>")
+            .AppendLine($"<p><strong>Created At:</strong> {budget.CreatedAt:O}</p>")
+            .AppendLine("<h3>Parts:</h3>")
+            .AppendLine("<ul>");
 
         if (budget.Parts.Count == 0)
         {
-            body.AppendLine("- None");
+            body.AppendLine("<li>None</li>");
         }
         else
         {
@@ -93,28 +97,38 @@ public sealed class NotificationService
             {
                 var itemTotal = part.UnitPrice * part.Quantity;
                 body.AppendLine(
-                    $"- {part.PartName} | Quantity: {part.Quantity} | Unit Price: {FormatMoney(part.UnitPrice)} | Total: {FormatMoney(itemTotal)}");
+                    $"<li>{part.PartName} | Quantity: {part.Quantity} | Unit Price: {FormatMoney(part.UnitPrice)} | Total: {FormatMoney(itemTotal)}</li>");
             }
         }
 
-        body.AppendLine()
-            .AppendLine("Workshop Services:");
+        body.AppendLine("</ul>")
+            .AppendLine("<h3>Workshop Services:</h3>")
+            .AppendLine("<ul>");
 
         if (budget.WorkshopServices.Count == 0)
         {
-            body.AppendLine("- None");
+            body.AppendLine("<li>None</li>");
         }
         else
         {
             foreach (var service in budget.WorkshopServices)
             {
                 body.AppendLine(
-                    $"- {service.WorkshopServiceName} | Unit Price: {FormatMoney(service.UnitPrice)}");
+                    $"<li>{service.WorkshopServiceName} | Unit Price: {FormatMoney(service.UnitPrice)}</li>");
             }
         }
 
-        body.AppendLine()
-            .Append($"Total Value: {FormatMoney(budget.TotalValue)}");
+        body.AppendLine("</ul>")
+            .AppendLine($"<p><strong>Total Value:</strong> {FormatMoney(budget.TotalValue)}</p>")
+            .AppendLine(
+                $"<p><a href=\"{ApproveBudgetUrl}?budgetId={budget.Id}\" " +
+                "style=\"display:inline-block;padding:12px 24px;background-color:#1a73e8;color:#ffffff;" +
+                "text-decoration:none;border-radius:4px;font-weight:bold;\">Approve Budget</a>")
+            .AppendLine(
+                $"<a href=\"{RejectBudgetUrl}?budgetId={budget.Id}\" " +
+                "style=\"display:inline-block;padding:12px 24px;background-color:#1a73e8;color:#ffffff;" +
+                "text-decoration:none;border-radius:4px;font-weight:bold;\">Reject Budget</a></p>")
+            .Append("</body></html>");
 
         return body.ToString();
     }

@@ -16,39 +16,26 @@ using Oficina.Domain.Stock;
 
 namespace Oficina.Application.ServiceOrders;
 
-public sealed class ServiceOrderService
+public sealed class ServiceOrderService(
+    IServiceOrderRepository serviceOrders,
+    ICustomerRepository customers,
+    IVehicleRepository vehicles,
+    IPartRepository parts,
+    IWorkshopServiceRepository workshopServices,
+    IStockRepository stocks,
+    IServiceOrderHistoryRepository history,
+    IBudgetService budgets,
+    NotificationService notifications)
 {
-    private readonly IServiceOrderRepository _serviceOrderRepository;
-    private readonly ICustomerRepository _customerRepository;
-    private readonly IVehicleRepository _vehicleRepository;
-    private readonly IPartRepository _parts;
-    private readonly IWorkshopServiceRepository _workshopServices;
-    private readonly IStockRepository _stocks;
-    private readonly IServiceOrderHistoryRepository _history;
-    private readonly IBudgetService _budgets;
-    private readonly NotificationService _notifications;
-
-    public ServiceOrderService(
-        IServiceOrderRepository serviceOrders,
-        ICustomerRepository customers,
-        IVehicleRepository vehicles,
-        IPartRepository parts,
-        IWorkshopServiceRepository workshopServices,
-        IStockRepository stocks,
-        IServiceOrderHistoryRepository history,
-        IBudgetService budgets,
-        NotificationService notifications)
-    {
-        _serviceOrderRepository = serviceOrders;
-        _customerRepository = customers;
-        _vehicleRepository = vehicles;
-        _parts = parts;
-        _workshopServices = workshopServices;
-        _stocks = stocks;
-        _history = history;
-        _budgets = budgets;
-        _notifications = notifications;
-    }
+    private readonly IServiceOrderRepository _serviceOrderRepository = serviceOrders;
+    private readonly ICustomerRepository _customerRepository = customers;
+    private readonly IVehicleRepository _vehicleRepository = vehicles;
+    private readonly IPartRepository _parts = parts;
+    private readonly IWorkshopServiceRepository _workshopServices = workshopServices;
+    private readonly IStockRepository _stocks = stocks;
+    private readonly IServiceOrderHistoryRepository _history = history;
+    private readonly IBudgetService _budgets = budgets;
+    private readonly NotificationService _notifications = notifications;
 
     public async Task<IReadOnlyCollection<ServiceOrderListItemResponse>> ListAsync(CancellationToken cancellationToken)
     {
@@ -209,8 +196,8 @@ public sealed class ServiceOrderService
 
         await _serviceOrderRepository.UpdateAsync(
             serviceOrder,
-            Array.Empty<ServiceOrderPart>(),
-            Array.Empty<ServiceOrderWorkshop>(),
+            newParts: Array.Empty<ServiceOrderPart>(),
+            newWorkshopServices: Array.Empty<ServiceOrderWorkshop>(),
             cancellationToken);
         await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
         await _budgets.SetApprovalByServiceOrderAsync(serviceOrder.Id, true, cancellationToken);

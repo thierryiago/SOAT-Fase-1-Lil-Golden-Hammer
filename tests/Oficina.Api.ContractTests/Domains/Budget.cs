@@ -17,6 +17,7 @@ using Oficina.Infrastructure.Persistence;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using Xunit.Abstractions;
 
 namespace Oficina.Api.ContractTests.Domains;
@@ -255,6 +256,137 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         Assert.NotNull(sentEmail);
         Assert.Contains("Budget Awaiting to Approval", sentEmail!.Subject);
         Assert.Contains("500.00", sentEmail.Body);
+    }
+
+    // chore/budget-decision: the budget-awaiting-approval e-mail now carries approve/reject links
+    // pointing to the anonymous GET endpoints in NotificationsController. These tests reproduce the
+    // client's journey: advance an order to AwaitingApproval, extract the budgetId from the captured
+    // e-mail link and then hit the endpoints without any authentication token.
+    [Fact]
+    public async Task Approve_budget_link_should_approve_budget_and_advance_the_service_order()
+    {
+        await AuthenticateAsync();
+        var (serviceOrder, budgetId) = await CreateOrderAwaitingApprovalWithBudgetEmailAsync("approve.link");
+
+        var approveResponse = await _client.GetAsync($"/api/v1/notifications/approveBudget?budgetId={budgetId}");
+        Log("Approve budget via the e-mail link (no authentication token)", approveResponse);
+        Assert.Equal(HttpStatusCode.OK, approveResponse.StatusCode);
+
+        var budgetResponse = await _client.GetAsync($"/api/v1/budgets/{budgetId}");
+        budgetResponse.EnsureSuccessStatusCode();
+        var budget = (await budgetResponse.Content.ReadFromJsonAsync<BudgetResponse>())!;
+        Assert.True(budget.IsApproved);
+
+        var orderResponse = await _client.GetAsync($"/api/v1/service-orders/{serviceOrder.Id}");
+        orderResponse.EnsureSuccessStatusCode();
+        var order = (await orderResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        Assert.Equal(ServiceOrderStatus.InExecution, order.Status);
+
+        var secondClickResponse = await _client.GetAsync($"/api/v1/notifications/approveBudget?budgetId={budgetId}");
+        Log("Approve the same budget a second time (simulated double click)", secondClickResponse);
+        Assert.Equal(HttpStatusCode.BadRequest, secondClickResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reject_budget_link_should_reject_budget_and_cancel_the_service_order()
+    {
+        await AuthenticateAsync();
+        var (serviceOrder, budgetId) = await CreateOrderAwaitingApprovalWithBudgetEmailAsync("reject.link");
+
+        var rejectResponse = await _client.GetAsync($"/api/v1/notifications/rejectBudget?budgetId={budgetId}");
+        Log("Reject budget via the e-mail link (no authentication token)", rejectResponse);
+        Assert.Equal(HttpStatusCode.OK, rejectResponse.StatusCode);
+
+        var budgetResponse = await _client.GetAsync($"/api/v1/budgets/{budgetId}");
+        budgetResponse.EnsureSuccessStatusCode();
+        var budget = (await budgetResponse.Content.ReadFromJsonAsync<BudgetResponse>())!;
+        Assert.False(budget.IsApproved);
+
+        var orderResponse = await _client.GetAsync($"/api/v1/service-orders/{serviceOrder.Id}");
+        orderResponse.EnsureSuccessStatusCode();
+        var order = (await orderResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        Assert.Equal(ServiceOrderStatus.Rejected, order.Status);
+    }
+
+    private async Task<(ServiceOrderDetailResponse Order, Guid BudgetId)> CreateOrderAwaitingApprovalWithBudgetEmailAsync(
+        string emailPrefix)
+    {
+        var sequence = Interlocked.Increment(ref _documentCounter);
+        var customerEmail = $"{emailPrefix}.{sequence}@example.com";
+
+        var customerResponse = await _client.PostAsJsonAsync("/api/v1/customers", new
+        {
+            name = "Budget Decision Customer",
+            email = customerEmail,
+            telephoneNumber = "+5511999990000",
+            document = TestDocuments.ValidCpf(sequence)
+        });
+        customerResponse.EnsureSuccessStatusCode();
+        var customer = (await customerResponse.Content.ReadFromJsonAsync<CustomerResponse>())!;
+
+        var vehicleResponse = await _client.PostAsJsonAsync("/api/v1/vehicles", new
+        {
+            customerId = customer.Id,
+            plate = $"DEC{sequence:0000}",
+            brand = "Fiat",
+            model = "Uno",
+            year = 2020,
+            category = 1
+        });
+        vehicleResponse.EnsureSuccessStatusCode();
+        var vehicle = (await vehicleResponse.Content.ReadFromJsonAsync<VehicleResponse>())!;
+
+        var mechanicResponse = await _client.PostAsJsonAsync("/api/v1/mechanics", new { name = $"Budget Decision Mechanic {sequence}" });
+        mechanicResponse.EnsureSuccessStatusCode();
+        var mechanic = (await mechanicResponse.Content.ReadFromJsonAsync<MechanicResponse>())!;
+
+        var workshopServiceResponse = await _client.PostAsJsonAsync("/api/v1/workshop-services", new
+        {
+            name = $"Budget Decision Service {sequence}",
+            description = "A $300 service",
+            unitPrice = 300m,
+            estimatedDurationMinutes = 60
+        });
+        workshopServiceResponse.EnsureSuccessStatusCode();
+        var workshopService = (await workshopServiceResponse.Content.ReadFromJsonAsync<WorkshopServiceResponse>())!;
+
+        var openResponse = await _client.PostAsJsonAsync("/api/v1/service-orders", new
+        {
+            customerId = customer.Id,
+            vehicleId = vehicle.Id,
+            description = "Order to validate the budget decision by e-mail link"
+        });
+        openResponse.EnsureSuccessStatusCode();
+        var serviceOrder = (await openResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+
+        (await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = serviceOrder.Id,
+            checkList = "Initial inspection completed"
+        })).EnsureSuccessStatusCode();
+
+        (await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = serviceOrder.Id,
+            mechanicId = mechanic.Id
+        })).EnsureSuccessStatusCode();
+
+        var awaitingApprovalResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
+        {
+            serviceOrderId = serviceOrder.Id,
+            workshopServiceIds = new[] { workshopService.Id }
+        });
+        awaitingApprovalResponse.EnsureSuccessStatusCode();
+        var updatedOrder = (await awaitingApprovalResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
+        Assert.Equal(ServiceOrderStatus.AwaitingApproval, updatedOrder.Status);
+
+        var sentEmail = OficinaApiFactory.FakeNotificationEmailSender.SentEmails
+            .SingleOrDefault(email => email.Recipient == customerEmail);
+        Assert.NotNull(sentEmail);
+        var budgetIdMatch = Regex.Match(sentEmail!.Body, @"approveBudget\?budgetId=([0-9a-fA-F-]{36})");
+        Assert.True(budgetIdMatch.Success);
+
+        return (serviceOrder, Guid.Parse(budgetIdMatch.Groups[1].Value));
     }
 
     private async Task AuthenticateAsync()

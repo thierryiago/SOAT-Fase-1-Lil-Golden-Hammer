@@ -7,6 +7,7 @@ using Oficina.Application.ServiceOrders;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
 using Oficina.Application.WorkshopServices;
+using Oficina.Domain.Budget;
 using Oficina.Domain.Customers;
 using Oficina.Domain.OrderService;
 using Oficina.Domain.OrderServiceHistory;
@@ -182,6 +183,9 @@ public sealed class ServiceOrderServiceTests
     private sealed class FakeBudgetService : IBudgetService
     {
         public Task<BudgetResponse> OpenFromServiceOrderAsync(Guid serviceOrderId, CancellationToken cancellationToken) => throw new InvalidOperationException("Budget creation was not expected in this test.");
+
+        public Task<Budget> SetApprovalByBudgetIdAsync(Guid budgetId, bool isApproved, CancellationToken cancellationToken) => throw new InvalidOperationException("Budget decision was not expected in this test.");
+
         public Task SetApprovalByServiceOrderAsync(Guid serviceOrderId, bool isApproved, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
@@ -192,7 +196,7 @@ public sealed class ServiceOrderServiceTests
         public string? Body { get; private set; }
         public int SendCount { get; private set; }
 
-        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken)
+        public Task SendAsync(string recipient, string subject, string body, bool isHtml, CancellationToken cancellationToken)
         {
             Recipient = recipient;
             Subject = subject;

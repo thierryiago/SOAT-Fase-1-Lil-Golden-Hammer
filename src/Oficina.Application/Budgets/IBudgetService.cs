@@ -1,3 +1,5 @@
+using Oficina.Domain.Budget;
+
 namespace Oficina.Application.Budgets;
 
 public interface IBudgetService
@@ -10,4 +12,6 @@ public interface IBudgetService
         Guid serviceOrderId,
         bool isApproved,
         CancellationToken cancellationToken);
+
+    Task<Budget> SetApprovalByBudgetIdAsync(Guid budgetId, bool isApproved, CancellationToken cancellationToken);
 }
