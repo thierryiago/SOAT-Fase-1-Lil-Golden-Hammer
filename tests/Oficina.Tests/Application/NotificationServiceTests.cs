@@ -39,7 +39,7 @@ public sealed class NotificationServiceTests
     }
 
     [Fact]
-    public async Task SendBudgetAwaitingApprovalAsync_should_send_budget_as_plain_text()
+    public async Task SendBudgetAwaitingApprovalAsync_should_send_budget_as_html_with_decision_buttons()
     {
         var sender = new FakeEmailSender();
         var service = new NotificationService(sender);
@@ -61,10 +61,19 @@ public sealed class NotificationServiceTests
 
         Assert.Equal("pedro@example.com", sender.Recipient);
         Assert.Equal("Pedro - Budget Awaiting to Approval", sender.Subject);
-        Assert.Contains($"Budget ID: {budget.Id}", sender.Body);
-        Assert.Contains("- Filtro | Quantity: 2 | Unit Price: 10.00 | Total: 20.00", sender.Body);
-        Assert.Contains("- Troca de oleo | Unit Price: 100.00", sender.Body);
-        Assert.Contains("Total Value: 120.00", sender.Body);
+        Assert.True(sender.IsHtml);
+        Assert.Contains($"Budget ID:</strong> {budget.Id}", sender.Body);
+        Assert.Contains("<li>Filtro | Quantity: 2 | Unit Price: 10.00 | Total: 20.00</li>", sender.Body);
+        Assert.Contains("<li>Troca de oleo | Unit Price: 100.00</li>", sender.Body);
+        Assert.Contains("Total Value:</strong> 120.00", sender.Body);
+        Assert.Contains(
+            $"href=\"https://localhost:5001/api/v1/notifications/approveBudget?budgetId={budget.Id}\"",
+            sender.Body);
+        Assert.Contains(
+            $"href=\"https://localhost:5001/api/v1/notifications/rejectBudget?budgetId={budget.Id}\"",
+            sender.Body);
+        Assert.Contains(">Approve Budget</a>", sender.Body);
+        Assert.Contains(">Reject Budget</a>", sender.Body);
     }
 
     [Fact]
@@ -97,19 +106,21 @@ public sealed class NotificationServiceTests
         public string? Recipient { get; private set; }
         public string? Subject { get; private set; }
         public string? Body { get; private set; }
+        public bool IsHtml { get; private set; }
 
-        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken)
+        public Task SendAsync(string recipient, string subject, string body, bool isHtml, CancellationToken cancellationToken)
         {
             Recipient = recipient;
             Subject = subject;
             Body = body;
+            IsHtml = isHtml;
             return Task.CompletedTask;
         }
     }
 
     private sealed class FailingEmailSender : INotificationEmailSender
     {
-        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken) =>
+        public Task SendAsync(string recipient, string subject, string body, bool isHtml, CancellationToken cancellationToken) =>
             Task.FromException(new InvalidOperationException("SMTP unavailable."));
     }
 }

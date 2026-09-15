@@ -152,6 +152,119 @@ public sealed class BudgetServiceTests
         Assert.Equal(isApproved, updatedBudget!.IsApproved);
     }
 
+    [Fact]
+    public async Task SetApprovalByBudgetIdAsync_should_approve_budget()
+    {
+        var budgets = new FakeBudgetRepository();
+        var (serviceOrder, part, workshopService) = CreateServiceOrderWithItems();
+        var budget = OpenBudget(serviceOrder, part, workshopService);
+        await budgets.AddAsync(budget, CancellationToken.None);
+        var service = CreateService(
+            budgets,
+            new FakeServiceOrderRepository(),
+            new FakePartRepository(),
+            new FakeWorkshopServiceRepository());
+
+        var result = await service.SetApprovalByBudgetIdAsync(budget.Id, true, CancellationToken.None);
+        var stored = await budgets.GetByIdAsync(budget.Id, CancellationToken.None);
+
+        Assert.True(result.IsApproved);
+        Assert.True(stored!.IsApproved);
+        Assert.Equal(budget.ServiceOrderId, result.ServiceOrderId);
+    }
+
+    [Fact]
+    public async Task SetApprovalByBudgetIdAsync_should_reject_budget()
+    {
+        var budgets = new FakeBudgetRepository();
+        var (serviceOrder, part, workshopService) = CreateServiceOrderWithItems();
+        var budget = OpenBudget(serviceOrder, part, workshopService);
+        await budgets.AddAsync(budget, CancellationToken.None);
+        var service = CreateService(
+            budgets,
+            new FakeServiceOrderRepository(),
+            new FakePartRepository(),
+            new FakeWorkshopServiceRepository());
+
+        var result = await service.SetApprovalByBudgetIdAsync(budget.Id, false, CancellationToken.None);
+        var stored = await budgets.GetByIdAsync(budget.Id, CancellationToken.None);
+
+        Assert.False(result.IsApproved);
+        Assert.False(stored!.IsApproved);
+    }
+
+    [Fact]
+    public async Task SetApprovalByBudgetIdAsync_should_throw_when_budget_is_not_found()
+    {
+        var service = CreateService(
+            new FakeBudgetRepository(), new FakeServiceOrderRepository(), new FakePartRepository(), new FakeWorkshopServiceRepository());
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.SetApprovalByBudgetIdAsync(Guid.NewGuid(), true, CancellationToken.None));
+
+        Assert.Equal("Budget was not found.", exception.Message);
+    }
+
+    [Fact]
+    public async Task SetApprovalByBudgetIdAsync_should_throw_when_budget_is_already_approved()
+    {
+        var budgets = new FakeBudgetRepository();
+        var (serviceOrder, part, workshopService) = CreateServiceOrderWithItems();
+        var budget = OpenBudget(serviceOrder, part, workshopService);
+        await budgets.AddAsync(budget, CancellationToken.None);
+        var service = CreateService(
+            budgets,
+            new FakeServiceOrderRepository(),
+            new FakePartRepository(),
+            new FakeWorkshopServiceRepository());
+        await service.SetApprovalByBudgetIdAsync(budget.Id, true, CancellationToken.None);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.SetApprovalByBudgetIdAsync(budget.Id, true, CancellationToken.None));
+
+        Assert.Equal("Budget is already approved.", exception.Message);
+    }
+
+    [Fact]
+    public async Task SetApprovalByBudgetIdAsync_should_throw_when_budget_is_already_rejected()
+    {
+        var budgets = new FakeBudgetRepository();
+        var (serviceOrder, part, workshopService) = CreateServiceOrderWithItems();
+        var budget = OpenBudget(serviceOrder, part, workshopService);
+        await budgets.AddAsync(budget, CancellationToken.None);
+        var service = CreateService(
+            budgets,
+            new FakeServiceOrderRepository(),
+            new FakePartRepository(),
+            new FakeWorkshopServiceRepository());
+        await service.SetApprovalByBudgetIdAsync(budget.Id, false, CancellationToken.None);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.SetApprovalByBudgetIdAsync(budget.Id, false, CancellationToken.None));
+
+        Assert.Equal("Budget is already rejected.", exception.Message);
+    }
+
+    [Fact]
+    public async Task SetApprovalByServiceOrderAsync_should_keep_decision_when_budget_was_already_decided()
+    {
+        var budgets = new FakeBudgetRepository();
+        var (serviceOrder, part, workshopService) = CreateServiceOrderWithItems();
+        var budget = OpenBudget(serviceOrder, part, workshopService);
+        await budgets.AddAsync(budget, CancellationToken.None);
+        var service = CreateService(
+            budgets,
+            new FakeServiceOrderRepository(),
+            new FakePartRepository(),
+            new FakeWorkshopServiceRepository());
+        await service.SetApprovalByBudgetIdAsync(budget.Id, true, CancellationToken.None);
+
+        await service.SetApprovalByServiceOrderAsync(serviceOrder.Id, false, CancellationToken.None);
+        var stored = await budgets.GetByIdAsync(budget.Id, CancellationToken.None);
+
+        Assert.True(stored!.IsApproved);
+    }
+
     private static (ServiceOrder ServiceOrder, Part Part, WorkshopService WorkshopService) CreateServiceOrderWithItems()
     {
         var serviceOrder = ServiceOrder.Open(Guid.NewGuid(), Guid.NewGuid(), "Revisao");

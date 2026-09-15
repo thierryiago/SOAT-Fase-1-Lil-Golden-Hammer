@@ -18,7 +18,7 @@ public sealed class SmtpNotificationEmailSenderTests
         }));
 
         await Assert.ThrowsAnyAsync<Exception>(() =>
-            sender.SendAsync("cliente@example.com", "Assunto", "Corpo", CancellationToken.None));
+            sender.SendAsync("cliente@example.com", "Assunto", "Corpo", false, CancellationToken.None));
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class SmtpNotificationEmailSenderTests
         }));
 
         await Assert.ThrowsAnyAsync<Exception>(() =>
-            sender.SendAsync("cliente@example.com", "Assunto", "Corpo", CancellationToken.None));
+            sender.SendAsync("cliente@example.com", "Assunto", "Corpo", false, CancellationToken.None));
     }
 
     private static int GetUnusedLoopbackPort()
@@ -56,7 +56,7 @@ public sealed class SmtpNotificationEmailSenderTests
         }));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            sender.SendAsync("cliente@example.com", "Assunto", "Corpo", CancellationToken.None));
+            sender.SendAsync("cliente@example.com", "Assunto", "Corpo", false, CancellationToken.None));
     }
 
     [Fact]
@@ -69,6 +69,6 @@ public sealed class SmtpNotificationEmailSenderTests
         }));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            sender.SendAsync("cliente@example.com", "Assunto", "Corpo", CancellationToken.None));
+            sender.SendAsync("cliente@example.com", "Assunto", "Corpo", false, CancellationToken.None));
     }
 }

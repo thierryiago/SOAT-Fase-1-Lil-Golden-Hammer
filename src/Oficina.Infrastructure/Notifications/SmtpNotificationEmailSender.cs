@@ -14,7 +14,7 @@ public sealed class SmtpNotificationEmailSender : INotificationEmailSender
         _options = options.Value;
     }
 
-    public async Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken)
+    public async Task SendAsync(string recipient, string subject, string body, bool isHtml, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(_options.Host) || string.IsNullOrWhiteSpace(_options.From))
         {
@@ -23,7 +23,7 @@ public sealed class SmtpNotificationEmailSender : INotificationEmailSender
 
         using var message = new MailMessage(_options.From, recipient, subject, body)
         {
-            IsBodyHtml = false
+            IsBodyHtml = isHtml
         };
         using var client = new SmtpClient(_options.Host, _options.Port)
         {

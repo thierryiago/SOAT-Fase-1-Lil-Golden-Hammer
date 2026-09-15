@@ -322,8 +322,8 @@ public sealed class ServiceOrderContractTests
         Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
         Assert.Equal("john@email.com", context.EmailSender.Recipient);
         Assert.Equal("John Customer - Budget Awaiting to Approval", context.EmailSender.Subject);
-        Assert.Contains($"Budget ID: {budget.Id}", context.EmailSender.Body);
-        Assert.Contains("Total Value: 120.00", context.EmailSender.Body);
+        Assert.Contains($"Budget ID:</strong> {budget.Id}", context.EmailSender.Body);
+        Assert.Contains("Total Value:</strong> 120.00", context.EmailSender.Body);
         Assert.Equal(1, context.EmailSender.SendCount);
     }
 
@@ -340,6 +340,25 @@ public sealed class ServiceOrderContractTests
 
         Assert.Equal(ServiceOrderStatus.InExecution, response.Status);
         Assert.True(budget!.IsApproved);
+    }
+
+    [Fact]
+    public async Task ApproveAsync_should_keep_budget_decision_when_budget_was_already_decided_by_email_link()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToAwaitingApprovalAsync(context);
+        var budget = await context.Budgets.GetByServiceOrderIdAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
+
+        await context.BudgetService.SetApprovalByBudgetIdAsync(budget!.Id, true, CancellationToken.None);
+        var response = await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        var decidedBudget = await context.Budgets.GetByServiceOrderIdAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
+
+        Assert.Equal(ServiceOrderStatus.InExecution, response.Status);
+        Assert.True(decidedBudget!.IsApproved);
     }
 
     [Fact]
@@ -384,8 +403,8 @@ public sealed class ServiceOrderContractTests
         Assert.Equal(7, stock!.Quantity);
         Assert.Equal(ServiceOrderStatus.AwaitingApproval.ToString(), history.Last().StatusName);
         Assert.Equal(2, context.EmailSender.SendCount);
-        Assert.Contains($"Budget ID: {latestBudget.Id}", context.EmailSender.Body);
-        Assert.Contains("Total Value: 130.00", context.EmailSender.Body);
+        Assert.Contains($"Budget ID:</strong> {latestBudget.Id}", context.EmailSender.Body);
+        Assert.Contains("Total Value:</strong> 130.00", context.EmailSender.Body);
     }
 
     [Fact]
@@ -559,6 +578,33 @@ public sealed class ServiceOrderContractTests
     }
 
     [Fact]
+    public async Task CancelAsync_should_keep_budget_decision_when_budget_was_already_decided_by_email_link()
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToInDiagnosisAsync(context);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(context.ServiceOrderId, Parts: [new AddPartToServiceOrderRequest(context.PartId, 5)]),
+            CancellationToken.None);
+        await context.Service.UpdateAsync(
+            new UpdateServiceOrderRequest(context.ServiceOrderId, WorkshopServiceIds: [context.WorkshopServiceId]),
+            CancellationToken.None);
+        var budget = await context.Budgets.GetByServiceOrderIdAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
+
+        await context.BudgetService.SetApprovalByBudgetIdAsync(budget!.Id, false, CancellationToken.None);
+        var response = await context.Service.CancelAsync(context.ServiceOrderId, CancellationToken.None);
+        var decidedBudget = await context.Budgets.GetByServiceOrderIdAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
+        var stock = await context.Stocks.GetByPartIdAsync(context.PartId, CancellationToken.None);
+
+        Assert.Equal(ServiceOrderStatus.Rejected, response.Status);
+        Assert.False(decidedBudget!.IsApproved);
+        Assert.Equal(10, stock!.Quantity);
+    }
+
+    [Fact]
     public async Task FinalizeAsync_should_throw_when_order_is_not_in_execution()
     {
         var context = await CreateOpenedOrderAsync();
@@ -668,6 +714,7 @@ public sealed class ServiceOrderContractTests
 
     private sealed record ServiceOrderTestContext(
         ServiceOrderService Service,
+        BudgetService BudgetService,
         FakeStockRepository Stocks,
         FakeServiceOrderHistoryRepository History,
         FakeBudgetRepository Budgets,
@@ -718,6 +765,7 @@ public sealed class ServiceOrderContractTests
 
         return new ServiceOrderTestContext(
             service,
+            budgetService,
             stocks,
             history,
             budgets,
@@ -817,6 +865,8 @@ public sealed class ServiceOrderContractTests
             CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Budget creation was not expected in this test.");
 
+        public Task<Budget> SetApprovalByBudgetIdAsync(Guid budgetId, bool isApproved, CancellationToken cancellationToken) => throw new InvalidOperationException("Budget decision was not expected in this test.");
+
         public Task SetApprovalByServiceOrderAsync(
             Guid serviceOrderId,
             bool isApproved,
@@ -837,6 +887,7 @@ public sealed class ServiceOrderContractTests
             string recipient,
             string subject,
             string body,
+            bool isHtml,
             CancellationToken cancellationToken)
         {
             Recipient = recipient;

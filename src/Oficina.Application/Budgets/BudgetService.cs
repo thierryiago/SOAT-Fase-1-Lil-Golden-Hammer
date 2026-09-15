@@ -9,24 +9,16 @@ using Oficina.Domain.WorkshopServices;
 
 namespace Oficina.Application.Budgets;
 
-public sealed class BudgetService : IBudgetService
+public sealed class BudgetService(
+    IBudgetRepository budgets,
+    IServiceOrderRepository serviceOrders,
+    IPartRepository parts,
+    IWorkshopServiceRepository workshopServices) : IBudgetService
 {
-    private readonly IBudgetRepository _budgetsRepository;
-    private readonly IServiceOrderRepository _serviceOrdersRepository;
-    private readonly IPartRepository _partsRepository;
-    private readonly IWorkshopServiceRepository _workshopServicesRepository;
-
-    public BudgetService(
-        IBudgetRepository budgets,
-        IServiceOrderRepository serviceOrders,
-        IPartRepository parts,
-        IWorkshopServiceRepository workshopServices)
-    {
-        _budgetsRepository = budgets;
-        _serviceOrdersRepository = serviceOrders;
-        _partsRepository = parts;
-        _workshopServicesRepository = workshopServices;
-    }
+    private readonly IBudgetRepository _budgetsRepository = budgets;
+    private readonly IServiceOrderRepository _serviceOrdersRepository = serviceOrders;
+    private readonly IPartRepository _partsRepository = parts;
+    private readonly IWorkshopServiceRepository _workshopServicesRepository = workshopServices;
 
     public async Task<PagedResponse<BudgetResponse>> ListAsync(
         PageRequest request,
@@ -87,8 +79,33 @@ public sealed class BudgetService : IBudgetService
         var budget = await _budgetsRepository.GetByServiceOrderIdAsync(serviceOrderId, cancellationToken)
             ?? throw new InvalidOperationException("Budget was not found for the service order.");
 
+        if (budget.IsApproved.HasValue)
+        {
+            return;
+        }
+
         budget.SetApproval(isApproved);
         await _budgetsRepository.UpdateAsync(budget, cancellationToken);
+    }
+
+    public async Task<Budget> SetApprovalByBudgetIdAsync(Guid budgetId, bool isApproved, CancellationToken cancellationToken)
+    {
+        var budget = await _budgetsRepository.GetByIdAsync(budgetId, cancellationToken)
+            ?? throw new InvalidOperationException("Budget was not found.");
+
+        if (budget.IsApproved.HasValue)
+        {
+            if (budget.IsApproved.Value)
+                throw new InvalidOperationException("Budget is already approved.");
+            else
+                if (!budget.IsApproved.Value)
+                    throw new InvalidOperationException("Budget is already rejected.");
+        }
+
+        budget.SetApproval(isApproved);
+        await _budgetsRepository.UpdateAsync(budget, cancellationToken);
+
+        return budget;
     }
 
     private static List<BudgetParts> CheckBudgetParts(

@@ -57,7 +57,7 @@ public sealed class OficinaApiFactory : WebApplicationFactory<Program>
 
         public static IReadOnlyCollection<SentEmail> SentEmails => _sentEmails.ToArray();
 
-        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken)
+        public Task SendAsync(string recipient, string subject, string body, bool isHtml, CancellationToken cancellationToken)
         {
             _sentEmails.Enqueue(new SentEmail(recipient, subject, body));
             return Task.CompletedTask;
