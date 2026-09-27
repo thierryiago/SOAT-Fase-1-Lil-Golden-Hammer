@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.ServiceOrders;
+using Oficina.Application.ServiceOrders.UseCases;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Oficina.Api.Controllers;
@@ -12,10 +13,17 @@ namespace Oficina.Api.Controllers;
 public sealed class ServiceOrdersController : ControllerBase
 {
     private readonly ServiceOrderService _serviceOrders;
+    private readonly OpenServiceOrderUseCase _openServiceOrder;
+    private readonly UpdateServiceOrderUseCase _updateServiceOrder;
 
-    public ServiceOrdersController(ServiceOrderService serviceOrders)
+    public ServiceOrdersController(
+        ServiceOrderService serviceOrders,
+        OpenServiceOrderUseCase openServiceOrder,
+        UpdateServiceOrderUseCase updateServiceOrder)
     {
         _serviceOrders = serviceOrders;
+        _openServiceOrder = openServiceOrder;
+        _updateServiceOrder = updateServiceOrder;
     }
 
     [HttpGet(Name = "ListServiceOrders")]
@@ -59,7 +67,7 @@ public sealed class ServiceOrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Open(OpenServiceOrderRequest request, CancellationToken cancellationToken)
     {
-        var serviceOrder = await _serviceOrders.OpenAsync(request, cancellationToken);
+        var serviceOrder = await _openServiceOrder.ExecuteAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = serviceOrder.Id }, serviceOrder);
     }
 
@@ -68,7 +76,7 @@ public sealed class ServiceOrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Update(UpdateServiceOrderRequest request, CancellationToken cancellationToken)
     {
-        var service = await _serviceOrders.UpdateAsync(request, cancellationToken);
+        var service = await _updateServiceOrder.ExecuteAsync(request, cancellationToken);
         return Ok(service);
     }
 

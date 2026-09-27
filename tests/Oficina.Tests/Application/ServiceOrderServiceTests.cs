@@ -103,8 +103,6 @@ public sealed class ServiceOrderServiceTests
             orders,
             customers,
             new FakeVehicleRepository(),
-            new FakePartRepository(),
-            new FakeWorkshopServiceRepository(),
             new FakeStockRepository(),
             history,
             new FakeBudgetService(),
