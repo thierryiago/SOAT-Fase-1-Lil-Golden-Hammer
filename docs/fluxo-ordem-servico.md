@@ -44,7 +44,7 @@ Este documento descreve o fluxo implementado para uma Ordem de Serviço (OS), de
 - persistência e tratamento de erros;
 - lacunas e riscos identificados no código atual.
 
-O ponto de entrada principal é `src/Oficina.Api/Controllers/ServiceOrdersController.cs`. A regra de aplicação está em `src/Oficina.Application/ServiceOrder/`, e a máquina de estados está em `src/Oficina.Domain/OrderService/ServiceOrder.cs`.
+O ponto de entrada principal é `src/Oficina.Api/Controllers/ServiceOrdersController.cs`. A regra de aplicação está em `src/Oficina.Application/OrderServices/`, e a máquina de estados está em `src/Oficina.Domain/OrderServices/ServiceOrder.cs`.
 
 ## 2. Visão arquitetural
 
@@ -722,11 +722,11 @@ Os testes de domínio e aplicação verificam, entre outros pontos:
 ## 16. Arquivos principais
 
 - `src/Oficina.Api/Controllers/ServiceOrdersController.cs`
-- `src/Oficina.Application/ServiceOrder/ServiceOrderService.cs`
-- `src/Oficina.Application/ServiceOrder/ServiceOrderDtos.cs`
-- `src/Oficina.Application/ServiceOrder/UseCases/UpdateServiceOrderUseCase.cs`
-- `src/Oficina.Domain/OrderService/ServiceOrder.cs`
-- `src/Oficina.Domain/OrderService/ServiceOrderStatus.cs`
+- `src/Oficina.Application/OrderServices/ServiceOrderService.cs`
+- `src/Oficina.Application/OrderServices/ServiceOrderDtos.cs`
+- `src/Oficina.Application/OrderServices/UseCases/UpdateServiceOrderUseCase.cs`
+- `src/Oficina.Domain/OrderServices/ServiceOrder.cs`
+- `src/Oficina.Domain/OrderServices/ServiceOrderStatus.cs`
 - `src/Oficina.Infrastructure/Persistence/ServiceOrderRepository.cs`
 - `src/Oficina.Application/Budgets/BudgetService.cs`
 - `src/Oficina.Application/Notifications/NotificationService.cs`

@@ -82,7 +82,7 @@ Exceção de domínio compartilhada: `ConflictException` (`Oficina.Application.C
 
 ## 6. Máquina de estados da Ordem de Serviço
 
-Fluxo linear controlado em `ServiceOrder.UpdateStatus()` (`src/Oficina.Domain/OrderService/ServiceOrder.cs`), avaliado em cascata (primeira transição aplicável vence):
+Fluxo linear controlado em `ServiceOrder.UpdateStatus()` (`src/Oficina.Domain/OrderServices/ServiceOrder.cs`), avaliado em cascata (primeira transição aplicável vence):
 
 ```
 (null) --[tem CheckList]--> Received
@@ -113,9 +113,9 @@ Um *Service* por bounded context, registrado em `DependencyInjection.AddApplicat
 | `StockService` | `Stocks/` | `IStockRepository`, `IPartRepository` | Consulta de estoque + movimentações (`Entry`/`Consume`/`Adjust`), cria estoque zerado sob demanda (`GetOrCreateStockAsync`) |
 | `MechanicService` | `Mechanics/` | `IMechanicRepository` | CRUD de mecânicos |
 | `ServiceCatalogService` | `WorkshopServices/` | `IWorkshopServiceRepository` | CRUD do catálogo de serviços |
-| `ServiceOrderService` | `ServiceOrder/` | `IServiceOrderRepository`, `ICustomerRepository`, `IVehicleRepository`, `IStockRepository`, `IServiceOrderHistoryRepository`, `IBudgetService` | Orquestra consultas, aprovação, cancelamento, finalização, entrega e agenda de OS |
-| `OpenServiceOrderUseCase` | `ServiceOrder/UseCases/` | `IServiceOrderRepository`, `ICustomerRepository`, `IVehicleRepository` | Abre uma ordem de serviço |
-| `UpdateServiceOrderUseCase` | `ServiceOrder/UseCases/` | Repositórios de OS, peças, serviços, estoque e histórico; orçamento e notificação | Atualiza a OS, itens, estoque, histórico, orçamento e notificação |
+| `ServiceOrderService` | `OrderServices/` | `IServiceOrderRepository`, `ICustomerRepository`, `IVehicleRepository`, `IStockRepository`, `IServiceOrderHistoryRepository`, `IBudgetService` | Orquestra consultas, aprovação, cancelamento, finalização, entrega e agenda de OS |
+| `OpenServiceOrderUseCase` | `OrderServices/UseCases/` | `IServiceOrderRepository`, `ICustomerRepository`, `IVehicleRepository` | Abre uma ordem de serviço |
+| `UpdateServiceOrderUseCase` | `OrderServices/UseCases/` | Repositórios de OS, peças, serviços, estoque e histórico; orçamento e notificação | Atualiza a OS, itens, estoque, histórico, orçamento e notificação |
 | `ServiceOrderHistoryService` | (registrado em `Infrastructure.DependencyInjection`, não em `Application`) | `IServiceOrderHistoryRepository` | Consulta de histórico (`FindAllAsync`, `FindByServiceOrderAsync`) |
 | `BudgetService` | `Budgets/` | `IBudgetRepository` | Consulta paginada de orçamentos (sem endpoint de criação exposto ainda — só `List`/`GetById`) |
 | `MetricsService` | `Metrics/` | `IMetricExecutionTimeRepository` | Tempo de execução por serviço de oficina |
