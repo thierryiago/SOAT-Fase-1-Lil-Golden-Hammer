@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Common;
 using Oficina.Application.Customers;
-using Oficina.Application.OrdensServico;
 using Oficina.Application.ServiceOrders;
 using System.Diagnostics.CodeAnalysis;
 

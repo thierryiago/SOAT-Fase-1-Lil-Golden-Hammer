@@ -1,7 +1,6 @@
 using Oficina.Api.Authentication;
 using Oficina.Api.ContractTests.Infrastructure;
 using Oficina.Application.Customers;
-using Oficina.Application.OrdensServico;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.Vehicles;
 using System.Net;
