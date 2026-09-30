@@ -41,6 +41,7 @@ Ordem de bootstrap:
 6. Middleware de exceção global (`UseExceptionHandler`) mapeia:
    - `KeyNotFoundException` → 404
    - `ConflictException` (custom, `Oficina.Application.Common`) → 409
+   - `InsufficientStockException` (custom, `Oficina.Domain.Stock`) → 409
    - `ArgumentException` / `InvalidOperationException` → 400
    - qualquer outra → 500 (mensagem oculta, só loga)
    Resposta sempre em `application/problem+json` com `title`, `status`, `detail`, `traceId`.
@@ -67,7 +68,7 @@ Entidades ricas (construtor privado + factory `Create`/`Open` + métodos de muta
 | `EnumVehicleCategory` | `Oficina.Domain.Vehicles` | Car=1, Motorcycle=2, Truck=3, Bus=4 | |
 | `Part` | `Oficina.Domain.Parts` | Id, Name, Code, UnitPrice, `EnumPartKind` Kind, CreateDate, UpdateDate, IsActive | Código normalizado uppercase. Métodos de estoque (`AdjustStock`/`WithdrawStock`) estão **comentados/mortos no código** — estoque de fato vive em `StockPart`. |
 | `EnumPartKind` | `Oficina.Domain.Parts` | Part=1, Consumable=2 | |
-| `StockPart` | `Oficina.Domain.Stock` | Id, PartId, Quantity, CreatedDate, `Part?` | `AddQuantity`, `RemoveQuantity` (erro se negativo), `AdjustQuantity` (delta, pode ficar negativo? não — valida), `SetQuantity` (absoluto). Toda quantidade não pode ficar < 0. |
+| `StockPart` | `Oficina.Domain.Stock` | Id, PartId, Quantity, CreatedDate, `Part?` | `Reserve` (debita, lança `InsufficientStockException` se o saldo não cobre), `Release` (credita) e `EnsureCanReserve` (valida sem mutar, para uma operação com várias peças falhar antes de mover qualquer saldo) concentram a regra; `AddQuantity`/`RemoveQuantity`/`AdjustQuantity` delegam para elas, e `SetQuantity` grava o valor absoluto. Toda quantidade não pode ficar < 0. |
 | `Mechanic` | `Oficina.Domain.Mechanics` | Id, Name, IsActive | CRUD simples. |
 | `WorkshopService` | `Oficina.Domain.WorkshopServices` | Id, Name, Description, UnitPrice, EstimatedDurationMinutes, IsActive | Catálogo de serviços oferecidos pela oficina. |
 | `ServiceOrder` | `Oficina.Domain.ServiceOrders` | Id, CustomerId, MechanicId?, VehicleId?, Description, CheckList?, `ServiceOrderStatus?` Status, CreatedAt, ScheduledAt, TotalParts, `Customer`, `Mechanic?`, `Vehicle?`, `Parts` (`ServiceOrderPart`), `WorkshopServices` (`ServiceOrderWorkshop`) | Máquina de estados em `UpdateStatus()` (ver §6). `TotalParts` recalculado ao setar peças. `ValidateUpdate` bloqueia troca de mecânico e adição de itens fora de certos estágios. |
@@ -78,7 +79,7 @@ Entidades ricas (construtor privado + factory `Create`/`Open` + métodos de muta
 | `Budget` (orçamento) | `Oficina.Domain.Budget` | Id, CustomerId, ServiceOrderId, CreatedAt, IsApproved (bool?), TotalValue, `Parts` (`BudgetParts`), `WorkshopServices` (`BudgetWorkshopServices`) | `Open(...)` exige ao menos 1 serviço de oficina; `TotalValue` calculado a partir de peças + serviços. |
 | `BudgetParts` / `BudgetWorkshopServices` | `Oficina.Domain.Budget` | Ligações N:N Budget↔Part e Budget↔WorkshopService com Quantity (parts) | |
 
-Exceção de domínio compartilhada: `ConflictException` (`Oficina.Application.Common`) — mapeada para HTTP 409 no `Program.cs`.
+Exceções de negócio: `ConflictException` (`Oficina.Application.Common`) e `InsufficientStockException` (`Oficina.Domain.Stock`, lançada por `StockPart.Reserve`/`EnsureCanReserve` e carregando `PartId`/`Available`/`Requested`) — ambas mapeadas para HTTP 409 no `Program.cs`.
 
 ## 6. Máquina de estados da Ordem de Serviço
 
@@ -98,8 +99,8 @@ Finalized --[delivered=true]--> Delivered  (terminal)
 - `ValidateUpdate` (chamado no `Update` do controller): em `InDiagnosis/AwaitingApproval/InExecution` não permite trocar o mecânico; em `null/Received/InExecution` não permite adicionar novas peças/serviços.
 - Endpoints que disparam transições: `PUT /service-orders` (Update — pode setar CheckList, MechanicId, Parts, WorkshopServices, dispara `UpdateStatus()` sem parâmetros = tenta avançar via CheckList/Mecânico/Serviços), `POST /{id}/approve` (clientApproved=true), `POST /{id}/cancel` (clientApproved=false, **devolve peças ao estoque**), `POST /{id}/finalize`, `POST /{id}/deliver`.
 - Toda transição de status é auditada em `ServiceOrderHistory` (via `RecordHistoryAsync`, só grava se o status realmente mudou).
-- Ao cancelar (`CancelAsync`), peças já consumidas voltam ao estoque via `StockPart.AddQuantity`.
-- Ao atualizar peças (`ResolvePartsAsync`), a diferença de quantidade é debitada/creditada no estoque automaticamente (delta positivo consome, negativo devolve). Lança erro se estoque insuficiente ou parte sem registro de estoque.
+- Ao cancelar (`CancelAsync`), peças já consumidas voltam ao estoque via `StockPart.Release`.
+- Ao atualizar peças (`UpdateServiceOrderUseCase.ResolvePartsAsync`), a diferença de quantidade é debitada/creditada no estoque automaticamente (delta positivo consome via `StockPart.Reserve`, negativo devolve via `StockPart.Release`). Todos os saldos são validados antes de qualquer movimento (`StockPart.EnsureCanReserve`), então estoque insuficiente lança `InsufficientStockException` (→ 409) sem deixar movimento parcial aplicado. Parte sem registro de estoque continua lançando `InvalidOperationException` (→ 400).
 
 ## 7. Camada Application (`src/Oficina.Application/`)
 
@@ -123,7 +124,7 @@ Um *Service* por bounded context, registrado em `DependencyInjection.AddApplicat
 
 `Common/`:
 - `Pagination.cs` — helper `Pagination.Create(query, PageRequest)` que produz `PagedResponse<T>` (paginação padrão usada por quase todos os `List` endpoints).
-- `ConflictException.cs` — exceção de negócio → HTTP 409.
+- `ConflictException.cs` — exceção de negócio → HTTP 409. (A regra de saldo insuficiente vive no domínio: `Oficina.Domain.Stock.InsufficientStockException`, também → 409.)
 
 ## 8. Camada Infrastructure (`src/Oficina.Infrastructure/`)
 

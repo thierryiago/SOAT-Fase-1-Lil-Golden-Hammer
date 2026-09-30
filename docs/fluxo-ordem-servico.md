@@ -384,8 +384,10 @@ mudança, a operação:
 6. envia o novo orçamento ao cliente.
 
 O orçamento aprovado anteriormente é preservado. Se a validação falhar, por
-exemplo por estoque insuficiente ou tentativa de remover todos os serviços, a OS
-permanece `InExecution` e nenhum novo orçamento é criado.
+exemplo por estoque insuficiente (`409`) ou tentativa de remover todos os
+serviços, a OS permanece `InExecution` e nenhum novo orçamento é criado. No caso
+do estoque, a checagem de todos os saldos acontece antes de qualquer movimento,
+então nenhuma peça do lote fica debitada quando uma delas é recusada.
 
 ### 5.10 Execução e finalização — `InExecution` para `Finalized`
 
@@ -632,11 +634,12 @@ O middleware global converte:
 |---|---:|
 | `KeyNotFoundException` | `404` |
 | `ConflictException` | `409` |
+| `InsufficientStockException` | `409` |
 | `ArgumentException` | `400` |
 | `InvalidOperationException` | `400` |
 | demais exceções | `500` |
 
-As falhas da OS são principalmente `InvalidOperationException`. Assim, uma ação sobre uma OS inexistente, como `approve`, `cancel`, `finalize` ou `deliver`, resulta atualmente em `400`, enquanto o `GET /service-orders/{id}` retorna `404` diretamente.
+As falhas da OS são principalmente `InvalidOperationException`. Assim, uma ação sobre uma OS inexistente, como `approve`, `cancel`, `finalize` ou `deliver`, resulta atualmente em `400`, enquanto o `GET /service-orders/{id}` retorna `404` diretamente. A exceção é o estoque insuficiente ao anexar peças: `StockPart.Reserve`/`EnsureCanReserve` lançam `InsufficientStockException` (`Oficina.Domain.Stock`) e a resposta é `409`, por ser conflito de estado e não entrada inválida. O `detail` traz a peça, o disponível e o solicitado.
 
 A resposta de erro usa `application/problem+json`, inclui título, status, mensagem para erros conhecidos e `traceId`.
 
