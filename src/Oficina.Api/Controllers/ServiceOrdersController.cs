@@ -66,6 +66,7 @@ public sealed class ServiceOrdersController : ControllerBase
     [HttpPut(Name = "UpdateServiceOrder")]
     [ProducesResponseType(typeof(ServiceOrderDetailResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(UpdateServiceOrderRequest request, CancellationToken cancellationToken)
     {
         var service = await _serviceOrders.UpdateAsync(request, cancellationToken);

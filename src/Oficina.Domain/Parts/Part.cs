@@ -35,11 +35,6 @@ public sealed class Part
     {
         Validate(name, code, unitPrice);
 
-        // if (stockQuantity < 0)
-        // {
-        //     throw new ArgumentOutOfRangeException(nameof(stockQuantity), "Stock cannot be negative.");
-        // }
-
         return new Part(
             Guid.NewGuid(),
             name.Trim(),
@@ -58,36 +53,6 @@ public sealed class Part
         Kind = kind;
         UpdateDate = DateTime.UtcNow;
     }
-
-    // public void AdjustStock(int quantity)
-    // {
-    //     if (quantity == 0)
-    //     {
-    //         throw new ArgumentOutOfRangeException(nameof(quantity), "Stock adjustment cannot be zero.");
-    //     }
-
-    //     if (StockQuantity + quantity < 0)
-    //     {
-    //         throw new InvalidOperationException("Stock adjustment cannot result in negative stock.");
-    //     }
-
-    //     StockQuantity += quantity;
-    // }
-
-    // public void WithdrawStock(int quantity)
-    // {
-    //     if (quantity <= 0)
-    //     {
-    //         throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be greater than zero.");
-    //     }
-
-    //     if (quantity > StockQuantity)
-    //     {
-    //         throw new InvalidOperationException("Insufficient stock for the requested part.");
-    //     }
-
-    //     StockQuantity -= quantity;
-    // }
 
     public void Deactivate()
     {

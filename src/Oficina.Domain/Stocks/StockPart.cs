@@ -33,32 +33,47 @@ public sealed class StockPart
         return new StockPart(partId, quantity);
     }
 
-    public void AddQuantity(int quantity)
+    public void Reserve(int quantity)
+    {
+        EnsureCanReserve(quantity);
+        Quantity -= quantity;
+    }
+
+    public void Release(int quantity)
     {
         ValidateNonZeroMovement(quantity);
         Quantity += quantity;
     }
 
-    public void RemoveQuantity(int quantity)
+    /// <summary>
+    /// Valida se o saldo suporta a reserva informada sem alterar a quantidade,
+    /// permitindo que uma operacao envolvendo varios estoques falhe antes de
+    /// aplicar qualquer movimento.
+    /// </summary>
+    public void EnsureCanReserve(int quantity)
     {
         ValidateNonZeroMovement(quantity);
         if (Quantity < quantity)
         {
-            throw new InvalidOperationException("Stock quantity cannot be negative.");
+            throw new InsufficientStockException(PartId, Quantity, quantity);
         }
-
-        Quantity -= quantity;
     }
+
+    public void AddQuantity(int quantity) => Release(quantity);
+
+    public void RemoveQuantity(int quantity) => Reserve(quantity);
 
     public void AdjustQuantity(int quantity)
     {
         ValidateNonZeroMovement(quantity);
-        if (Quantity + quantity < 0)
+        if (quantity > 0)
         {
-            throw new InvalidOperationException("Stock quantity cannot be negative.");
+            Release(quantity);
         }
-
-        Quantity += quantity;
+        else
+        {
+            Reserve(-quantity);
+        }
     }
 
     public void SetQuantity(int quantity)

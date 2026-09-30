@@ -236,7 +236,7 @@ public sealed class ServiceOrderContractTests
         var context = await CreateOpenedOrderAsync(initialStock: 3);
         await AdvanceToInDiagnosisAsync(context);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => context.Service.UpdateAsync(
+        await Assert.ThrowsAsync<InsufficientStockException>(() => context.Service.UpdateAsync(
             new UpdateServiceOrderRequest(context.ServiceOrderId, Parts: [new AddPartToServiceOrderRequest(context.PartId, 10)]),
             CancellationToken.None));
     }
@@ -530,7 +530,7 @@ public sealed class ServiceOrderContractTests
             CancellationToken.None);
         await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => context.Service.UpdateAsync(
+        await Assert.ThrowsAsync<InsufficientStockException>(() => context.Service.UpdateAsync(
             new UpdateServiceOrderRequest(
                 context.ServiceOrderId,
                 Parts: [new AddPartToServiceOrderRequest(context.PartId, 4)]),
