@@ -231,7 +231,7 @@ public sealed class ServiceOrderService(
                 continue;
             }
 
-            stock.AddQuantity(part.QuantityUsed);
+            stock.Release(part.QuantityUsed);
             await _stocks.UpdateAsync(stock, cancellationToken);
         }
     }

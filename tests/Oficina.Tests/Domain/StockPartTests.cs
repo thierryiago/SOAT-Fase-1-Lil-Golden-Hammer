@@ -65,7 +65,7 @@ public sealed class StockPartTests
 
         var act = () => stock.RemoveQuantity(6);
 
-        Assert.Throws<InvalidOperationException>(act);
+        Assert.Throws<InsufficientStockException>(act);
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public sealed class StockPartTests
 
         var act = () => stock.AdjustQuantity(-6);
 
-        Assert.Throws<InvalidOperationException>(act);
+        Assert.Throws<InsufficientStockException>(act);
     }
 
     [Fact]
@@ -104,6 +104,109 @@ public sealed class StockPartTests
         var stock = StockPart.Create(Guid.NewGuid(), 5);
 
         var act = () => stock.AdjustQuantity(0);
+
+        Assert.Throws<ArgumentOutOfRangeException>(act);
+    }
+
+    [Fact]
+    public void Reserve_should_decrease_quantity()
+    {
+        var stock = StockPart.Create(Guid.NewGuid(), 5);
+
+        stock.Reserve(3);
+
+        Assert.Equal(2, stock.Quantity);
+    }
+
+    [Fact]
+    public void Reserve_should_allow_consuming_the_whole_balance()
+    {
+        var stock = StockPart.Create(Guid.NewGuid(), 5);
+
+        stock.Reserve(5);
+
+        Assert.Equal(0, stock.Quantity);
+    }
+
+    [Fact]
+    public void Reserve_should_reject_quantity_above_balance()
+    {
+        var partId = Guid.NewGuid();
+        var stock = StockPart.Create(partId, 5);
+
+        var exception = Assert.Throws<InsufficientStockException>(() => stock.Reserve(6));
+
+        Assert.Equal(partId, exception.PartId);
+        Assert.Equal(5, exception.Available);
+        Assert.Equal(6, exception.Requested);
+    }
+
+    [Fact]
+    public void Reserve_should_not_change_quantity_when_balance_is_insufficient()
+    {
+        var stock = StockPart.Create(Guid.NewGuid(), 5);
+
+        Assert.Throws<InsufficientStockException>(() => stock.Reserve(6));
+
+        Assert.Equal(5, stock.Quantity);
+    }
+
+    [Fact]
+    public void Reserve_should_reject_zero_movement()
+    {
+        var stock = StockPart.Create(Guid.NewGuid(), 5);
+
+        var act = () => stock.Reserve(0);
+
+        Assert.Throws<ArgumentOutOfRangeException>(act);
+    }
+
+    [Fact]
+    public void Release_should_increase_quantity()
+    {
+        var stock = StockPart.Create(Guid.NewGuid(), 5);
+
+        stock.Release(3);
+
+        Assert.Equal(8, stock.Quantity);
+    }
+
+    [Fact]
+    public void Release_should_reject_zero_movement()
+    {
+        var stock = StockPart.Create(Guid.NewGuid(), 5);
+
+        var act = () => stock.Release(0);
+
+        Assert.Throws<ArgumentOutOfRangeException>(act);
+    }
+
+    [Fact]
+    public void EnsureCanReserve_should_reject_quantity_above_balance_without_changing_quantity()
+    {
+        var stock = StockPart.Create(Guid.NewGuid(), 5);
+
+        Assert.Throws<InsufficientStockException>(() => stock.EnsureCanReserve(6));
+
+        Assert.Equal(5, stock.Quantity);
+    }
+
+    [Fact]
+    public void EnsureCanReserve_should_not_change_quantity_when_balance_is_enough()
+    {
+        var stock = StockPart.Create(Guid.NewGuid(), 5);
+
+        stock.EnsureCanReserve(5);
+
+        Assert.Equal(5, stock.Quantity);
+    }
+
+    [Fact]
+    public void EnsureCanReserve_should_reject_zero_movement()
+    {
+        var stock = StockPart.Create(Guid.NewGuid(), 5);
+
+        var act = () => stock.EnsureCanReserve(0);
 
         Assert.Throws<ArgumentOutOfRangeException>(act);
     }

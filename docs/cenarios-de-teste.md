@@ -42,10 +42,11 @@ Convenções: **OK** = fluxo válido; **Erro** = valida rejeição/exceção; **
 
 ### `StockPart` — `tests/Oficina.Tests/Domain/StockPartTests.cs`
 - **OK** — `Create` aceita quantidade zero.
-- **OK** — `AddQuantity` incrementa; `RemoveQuantity` decrementa; `AdjustQuantity` aplica delta positivo e negativo; `SetQuantity` substitui o valor absoluto.
+- **OK** — `Reserve` decrementa e aceita consumir o saldo inteiro; `Release` incrementa; `EnsureCanReserve` valida sem alterar a quantidade (nem no caminho feliz).
+- **OK** — `AddQuantity` incrementa; `RemoveQuantity` decrementa; `AdjustQuantity` aplica delta positivo e negativo (os três delegam para `Reserve`/`Release`); `SetQuantity` substitui o valor absoluto.
 - **Erro** — `Create` rejeita `partId` vazio ou quantidade negativa.
-- **Erro** — `AddQuantity`/`AdjustQuantity` rejeitam movimento zero.
-- **Erro** — `RemoveQuantity`/`AdjustQuantity` rejeitam resultado negativo.
+- **Erro** — `Reserve`/`Release`/`EnsureCanReserve`/`AddQuantity`/`AdjustQuantity` rejeitam movimento zero.
+- **Erro** — `Reserve`/`RemoveQuantity`/`AdjustQuantity` lançam `InsufficientStockException` (com `PartId`/`Available`/`Requested`) quando o saldo não cobre a reserva, sem alterar a quantidade; `EnsureCanReserve` idem.
 - **Erro** — `SetQuantity` rejeita valor negativo.
 
 ### `Mechanic` — `tests/Oficina.Tests/Domain/MechanicTests.cs`
@@ -151,7 +152,7 @@ Convenções: **OK** = fluxo válido; **Erro** = valida rejeição/exceção; **
 - **Erro** — `OpenAsync` lança `InvalidOperationException` quando cliente ou veículo não existem.
 - **Borda** — `GetByIdAsync` retorna `null` para ordem inexistente; retorna detalhe para ordem existente.
 - **OK** — `UpdateAsync` consome estoque ao adicionar peça nova; devolve estoque ao reduzir a quantidade de uma peça já usada.
-- **Erro** — `UpdateAsync` lança quando estoque é insuficiente, peça não existe, serviço de oficina não existe, ou ao tentar trocar o mecânico após o diagnóstico ter começado.
+- **Erro** — `UpdateAsync` lança `InsufficientStockException` quando o estoque é insuficiente; lança `InvalidOperationException` quando a peça não existe, o serviço de oficina não existe, ou ao tentar trocar o mecânico após o diagnóstico ter começado.
 - **OK** — `ApproveAsync` avança para `InExecution`; `FinalizeAsync` avança para `Finalized`; `DeliverAsync` avança para `Delivered`.
 - **Erro** — `ApproveAsync`/`CancelAsync`/`FinalizeAsync`/`DeliverAsync` lançam quando a ordem está no status errado **ou** quando a ordem não existe.
 - **OK** — `CancelAsync` rejeita a ordem e devolve ao estoque as peças já consumidas.
@@ -304,11 +305,11 @@ Sobem a aplicação inteira via `WebApplicationFactory<Program>` (`OficinaApiFac
 
 - **`Domains/Stock.cs` (`StockTests`)**: movimentação de estoque isolada + o fluxo real de consumo/devolução disparado pela Ordem de Serviço.
   - **OK** — `PUT .../entries` soma quantidade a um estoque zerado; `PUT .../consumptions` reduz quantidade existente; `PUT .../adjustments` substitui o valor absoluto (independente do anterior).
-  - **Erro** — `PUT .../consumptions` pedindo mais do que o disponível retorna 400.
+  - **Erro** — `PUT .../consumptions` pedindo mais do que o disponível retorna 409 (`InsufficientStockException`, conflito de estado — não entrada inválida).
   - **OK** — **`Service_order_should_deduct_stock_when_part_is_attached`**: cria peça com 10 em estoque, abre uma OS, anexa 3 unidades da peça (ainda em `InDiagnosis`) e confirma que o estoque cai para 7 **naquele momento** — aprovar, finalizar e entregar a OS depois **não** alteram o estoque de novo (a subtração acontece só quando a peça é anexada via `Update`, não em `approve`/`finalize`/`deliver`).
   - **OK** — **`Service_order_should_return_stock_when_cancelled`**: mesmo cenário, mas cancelando a OS em vez de aprovar — o estoque volta de 7 para 10, confirmando que `CancelAsync` devolve ao estoque as peças já anexadas.
-  - **Erro** (2026-08-27, item 10) — **`Service_order_should_reject_increasing_attached_part_quantity_beyond_available_stock`**: anexa 3 unidades (sobram 2 em estoque), depois tenta aumentar a quantidade já anexada para 10 (precisaria de +7, só há 2) — 400.
-  - **Borda** (2026-08-27, item 11) — **`Two_orders_disputing_the_same_part_should_reject_the_second_once_stock_is_exhausted`**: OS A anexa as 5 unidades restantes de uma peça; OS B tenta anexar 1 unidade da mesma peça em seguida — 400 (esgotamento sequencial disputado por duas OS).
+  - **Erro** (2026-08-27, item 10) — **`Service_order_should_reject_increasing_attached_part_quantity_beyond_available_stock`**: anexa 3 unidades (sobram 2 em estoque), depois tenta aumentar a quantidade já anexada para 10 (precisaria de +7, só há 2) — 409.
+  - **Borda** (2026-08-27, item 11) — **`Two_orders_disputing_the_same_part_should_reject_the_second_once_stock_is_exhausted`**: OS A anexa as 5 unidades restantes de uma peça; OS B tenta anexar 1 unidade da mesma peça em seguida — 409 (esgotamento sequencial disputado por duas OS).
 
 - **`Domains/Budget.cs` (`BudgetTests`)**: `BudgetsController` só expõe `GET` (lista) e `GET /{id}` — não há rota HTTP para abrir orçamento manualmente (a abertura é sempre automática, disparada pelo `ServiceOrderService`). As chamadas também não enviam token — reflete o comportamento real de hoje, já que `BudgetsController` não tem `[Authorize]`: decisão intencional, pois o cliente precisa consultar seu orçamento sem credencial administrativa.
   - **OK** — `GET /api/v1/budgets` lista um orçamento recém-inserido, sem token.

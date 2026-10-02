@@ -172,10 +172,9 @@ public sealed class UpdateServiceOrderUseCase(
             {
                 var stock = await GetTouchedStockAsync(touchedStocks, part, cancellationToken);
                 stockDeltas[part.Id] = delta;
-                if (delta > 0 && stock.Quantity < delta)
+                if (delta > 0)
                 {
-                    throw new InvalidOperationException(
-                        $"Insufficient stock for part '{part.Name}'. Available: {stock.Quantity}, requested: {delta}.");
+                    stock.EnsureCanReserve(delta);
                 }
             }
 
@@ -214,11 +213,11 @@ public sealed class UpdateServiceOrderUseCase(
             var stock = touchedStocks[partId];
             if (delta > 0)
             {
-                stock.RemoveQuantity(delta);
+                stock.Reserve(delta);
             }
             else
             {
-                stock.AddQuantity(-delta);
+                stock.Release(-delta);
             }
         }
 

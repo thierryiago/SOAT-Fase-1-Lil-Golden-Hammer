@@ -58,7 +58,7 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
         var response = await _client.PutAsJsonAsync($"/api/v1/stocks/stocks-part/{part.Id}/consumptions", new { quantity = 10 });
         Log("Consume 10 units with only 3 in stock (expected: rejected)", response);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]
@@ -152,7 +152,7 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
     }
 
     // Item 10 of docs/analise-gaps-e-cenarios-faltantes.md: increasing the quantity of a part
-    // already attached to the order, beyond what's left in stock, must be rejected with 400 - the
+    // already attached to the order, beyond what's left in stock, must be rejected with 409 - the
     // HTTP-level mirror of the equivalent Application-layer test (ServiceOrderContractTests).
     [Fact]
     public async Task Service_order_should_reject_increasing_attached_part_quantity_beyond_available_stock()
@@ -180,9 +180,9 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
             serviceOrderId = serviceOrder.Id,
             parts = new[] { new { partId = part.Id, quantity = 10 } }
         });
-        Log("Increase attached part quantity from 3 to 10 with only 2 units left in stock (expected: 400)", increaseResponse);
+        Log("Increase attached part quantity from 3 to 10 with only 2 units left in stock (expected: 409)", increaseResponse);
 
-        Assert.Equal(HttpStatusCode.BadRequest, increaseResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, increaseResponse.StatusCode);
     }
 
     // Item 11 of docs/analise-gaps-e-cenarios-faltantes.md: two orders sequentially disputing the
@@ -213,9 +213,9 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
             serviceOrderId = orderB.Id,
             parts = new[] { new { partId = part.Id, quantity = 1 } }
         });
-        Log("Order B tries to attach 1 unit after order A exhausted the stock (expected: 400)", attachToOrderBResponse);
+        Log("Order B tries to attach 1 unit after order A exhausted the stock (expected: 409)", attachToOrderBResponse);
 
-        Assert.Equal(HttpStatusCode.BadRequest, attachToOrderBResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, attachToOrderBResponse.StatusCode);
     }
 
     private async Task<StockResponse> GetStockByPartIdAsync(Guid partId)

@@ -52,3 +52,7 @@ desktop.ini
 coverage.xml
 .sonarqube
 RelatorioHTML
+/docs
+/Claude outputs
+*.sh
+/estoque-arch-8.http

@@ -10,6 +10,7 @@ using Oficina.Api.Configuration;
 using Oficina.Api.OpenApi;
 using Oficina.Application;
 using Oficina.Application.Common;
+using Oficina.Domain.Stock;
 using Oficina.Infrastructure;
 using Oficina.Infrastructure.Persistence;
 using System.Text;
@@ -77,6 +78,7 @@ app.UseExceptionHandler(errorApp =>
         {
             KeyNotFoundException => StatusCodes.Status404NotFound,
             ConflictException => StatusCodes.Status409Conflict,
+            InsufficientStockException => StatusCodes.Status409Conflict,
             ArgumentException or InvalidOperationException => StatusCodes.Status400BadRequest,
             _ => StatusCodes.Status500InternalServerError
         };
