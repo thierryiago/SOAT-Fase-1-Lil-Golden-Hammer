@@ -1,7 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Oficina.Application.Budgets;
 using Oficina.Application.Customers;
-using Oficina.Application.Mechanics;
+using Oficina.Application.Mechanics.UseCases;
+using Oficina.Application.Mechanics.UseCases.Queries;
 using Oficina.Application.Metrics;
 using Oficina.Application.Notifications;
 using Oficina.Application.Parts;
@@ -32,7 +33,11 @@ public static class DependencyInjection
         services.AddScoped<VehicleService>();
         services.AddScoped<ServiceCatalogService>();
         services.AddScoped<StockService>();
-        services.AddScoped<MechanicService>();
+        services.AddScoped<CreateMechanicUseCase>();
+        services.AddScoped<UpdateMechanicUseCase>();
+        services.AddScoped<DeleteMechanicUseCase>();
+        services.AddScoped<ListMechanicsUseCase>();
+        services.AddScoped<GetMechanicByIdUseCase>();
         services.AddScoped<MetricsService>();
         services.AddScoped<BudgetService>();
         services.AddScoped<IBudgetService>(provider => provider.GetRequiredService<BudgetService>());
