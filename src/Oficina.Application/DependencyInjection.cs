@@ -5,7 +5,6 @@ using Oficina.Application.Customers.UseCases.Queries;
 using Oficina.Application.Mechanics.UseCases;
 using Oficina.Application.Mechanics.UseCases.Queries;
 using Oficina.Application.Metrics.UseCases.Queries;
-using Oficina.Application.Notifications.UseCases;
 using Oficina.Application.Parts;
 using Oficina.Application.Parts.UseCases;
 using Oficina.Application.Parts.UseCases.Queries;
@@ -73,9 +72,6 @@ public static class DependencyInjection
         services.AddScoped<GetWorkshopServiceExecutionTimesUseCase>();
         services.AddScoped<BudgetService>();
         services.AddScoped<IBudgetService>(provider => provider.GetRequiredService<BudgetService>());
-        services.AddScoped<SendEmailNotificationUseCase>();
-        services.AddScoped<SendBudgetAwaitingApprovalUseCase>();
-        services.AddScoped<SendVehicleReadyForPickupUseCase>();
         return services;
     }
 }

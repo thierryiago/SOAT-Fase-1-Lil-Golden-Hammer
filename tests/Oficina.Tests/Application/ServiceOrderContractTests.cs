@@ -1,7 +1,6 @@
 using Oficina.Application.Budgets;
 using Oficina.Application.Customers;
 using Oficina.Application.Notifications;
-using Oficina.Application.Notifications.UseCases;
 using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
@@ -19,6 +18,7 @@ using Oficina.Domain.ServiceOrders;
 using Oficina.Domain.Stock;
 using Oficina.Domain.Vehicles;
 using Oficina.Domain.WorkshopServices;
+using Oficina.Infrastructure.Notifications;
 
 namespace Oficina.Tests.Application;
 
@@ -187,7 +187,7 @@ public sealed class ServiceOrderContractTests
 
         var service = new ServiceOrderService(
             orders, customers, vehicles, stocks,
-            new FakeServiceOrderHistoryRepository(), new FakeBudgetService(), CreateSendVehicleReadyForPickup());
+            new FakeServiceOrderHistoryRepository(), new FakeBudgetService(), CreateNotificationEmailSender(new FakeEmailSender()));
 
         var response = await service.CancelAsync(serviceOrder.Id, CancellationToken.None);
 
@@ -749,8 +749,7 @@ public sealed class ServiceOrderContractTests
         await workshopServices.AddAsync(workshopService, CancellationToken.None);
 
         var budgetService = new BudgetService(budgets, orders, parts, workshopServices);
-        var sendVehicleReadyForPickup = new SendVehicleReadyForPickupUseCase(emailSender);
-        var sendBudgetAwaitingApproval = new SendBudgetAwaitingApprovalUseCase(emailSender);
+        var notificationEmailSender = CreateNotificationEmailSender(emailSender);
         var service = new ServiceOrderService(
             orders,
             customers,
@@ -758,7 +757,7 @@ public sealed class ServiceOrderContractTests
             stocks,
             history,
             budgetService,
-            sendVehicleReadyForPickup);
+            notificationEmailSender);
         var openServiceOrder = new OpenServiceOrderUseCase(orders, customers, vehicles);
         var updateServiceOrder = new UpdateServiceOrderUseCase(
             orders,
@@ -768,7 +767,7 @@ public sealed class ServiceOrderContractTests
             history,
             budgetService,
             customers,
-            sendBudgetAwaitingApproval);
+            notificationEmailSender);
         var getServiceOrderById = new GetServiceOrderByIdUseCase(orders);
         var listSchedules = new ListSchedulesUseCase(orders);
         var listSchedulesByDate = new ListSchedulesByDateUseCase(orders);
@@ -890,10 +889,13 @@ public sealed class ServiceOrderContractTests
             CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
-    private static SendVehicleReadyForPickupUseCase CreateSendVehicleReadyForPickup() =>
-        new(new FakeEmailSender());
+    private static NotificationEmailSender CreateNotificationEmailSender(IEmailTransport emailTransport) =>
+        new(
+            new SendEmailNotification(emailTransport),
+            new SendBudgetAwaitingApproval(emailTransport),
+            new SendVehicleReadyForPickup(emailTransport));
 
-    private sealed class FakeEmailSender : INotificationEmailSender
+    private sealed class FakeEmailSender : IEmailTransport
     {
         public string? Recipient { get; private set; }
         public string? Subject { get; private set; }

@@ -1,16 +1,16 @@
 using Oficina.Application.Budgets;
 using Oficina.Application.Notifications;
-using Oficina.Application.Notifications.UseCases;
+using Oficina.Infrastructure.Notifications;
 
-namespace Oficina.Tests.Application;
+namespace Oficina.Tests.Infrastructure;
 
-public sealed class NotificationUseCasesTests
+public sealed class NotificationsTests
 {
     [Fact]
     public async Task SendEmailNotification_should_send_simple_notification_to_recipient()
     {
         var sender = new FakeEmailSender();
-        var useCase = new SendEmailNotificationUseCase(sender);
+        var useCase = new SendEmailNotification(sender);
 
         await useCase.SendEmailAsync(new SendEmailNotificationRequest(" cliente@example.com "), CancellationToken.None);
 
@@ -24,7 +24,7 @@ public sealed class NotificationUseCasesTests
     [InlineData("invalid-email")]
     public async Task SendEmailNotification_should_reject_invalid_email(string email)
     {
-        var useCase = new SendEmailNotificationUseCase(new FakeEmailSender());
+        var useCase = new SendEmailNotification(new FakeEmailSender());
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             useCase.SendEmailAsync(new SendEmailNotificationRequest(email), CancellationToken.None));
@@ -33,7 +33,7 @@ public sealed class NotificationUseCasesTests
     [Fact]
     public async Task SendEmailNotification_should_propagate_sender_failure()
     {
-        var useCase = new SendEmailNotificationUseCase(new FailingEmailSender());
+        var useCase = new SendEmailNotification(new FailingEmailSender());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             useCase.SendEmailAsync(new SendEmailNotificationRequest("cliente@example.com"), CancellationToken.None));
@@ -43,7 +43,7 @@ public sealed class NotificationUseCasesTests
     public async Task SendBudgetAwaitingApproval_should_send_budget_as_html_with_decision_buttons()
     {
         var sender = new FakeEmailSender();
-        var useCase = new SendBudgetAwaitingApprovalUseCase(sender);
+        var useCase = new SendBudgetAwaitingApproval(sender);
         var budget = new BudgetResponse(
             Guid.NewGuid(),
             Guid.NewGuid(),
@@ -81,7 +81,7 @@ public sealed class NotificationUseCasesTests
     public async Task SendBudgetAwaitingApproval_should_list_none_when_budget_has_no_items()
     {
         var sender = new FakeEmailSender();
-        var useCase = new SendBudgetAwaitingApprovalUseCase(sender);
+        var useCase = new SendBudgetAwaitingApproval(sender);
         var budget = new BudgetResponse(
             Guid.NewGuid(),
             Guid.NewGuid(),
@@ -106,7 +106,7 @@ public sealed class NotificationUseCasesTests
     public async Task SendVehicleReadyForPickup_should_notify_customer()
     {
         var sender = new FakeEmailSender();
-        var useCase = new SendVehicleReadyForPickupUseCase(sender);
+        var useCase = new SendVehicleReadyForPickup(sender);
 
         await useCase.SendVehicleReadyForPickupAsync(
             "Pedro",
@@ -127,7 +127,60 @@ public sealed class NotificationUseCasesTests
         Assert.Contains("- Year: 2020", sender.Body);
     }
 
-    private sealed class FakeEmailSender : INotificationEmailSender
+    [Fact]
+    public async Task NotificationEmailSender_should_delegate_simple_notification()
+    {
+        var sender = new FakeEmailSender();
+        var notifications = CreateNotificationEmailSender(sender);
+
+        await notifications.SendEmailAsync(new SendEmailNotificationRequest("cliente@example.com"), CancellationToken.None);
+
+        Assert.Equal("cliente@example.com", sender.Recipient);
+        Assert.Equal("Notificação da Oficina", sender.Subject);
+        Assert.False(sender.IsHtml);
+    }
+
+    [Fact]
+    public async Task NotificationEmailSender_should_delegate_budget_awaiting_approval()
+    {
+        var sender = new FakeEmailSender();
+        var notifications = CreateNotificationEmailSender(sender);
+        var budget = new BudgetResponse(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow, null, 0m, [], []);
+
+        await notifications.SendBudgetAwaitingApprovalAsync("Pedro", "pedro@example.com", budget, CancellationToken.None);
+
+        Assert.Equal("pedro@example.com", sender.Recipient);
+        Assert.Equal("Pedro - Budget Awaiting to Approval", sender.Subject);
+        Assert.True(sender.IsHtml);
+    }
+
+    [Fact]
+    public async Task NotificationEmailSender_should_delegate_vehicle_ready_for_pickup()
+    {
+        var sender = new FakeEmailSender();
+        var notifications = CreateNotificationEmailSender(sender);
+
+        await notifications.SendVehicleReadyForPickupAsync(
+            "Pedro",
+            "pedro@example.com",
+            "ABC-1234",
+            "Fiat",
+            "Uno",
+            2020,
+            CancellationToken.None);
+
+        Assert.Equal("pedro@example.com", sender.Recipient);
+        Assert.Equal("Vehicle ready for pickup", sender.Subject);
+        Assert.False(sender.IsHtml);
+    }
+
+    private static NotificationEmailSender CreateNotificationEmailSender(IEmailTransport emailTransport) =>
+        new(
+            new SendEmailNotification(emailTransport),
+            new SendBudgetAwaitingApproval(emailTransport),
+            new SendVehicleReadyForPickup(emailTransport));
+
+    private sealed class FakeEmailSender : IEmailTransport
     {
         public string? Recipient { get; private set; }
         public string? Subject { get; private set; }
@@ -144,7 +197,7 @@ public sealed class NotificationUseCasesTests
         }
     }
 
-    private sealed class FailingEmailSender : INotificationEmailSender
+    private sealed class FailingEmailSender : IEmailTransport
     {
         public Task SendAsync(string recipient, string subject, string body, bool isHtml, CancellationToken cancellationToken) =>
             Task.FromException(new InvalidOperationException("SMTP unavailable."));

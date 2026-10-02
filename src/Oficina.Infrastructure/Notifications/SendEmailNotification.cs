@@ -1,14 +1,15 @@
+using Oficina.Application.Notifications;
 using System.Net.Mail;
 
-namespace Oficina.Application.Notifications.UseCases;
+namespace Oficina.Infrastructure.Notifications;
 
-public class SendEmailNotificationUseCase(
-    INotificationEmailSender emailSender)
+public sealed class SendEmailNotification(
+    IEmailTransport emailSender)
 {
     private const string Subject = "Notificação da Oficina";
     private const string Body = "Esta é uma notificação enviada pela Oficina.";
 
-    private readonly INotificationEmailSender _emailSender = emailSender;
+    private readonly IEmailTransport _emailSender = emailSender;
 
     public Task SendEmailAsync(SendEmailNotificationRequest request, CancellationToken cancellationToken)
     {

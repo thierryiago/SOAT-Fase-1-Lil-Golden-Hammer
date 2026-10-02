@@ -1,16 +1,17 @@
 using Oficina.Application.Budgets;
+using Oficina.Application.Notifications;
 using System.Globalization;
 using System.Text;
 
-namespace Oficina.Application.Notifications.UseCases;
+namespace Oficina.Infrastructure.Notifications;
 
-public class SendBudgetAwaitingApprovalUseCase(
-    INotificationEmailSender emailSender)
+public sealed class SendBudgetAwaitingApproval(
+    IEmailTransport emailSender)
 {
     private const string ApproveBudgetUrl = "https://localhost:5001/api/v1/notifications/approveBudget";
     private const string RejectBudgetUrl = "https://localhost:5001/api/v1/notifications/rejectBudget";
 
-    private readonly INotificationEmailSender _emailSender = emailSender;
+    private readonly IEmailTransport _emailSender = emailSender;
 
     public Task SendBudgetAwaitingApprovalAsync(
         string customerName,

@@ -1,11 +1,12 @@
+using Oficina.Application.Notifications;
 using System.Text;
 
-namespace Oficina.Application.Notifications.UseCases;
+namespace Oficina.Infrastructure.Notifications;
 
-public class SendVehicleReadyForPickupUseCase(
-    INotificationEmailSender emailSender)
+public sealed class SendVehicleReadyForPickup(
+    IEmailTransport emailSender)
 {
-    private readonly INotificationEmailSender _emailSender = emailSender;
+    private readonly IEmailTransport _emailSender = emailSender;
 
     public Task SendVehicleReadyForPickupAsync(
         string customerName,

@@ -41,8 +41,8 @@ public sealed class OficinaApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<AppDbContext>();
             services.AddDbContext<AppDbContext>(options =>
                 options.UseInMemoryDatabase(databaseName));
-            services.RemoveAll<INotificationEmailSender>();
-            services.AddScoped<INotificationEmailSender, FakeNotificationEmailSender>();
+            services.RemoveAll<IEmailTransport>();
+            services.AddScoped<IEmailTransport, FakeEmailTransport>();
         });
     }
 
@@ -51,7 +51,7 @@ public sealed class OficinaApiFactory : WebApplicationFactory<Program>
     // real SMTP server. Static because AddScoped creates a new instance per request, but the
     // capture needs to survive across the several HTTP calls a single test makes. Tests must
     // filter by a unique recipient/subject per test to stay isolated from each other.
-    public sealed class FakeNotificationEmailSender : INotificationEmailSender
+    public sealed class FakeEmailTransport : IEmailTransport
     {
         private static readonly System.Collections.Concurrent.ConcurrentQueue<SentEmail> _sentEmails = new();
 

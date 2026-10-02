@@ -170,9 +170,9 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
     }
 
     // Item 18 of docs/analise-gaps-e-cenarios-faltantes.md: confirms the budget-awaiting-approval
-    // e-mail is actually dispatched (not just that SendBudgetAwaitingApprovalUseCase is called correctly with
+    // e-mail is actually dispatched (not just that SendBudgetAwaitingApproval is called correctly with
     // fakes, as already tested at the Application layer) when a real order reaches
-    // AwaitingApproval via HTTP. OficinaApiFactory registers a FakeNotificationEmailSender in
+    // AwaitingApproval via HTTP. OficinaApiFactory registers a FakeEmailTransport in
     // place of the real SMTP sender, capturing every "sent" e-mail for inspection.
     [Fact]
     public async Task Service_order_should_actually_dispatch_the_budget_email_when_it_reaches_awaiting_approval()
@@ -245,7 +245,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         });
         awaitingApprovalResponse.EnsureSuccessStatusCode();
 
-        var sentEmail = OficinaApiFactory.FakeNotificationEmailSender.SentEmails
+        var sentEmail = OficinaApiFactory.FakeEmailTransport.SentEmails
             .SingleOrDefault(email => email.Recipient == customerEmail);
         Log(
             sentEmail is null
@@ -380,7 +380,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         var updatedOrder = (await awaitingApprovalResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
         Assert.Equal(ServiceOrderStatus.AwaitingApproval, updatedOrder.Status);
 
-        var sentEmail = OficinaApiFactory.FakeNotificationEmailSender.SentEmails
+        var sentEmail = OficinaApiFactory.FakeEmailTransport.SentEmails
             .SingleOrDefault(email => email.Recipient == customerEmail);
         Assert.NotNull(sentEmail);
         var budgetIdMatch = Regex.Match(sentEmail!.Body, @"approveBudget\?budgetId=([0-9a-fA-F-]{36})");

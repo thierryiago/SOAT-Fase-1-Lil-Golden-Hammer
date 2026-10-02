@@ -1,6 +1,6 @@
 using Oficina.Application.Budgets;
 using Oficina.Application.Customers;
-using Oficina.Application.Notifications.UseCases;
+using Oficina.Application.Notifications;
 using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.Parts;
 using Oficina.Application.Stocks;
@@ -21,7 +21,7 @@ public sealed class UpdateServiceOrderUseCase(
     IServiceOrderHistoryRepository history,
     IBudgetService budgets,
     ICustomerRepository customers,
-    SendBudgetAwaitingApprovalUseCase sendBudgetAwaitingApproval)
+    INotificationEmailSender notificationEmailSender)
 {
     private readonly IServiceOrderRepository _serviceOrderRepository = serviceOrders;
     private readonly IPartRepository _parts = parts;
@@ -30,7 +30,7 @@ public sealed class UpdateServiceOrderUseCase(
     private readonly IServiceOrderHistoryRepository _history = history;
     private readonly IBudgetService _budgets = budgets;
     private readonly ICustomerRepository _customerRepository = customers;
-    private readonly SendBudgetAwaitingApprovalUseCase _sendBudgetAwaitingApproval = sendBudgetAwaitingApproval;
+    private readonly INotificationEmailSender _notificationEmailSender = notificationEmailSender;
 
     public async Task<ServiceOrderDetailResponse> ExecuteAsync(
         UpdateServiceOrderRequest request,
@@ -95,7 +95,7 @@ public sealed class UpdateServiceOrderUseCase(
             var customer = await _customerRepository.GetByIdAsync(serviceOrder.CustomerId, cancellationToken)
                 ?? throw new InvalidOperationException("Customer was not found.");
 
-            await _sendBudgetAwaitingApproval.SendBudgetAwaitingApprovalAsync(
+            await _notificationEmailSender.SendBudgetAwaitingApprovalAsync(
                 customer.Name,
                 customer.Email,
                 budget,
