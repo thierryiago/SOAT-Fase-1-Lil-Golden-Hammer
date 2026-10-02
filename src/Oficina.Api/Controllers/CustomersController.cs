@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Common;
 using Oficina.Application.Customers;
+using Oficina.Application.Customers.UseCases;
+using Oficina.Application.Customers.UseCases.Queries;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Oficina.Api.Controllers;
@@ -12,11 +14,24 @@ namespace Oficina.Api.Controllers;
 [ExcludeFromCodeCoverage]
 public sealed class CustomersController : ControllerBase
 {
-    private readonly CustomerService _customers;
+    private readonly CreateCustomerUseCase _createCustomer;
+    private readonly UpdateCustomerUseCase _updateCustomer;
+    private readonly DeleteCustomerUseCase _deleteCustomer;
+    private readonly ListCustomersUseCase _listCustomers;
+    private readonly GetCustomerByIdUseCase _getCustomerById;
 
-    public CustomersController(CustomerService customers)
+    public CustomersController(
+        CreateCustomerUseCase createCustomer,
+        UpdateCustomerUseCase updateCustomer,
+        DeleteCustomerUseCase deleteCustomer,
+        ListCustomersUseCase listCustomers,
+        GetCustomerByIdUseCase getCustomerById)
     {
-        _customers = customers;
+        _createCustomer = createCustomer;
+        _updateCustomer = updateCustomer;
+        _deleteCustomer = deleteCustomer;
+        _listCustomers = listCustomers;
+        _getCustomerById = getCustomerById;
     }
 
     [HttpGet(Name = "ListCustomers")]
@@ -25,7 +40,7 @@ public sealed class CustomersController : ControllerBase
         [FromQuery] PageRequest request,
         CancellationToken cancellationToken)
     {
-        var customers = await _customers.ListAsync(request, cancellationToken);
+        var customers = await _listCustomers.ListAsync(request, cancellationToken);
         return Ok(customers);
     }
 
@@ -34,7 +49,7 @@ public sealed class CustomersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var customer = await _customers.GetByIdAsync(id, cancellationToken);
+        var customer = await _getCustomerById.GetByIdAsync(id, cancellationToken);
         return customer is null ? NotFound() : Ok(customer);
     }
 
@@ -43,7 +58,7 @@ public sealed class CustomersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create(CreateCustomerRequest request, CancellationToken cancellationToken)
     {
-        var customer = await _customers.CreateAsync(request, cancellationToken);
+        var customer = await _createCustomer.CreateAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = customer.Id }, customer);
     }
 
@@ -57,7 +72,7 @@ public sealed class CustomersController : ControllerBase
         UpdateCustomerRequest request,
         CancellationToken cancellationToken)
     {
-        var customer = await _customers.UpdateAsync(id, request, cancellationToken);
+        var customer = await _updateCustomer.UpdateAsync(id, request, cancellationToken);
         return Ok(customer);
     }
 
@@ -66,7 +81,7 @@ public sealed class CustomersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        var deleted = await _customers.DeleteAsync(id, cancellationToken);
+        var deleted = await _deleteCustomer.DeleteAsync(id, cancellationToken);
         return deleted ? NoContent() : NotFound();
     }
 }

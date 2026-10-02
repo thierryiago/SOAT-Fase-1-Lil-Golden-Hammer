@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Common;
 using Oficina.Application.Vehicles;
+using Oficina.Application.Vehicles.UseCases;
+using Oficina.Application.Vehicles.UseCases.Queries;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Oficina.Api.Controllers;
@@ -12,11 +14,27 @@ namespace Oficina.Api.Controllers;
 [ExcludeFromCodeCoverage]
 public sealed class VehiclesController : ControllerBase
 {
-    private readonly VehicleService _vehicles;
+    private readonly CreateVehicleUseCase _createVehicle;
+    private readonly IdentifyCustomerAndRegisterVehicleUseCase _identifyCustomerAndRegisterVehicle;
+    private readonly UpdateVehicleUseCase _updateVehicle;
+    private readonly DeleteVehicleUseCase _deleteVehicle;
+    private readonly ListVehiclesUseCase _listVehicles;
+    private readonly GetVehicleByIdUseCase _getVehicleById;
 
-    public VehiclesController(VehicleService vehicles)
+    public VehiclesController(
+        CreateVehicleUseCase createVehicle,
+        IdentifyCustomerAndRegisterVehicleUseCase identifyCustomerAndRegisterVehicle,
+        UpdateVehicleUseCase updateVehicle,
+        DeleteVehicleUseCase deleteVehicle,
+        ListVehiclesUseCase listVehicles,
+        GetVehicleByIdUseCase getVehicleById)
     {
-        _vehicles = vehicles;
+        _createVehicle = createVehicle;
+        _identifyCustomerAndRegisterVehicle = identifyCustomerAndRegisterVehicle;
+        _updateVehicle = updateVehicle;
+        _deleteVehicle = deleteVehicle;
+        _listVehicles = listVehicles;
+        _getVehicleById = getVehicleById;
     }
 
     [HttpGet(Name = "ListVehicles")]
@@ -26,7 +44,7 @@ public sealed class VehiclesController : ControllerBase
         [FromQuery] Guid? customerId,
         CancellationToken cancellationToken)
     {
-        var vehicles = await _vehicles.ListAsync(request, customerId, cancellationToken);
+        var vehicles = await _listVehicles.ListAsync(request, customerId, cancellationToken);
         return Ok(vehicles);
     }
 
@@ -35,7 +53,7 @@ public sealed class VehiclesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var vehicle = await _vehicles.GetByIdAsync(id, cancellationToken);
+        var vehicle = await _getVehicleById.GetByIdAsync(id, cancellationToken);
         return vehicle is null ? NotFound() : Ok(vehicle);
     }
 
@@ -48,7 +66,7 @@ public sealed class VehiclesController : ControllerBase
         CreateVehicleRequest request,
         CancellationToken cancellationToken)
     {
-        var vehicle = await _vehicles.CreateAsync(request, cancellationToken);
+        var vehicle = await _createVehicle.CreateAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = vehicle.Id }, vehicle);
     }
 
@@ -59,7 +77,7 @@ public sealed class VehiclesController : ControllerBase
         IdentifyCustomerAndRegisterVehicleRequest request,
         CancellationToken cancellationToken)
     {
-        var response = await _vehicles.IdentifyCustomerAndRegisterVehicleAsync(request, cancellationToken);
+        var response = await _identifyCustomerAndRegisterVehicle.IdentifyCustomerAndRegisterVehicleAsync(request, cancellationToken);
         return Ok(response);
     }
 
@@ -73,7 +91,7 @@ public sealed class VehiclesController : ControllerBase
         UpdateVehicleRequest request,
         CancellationToken cancellationToken)
     {
-        var vehicle = await _vehicles.UpdateAsync(id, request, cancellationToken);
+        var vehicle = await _updateVehicle.UpdateAsync(id, request, cancellationToken);
         return Ok(vehicle);
     }
 
@@ -82,7 +100,7 @@ public sealed class VehiclesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        var deleted = await _vehicles.DeleteAsync(id, cancellationToken);
+        var deleted = await _deleteVehicle.DeleteAsync(id, cancellationToken);
         return deleted ? NoContent() : NotFound();
     }
 }
