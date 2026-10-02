@@ -201,7 +201,7 @@ public sealed class VehicleTests(OficinaApiFactory factory, ITestOutputHelper ou
         });
         Log("Identify customer by a document that was never registered", response);
 
-        // VehicleService throws KeyNotFoundException, which Program.cs's exception handler maps to 404.
+        // IdentifyCustomerAndRegisterVehicleUseCase throws KeyNotFoundException, which Program.cs's exception handler maps to 404.
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -225,7 +225,7 @@ public sealed class VehicleTests(OficinaApiFactory factory, ITestOutputHelper ou
         Log("Identify customer by document after the customer was soft-deleted (inactive)", response);
 
         // GetByDocumentAsync (see CustomerRepository) may or may not still return the inactive
-        // customer; either way VehicleService checks IsActive and throws KeyNotFoundException,
+        // customer; either way IdentifyCustomerAndRegisterVehicleUseCase checks IsActive and throws KeyNotFoundException,
         // mapped to 404 by Program.cs's exception handler.
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
