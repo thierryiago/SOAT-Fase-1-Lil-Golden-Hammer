@@ -15,7 +15,8 @@ using Oficina.Application.Stocks;
 using Oficina.Application.Stocks.UseCases;
 using Oficina.Application.Stocks.UseCases.Queries;
 using Oficina.Application.Vehicles;
-using Oficina.Application.WorkshopServices;
+using Oficina.Application.WorkshopServices.UseCases;
+using Oficina.Application.WorkshopServices.UseCases.Queries;
 
 namespace Oficina.Application;
 
@@ -41,7 +42,11 @@ public static class DependencyInjection
         services.AddScoped<ListSchedulesUseCase>();
         services.AddScoped<ListSchedulesByDateUseCase>();
         services.AddScoped<VehicleService>();
-        services.AddScoped<ServiceCatalogService>();
+        services.AddScoped<CreateWorkshopServiceUseCase>();
+        services.AddScoped<UpdateWorkshopServiceUseCase>();
+        services.AddScoped<DeleteWorkshopServiceUseCase>();
+        services.AddScoped<ListWorkshopServicesUseCase>();
+        services.AddScoped<GetWorkshopServiceByIdUseCase>();
         services.AddScoped<StockService>();
         services.AddScoped<CreateStockUseCase>();
         services.AddScoped<EntryStockUseCase>();
