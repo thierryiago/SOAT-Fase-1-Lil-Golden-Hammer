@@ -1,17 +1,18 @@
 using Oficina.Application.Budgets;
 using Oficina.Application.Notifications;
+using Oficina.Application.Notifications.UseCases;
 
 namespace Oficina.Tests.Application;
 
-public sealed class NotificationServiceTests
+public sealed class NotificationUseCasesTests
 {
     [Fact]
-    public async Task SendEmailAsync_should_send_simple_notification_to_recipient()
+    public async Task SendEmailNotification_should_send_simple_notification_to_recipient()
     {
         var sender = new FakeEmailSender();
-        var service = new NotificationService(sender);
+        var useCase = new SendEmailNotificationUseCase(sender);
 
-        await service.SendEmailAsync(new SendEmailNotificationRequest(" cliente@example.com "), CancellationToken.None);
+        await useCase.SendEmailAsync(new SendEmailNotificationRequest(" cliente@example.com "), CancellationToken.None);
 
         Assert.Equal("cliente@example.com", sender.Recipient);
         Assert.Equal("Notificação da Oficina", sender.Subject);
@@ -21,28 +22,28 @@ public sealed class NotificationServiceTests
     [Theory]
     [InlineData("")]
     [InlineData("invalid-email")]
-    public async Task SendEmailAsync_should_reject_invalid_email(string email)
+    public async Task SendEmailNotification_should_reject_invalid_email(string email)
     {
-        var service = new NotificationService(new FakeEmailSender());
+        var useCase = new SendEmailNotificationUseCase(new FakeEmailSender());
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            service.SendEmailAsync(new SendEmailNotificationRequest(email), CancellationToken.None));
+            useCase.SendEmailAsync(new SendEmailNotificationRequest(email), CancellationToken.None));
     }
 
     [Fact]
-    public async Task SendEmailAsync_should_propagate_sender_failure()
+    public async Task SendEmailNotification_should_propagate_sender_failure()
     {
-        var service = new NotificationService(new FailingEmailSender());
+        var useCase = new SendEmailNotificationUseCase(new FailingEmailSender());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.SendEmailAsync(new SendEmailNotificationRequest("cliente@example.com"), CancellationToken.None));
+            useCase.SendEmailAsync(new SendEmailNotificationRequest("cliente@example.com"), CancellationToken.None));
     }
 
     [Fact]
-    public async Task SendBudgetAwaitingApprovalAsync_should_send_budget_as_html_with_decision_buttons()
+    public async Task SendBudgetAwaitingApproval_should_send_budget_as_html_with_decision_buttons()
     {
         var sender = new FakeEmailSender();
-        var service = new NotificationService(sender);
+        var useCase = new SendBudgetAwaitingApprovalUseCase(sender);
         var budget = new BudgetResponse(
             Guid.NewGuid(),
             Guid.NewGuid(),
@@ -53,7 +54,7 @@ public sealed class NotificationServiceTests
             [new BudgetPartResponse(Guid.NewGuid(), Guid.NewGuid(), "Filtro", 2, 10m)],
             [new BudgetWorkshopServiceResponse(Guid.NewGuid(), Guid.NewGuid(), "Troca de oleo", 100m)]);
 
-        await service.SendBudgetAwaitingApprovalAsync(
+        await useCase.SendBudgetAwaitingApprovalAsync(
             "Pedro",
             "pedro@example.com",
             budget,
@@ -77,12 +78,37 @@ public sealed class NotificationServiceTests
     }
 
     [Fact]
-    public async Task SendVehicleReadyForPickupAsync_should_notify_customer()
+    public async Task SendBudgetAwaitingApproval_should_list_none_when_budget_has_no_items()
     {
         var sender = new FakeEmailSender();
-        var service = new NotificationService(sender);
+        var useCase = new SendBudgetAwaitingApprovalUseCase(sender);
+        var budget = new BudgetResponse(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            new DateTimeOffset(2026, 8, 27, 12, 30, 0, TimeSpan.Zero),
+            null,
+            0m,
+            [],
+            []);
 
-        await service.SendVehicleReadyForPickupAsync(
+        await useCase.SendBudgetAwaitingApprovalAsync(
+            "Pedro",
+            "pedro@example.com",
+            budget,
+            CancellationToken.None);
+
+        Assert.Equal(2, sender.Body!.Split("<li>None</li>").Length - 1);
+        Assert.Contains("Total Value:</strong> 0.00", sender.Body);
+    }
+
+    [Fact]
+    public async Task SendVehicleReadyForPickup_should_notify_customer()
+    {
+        var sender = new FakeEmailSender();
+        var useCase = new SendVehicleReadyForPickupUseCase(sender);
+
+        await useCase.SendVehicleReadyForPickupAsync(
             "Pedro",
             "pedro@example.com",
             "ABC-1234",

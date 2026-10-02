@@ -4,7 +4,7 @@ using Oficina.Application.Budgets;
 using Oficina.Application.Customers;
 using Oficina.Application.Mechanics;
 using Oficina.Application.Metrics;
-using Oficina.Application.Notifications;
+using Oficina.Application.Notifications.UseCases;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.ServiceOrders.UseCases;
@@ -43,7 +43,9 @@ public sealed class DependencyInjectionTests
             typeof(MechanicService),
             typeof(MetricsService),
             typeof(BudgetService),
-            typeof(NotificationService),
+            typeof(SendEmailNotificationUseCase),
+            typeof(SendBudgetAwaitingApprovalUseCase),
+            typeof(SendVehicleReadyForPickupUseCase),
         ];
 
         foreach (var serviceType in expectedServices)

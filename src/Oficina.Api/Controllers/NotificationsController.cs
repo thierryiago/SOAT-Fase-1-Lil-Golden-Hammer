@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Budgets;
 using Oficina.Application.Notifications;
+using Oficina.Application.Notifications.UseCases;
 using Oficina.Application.ServiceOrders;
 using System.Diagnostics.CodeAnalysis;
 
@@ -10,9 +11,9 @@ namespace Oficina.Api.Controllers;
 [ApiController]
 [Route("api/v1/notifications")]
 [ExcludeFromCodeCoverage]
-public sealed class NotificationsController(NotificationService notifications, IBudgetService budgetService, ServiceOrderService serviceOrderService) : ControllerBase
+public sealed class NotificationsController(SendEmailNotificationUseCase sendEmailNotification, IBudgetService budgetService, ServiceOrderService serviceOrderService) : ControllerBase
 {
-    private readonly NotificationService _notifications = notifications;
+    private readonly SendEmailNotificationUseCase _sendEmailNotification = sendEmailNotification;
     private readonly IBudgetService _budgetService = budgetService;
     private readonly ServiceOrderService _serviceOrderService = serviceOrderService;
 
@@ -23,7 +24,7 @@ public sealed class NotificationsController(NotificationService notifications, I
         SendEmailNotificationRequest request,
         CancellationToken cancellationToken)
     {
-        await _notifications.SendEmailAsync(request, cancellationToken);
+        await _sendEmailNotification.SendEmailAsync(request, cancellationToken);
         return NoContent();
     }
 

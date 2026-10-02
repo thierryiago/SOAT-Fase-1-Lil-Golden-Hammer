@@ -170,7 +170,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
     }
 
     // Item 18 of docs/analise-gaps-e-cenarios-faltantes.md: confirms the budget-awaiting-approval
-    // e-mail is actually dispatched (not just that NotificationService is called correctly with
+    // e-mail is actually dispatched (not just that SendBudgetAwaitingApprovalUseCase is called correctly with
     // fakes, as already tested at the Application layer) when a real order reaches
     // AwaitingApproval via HTTP. OficinaApiFactory registers a FakeNotificationEmailSender in
     // place of the real SMTP sender, capturing every "sent" e-mail for inspection.

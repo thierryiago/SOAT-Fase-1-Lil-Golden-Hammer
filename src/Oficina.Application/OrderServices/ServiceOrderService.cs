@@ -1,6 +1,6 @@
 using Oficina.Application.Budgets;
 using Oficina.Application.Customers;
-using Oficina.Application.Notifications;
+using Oficina.Application.Notifications.UseCases;
 using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
@@ -17,7 +17,7 @@ public sealed class ServiceOrderService(
     IStockRepository stocks,
     IServiceOrderHistoryRepository history,
     IBudgetService budgets,
-    NotificationService notifications)
+    SendVehicleReadyForPickupUseCase sendVehicleReadyForPickup)
 {
     private readonly IServiceOrderRepository _serviceOrderRepository = serviceOrders;
     private readonly ICustomerRepository _customerRepository = customers;
@@ -25,7 +25,7 @@ public sealed class ServiceOrderService(
     private readonly IStockRepository _stocks = stocks;
     private readonly IServiceOrderHistoryRepository _history = history;
     private readonly IBudgetService _budgets = budgets;
-    private readonly NotificationService _notifications = notifications;
+    private readonly SendVehicleReadyForPickupUseCase _sendVehicleReadyForPickup = sendVehicleReadyForPickup;
 
     public async Task<ServiceOrderDetailResponse> ApproveAsync(Guid serviceOrderId, CancellationToken cancellationToken)
     {
@@ -99,7 +99,7 @@ public sealed class ServiceOrderService(
             throw new InvalidOperationException("Vehicle was not found.");
         }
 
-        await _notifications.SendVehicleReadyForPickupAsync(
+        await _sendVehicleReadyForPickup.SendVehicleReadyForPickupAsync(
             customer.Name,
             customer.Email,
             vehicle.Plate,
