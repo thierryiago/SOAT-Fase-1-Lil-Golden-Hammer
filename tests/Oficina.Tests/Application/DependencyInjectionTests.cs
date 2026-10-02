@@ -1,7 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Oficina.Application;
 using Oficina.Application.Budgets;
-using Oficina.Application.Customers;
+using Oficina.Application.Customers.UseCases;
+using Oficina.Application.Customers.UseCases.Queries;
 using Oficina.Application.Mechanics;
 using Oficina.Application.Metrics;
 using Oficina.Application.Notifications;
@@ -27,7 +28,11 @@ public sealed class DependencyInjectionTests
 
         Type[] expectedServices =
         [
-            typeof(CustomerService),
+            typeof(CreateCustomerUseCase),
+            typeof(UpdateCustomerUseCase),
+            typeof(DeleteCustomerUseCase),
+            typeof(ListCustomersUseCase),
+            typeof(GetCustomerByIdUseCase),
             typeof(PartService),
             typeof(ServiceOrderService),
             typeof(OpenServiceOrderUseCase),

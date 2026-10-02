@@ -135,7 +135,7 @@ public sealed class VehicleTests(OficinaApiFactory factory, ITestOutputHelper ou
 
     // Item 25 of docs/analise-gaps-e-cenarios-faltantes.md - DELIBERATELY RED: EnumVehicleCategory
     // has no [EnumDataType]/JsonStringEnumConverter validation anywhere in the pipeline (verified
-    // in src/Oficina.Application/Clientes/VehicleDtos.cs and Vehicle.Validate), so System.Text.Json
+    // in src/Oficina.Application/Vehicles/VehicleDtos.cs and Vehicle.Validate), so System.Text.Json
     // happily deserializes any integer into the enum and Vehicle.Create stores it as-is. The API
     // should reject an out-of-range category with 400; today it accepts it with 201. Documents a
     // real gap - do not add [EnumDataType] here, only the test.

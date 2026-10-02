@@ -83,7 +83,7 @@ public sealed class CustomerTests(OficinaApiFactory factory, ITestOutputHelper o
 
     // Item 7 of docs/analise-gaps-e-cenarios-faltantes.md: a document containing letters must be
     // rejected by model validation (DocumentValidatorAttribute) with 400, before the request even
-    // reaches CustomerService/the domain.
+    // reaches CreateCustomerUseCase/the domain.
     [Fact]
     public async Task Create_should_reject_document_containing_letters()
     {
