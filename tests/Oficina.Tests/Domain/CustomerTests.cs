@@ -128,4 +128,41 @@ public sealed class CustomerTests
 
         Assert.Throws<ArgumentException>(act);
     }
+
+    [Fact]
+    public void ListActiveMatching_should_return_only_active_customers_ordered_by_name()
+    {
+        var zeca = Customer.Create("Zeca Souza", "zeca@email.com", "123", "529.982.247-25");
+        var ana = Customer.Create("Ana Lima", "ana@email.com", "123", "11.222.333/0001-81");
+        var inactive = Customer.Create("Bruno Costa", "bruno@email.com", "123", "111.444.777-35");
+        inactive.Deactivate();
+
+        var result = Customer.ListActiveMatching([zeca, inactive, ana], null).ToList();
+
+        Assert.Equal([ana, zeca], result);
+    }
+
+    [Theory]
+    [InlineData("  lima  ")]
+    [InlineData("ANA@EMAIL")]
+    [InlineData("112223")]
+    public void ListActiveMatching_should_filter_by_name_email_or_document(string search)
+    {
+        var ana = Customer.Create("Ana Lima", "ana@email.com", "123", "11.222.333/0001-81");
+        var zeca = Customer.Create("Zeca Souza", "zeca@email.com", "123", "529.982.247-25");
+
+        var result = Customer.ListActiveMatching([ana, zeca], search).ToList();
+
+        Assert.Equal([ana], result);
+    }
+
+    [Fact]
+    public void ListActiveMatching_should_return_empty_when_nothing_matches()
+    {
+        var ana = Customer.Create("Ana Lima", "ana@email.com", "123", "11.222.333/0001-81");
+
+        var result = Customer.ListActiveMatching([ana], "nao-existe");
+
+        Assert.Empty(result);
+    }
 }

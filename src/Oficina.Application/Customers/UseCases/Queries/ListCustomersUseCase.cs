@@ -1,4 +1,5 @@
 using Oficina.Application.Common;
+using Oficina.Domain.Customers;
 
 namespace Oficina.Application.Customers.UseCases.Queries;
 
@@ -12,15 +13,8 @@ public class ListCustomersUseCase(
         CancellationToken cancellationToken)
     {
         var customers = await _customers.ListAsync(cancellationToken);
-        var search = request.Search?.Trim();
-        var query = customers
-            .Where(customer => customer.IsActive)
-            .Where(customer =>
-                string.IsNullOrWhiteSpace(search) ||
-                customer.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                customer.Email.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                customer.Document.Contains(search, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(customer => customer.Name)
+
+        var query = Customer.ListActiveMatching(customers, request.Search)
             .Select(CustomerResponseMapper.Map);
 
         return Pagination.Create(query, request);

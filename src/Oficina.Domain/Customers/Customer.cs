@@ -96,6 +96,20 @@ public sealed class Customer
         IsActive = true;
     }
 
+    public static IEnumerable<Customer> ListActiveMatching(IEnumerable<Customer> customers, string? search)
+    {
+        var term = search?.Trim();
+
+        return customers
+            .Where(customer => customer.IsActive)
+            .Where(customer =>
+                string.IsNullOrWhiteSpace(term) ||
+                customer.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                customer.Email.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                customer.Document.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(customer => customer.Name);
+    }
+
     public static string NormalizeDocument(string document)
     {
         if (string.IsNullOrWhiteSpace(document))
