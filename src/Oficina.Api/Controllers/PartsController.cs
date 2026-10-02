@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Common;
 using Oficina.Application.Parts;
+using Oficina.Application.Parts.UseCases;
+using Oficina.Application.Parts.UseCases.Queries;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Oficina.Api.Controllers;
@@ -12,11 +14,24 @@ namespace Oficina.Api.Controllers;
 [ExcludeFromCodeCoverage]
 public sealed class PartsController : ControllerBase
 {
-    private readonly PartService _parts;
+    private readonly CreatePartUseCase _createPart;
+    private readonly UpdatePartUseCase _updatePart;
+    private readonly DeletePartUseCase _deletePart;
+    private readonly ListPartsUseCase _listParts;
+    private readonly GetPartByIdUseCase _getPartById;
 
-    public PartsController(PartService parts)
+    public PartsController(
+        CreatePartUseCase createPart,
+        UpdatePartUseCase updatePart,
+        DeletePartUseCase deletePart,
+        ListPartsUseCase listParts,
+        GetPartByIdUseCase getPartById)
     {
-        _parts = parts;
+        _createPart = createPart;
+        _updatePart = updatePart;
+        _deletePart = deletePart;
+        _listParts = listParts;
+        _getPartById = getPartById;
     }
 
     [HttpGet(Name = "ListParts")]
@@ -25,7 +40,7 @@ public sealed class PartsController : ControllerBase
         [FromQuery] PageRequest request,
         CancellationToken cancellationToken)
     {
-        var parts = await _parts.ListAsync(request, cancellationToken);
+        var parts = await _listParts.ListAsync(request, cancellationToken);
         return Ok(parts);
     }
 
@@ -34,7 +49,7 @@ public sealed class PartsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var part = await _parts.GetByIdAsync(id, cancellationToken);
+        var part = await _getPartById.GetByIdAsync(id, cancellationToken);
         return part is null ? NotFound() : Ok(part);
     }
 
@@ -45,7 +60,7 @@ public sealed class PartsController : ControllerBase
         [FromBody] CreatePartRequest request,
         CancellationToken cancellationToken)
     {
-        var part = await _parts.CreateAsync(request, cancellationToken);
+        var part = await _createPart.CreateAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = part.Id }, part);
     }
 
@@ -59,7 +74,7 @@ public sealed class PartsController : ControllerBase
         [FromBody] UpdatePartRequest request,
         CancellationToken cancellationToken)
     {
-        var part = await _parts.UpdateAsync(id, request, cancellationToken);
+        var part = await _updatePart.UpdateAsync(id, request, cancellationToken);
         return Ok(part);
     }
 
@@ -68,7 +83,7 @@ public sealed class PartsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        var deleted = await _parts.DeleteAsync(id, cancellationToken);
+        var deleted = await _deletePart.DeleteAsync(id, cancellationToken);
         return deleted ? NoContent() : NotFound();
     }
 }

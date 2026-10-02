@@ -1,8 +1,9 @@
 using Oficina.Domain.ServiceOrders;
 
-namespace Oficina.Application.Metrics;
+namespace Oficina.Application.Metrics.UseCases.Queries;
 
-public sealed class MetricsService(IMetricExecutionTimeRepository executionTimes)
+public class GetWorkshopServiceExecutionTimesUseCase(
+    IMetricExecutionTimeRepository executionTimes)
 {
     private readonly IMetricExecutionTimeRepository _executionTimes = executionTimes;
 
