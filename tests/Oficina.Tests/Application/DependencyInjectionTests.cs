@@ -2,10 +2,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Oficina.Application;
 using Oficina.Application.Budgets;
 using Oficina.Application.Customers;
-using Oficina.Application.Mechanics;
+using Oficina.Application.Mechanics.UseCases;
+using Oficina.Application.Mechanics.UseCases.Queries;
 using Oficina.Application.Metrics;
 using Oficina.Application.Notifications;
 using Oficina.Application.Parts;
+using Oficina.Application.Parts.UseCases;
+using Oficina.Application.Parts.UseCases.Queries;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.ServiceOrders.UseCases;
 using Oficina.Application.ServiceOrders.UseCases.Queries;
@@ -30,6 +33,12 @@ public sealed class DependencyInjectionTests
         [
             typeof(CustomerService),
             typeof(PartService),
+            typeof(CreatePartUseCase),
+            typeof(UpdatePartUseCase),
+            typeof(AdjustPartStockUseCase),
+            typeof(DeletePartUseCase),
+            typeof(ListPartsUseCase),
+            typeof(GetPartByIdUseCase),
             typeof(ServiceOrderService),
             typeof(OpenServiceOrderUseCase),
             typeof(UpdateServiceOrderUseCase),
@@ -48,7 +57,11 @@ public sealed class DependencyInjectionTests
             typeof(AdjustStockUseCase),
             typeof(ListStocksUseCase),
             typeof(GetStockByIdUseCase),
-            typeof(MechanicService),
+            typeof(CreateMechanicUseCase),
+            typeof(UpdateMechanicUseCase),
+            typeof(DeleteMechanicUseCase),
+            typeof(ListMechanicsUseCase),
+            typeof(GetMechanicByIdUseCase),
             typeof(MetricsService),
             typeof(BudgetService),
             typeof(NotificationService),
