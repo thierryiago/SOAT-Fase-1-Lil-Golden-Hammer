@@ -1,13 +1,15 @@
 using Oficina.Application.Common;
 using Oficina.Application.Customers;
+using Oficina.Application.Customers.UseCases;
+using Oficina.Application.Customers.UseCases.Queries;
 using Oficina.Domain.Customers;
 
 namespace Oficina.Tests.Application;
 
-public sealed class CustomerServiceTests
+public sealed class CustomerUseCasesTests
 {
     [Fact]
-    public async Task ListAsync_should_return_only_active_customers()
+    public async Task ListCustomers_should_return_only_active_customers()
     {
         var repository = new FakeCustomerRepository();
         var active = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
@@ -15,49 +17,67 @@ public sealed class CustomerServiceTests
         inactive.Deactivate();
         await repository.AddAsync(active, CancellationToken.None);
         await repository.AddAsync(inactive, CancellationToken.None);
-        var service = new CustomerService(repository);
+        var useCase = new ListCustomersUseCase(repository);
 
-        var result = await service.ListAsync(new PageRequest(), CancellationToken.None);
+        var result = await useCase.ListAsync(new PageRequest(), CancellationToken.None);
 
         Assert.Equal(active.Id, Assert.Single(result.Items).Id);
     }
 
     [Fact]
-    public async Task ListAsync_should_filter_by_search_term()
+    public async Task ListCustomers_should_filter_by_search_term()
     {
         var repository = new FakeCustomerRepository();
         var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
         await repository.AddAsync(customer, CancellationToken.None);
-        var service = new CustomerService(repository);
+        var useCase = new ListCustomersUseCase(repository);
 
-        var result = await service.ListAsync(new PageRequest(Search: "silva"), CancellationToken.None);
-        var noMatch = await service.ListAsync(new PageRequest(Search: "nao-existe"), CancellationToken.None);
+        var result = await useCase.ListAsync(new PageRequest(Search: "silva"), CancellationToken.None);
+        var noMatch = await useCase.ListAsync(new PageRequest(Search: "nao-existe"), CancellationToken.None);
 
         Assert.Single(result.Items);
         Assert.Empty(noMatch.Items);
     }
 
     [Fact]
-    public async Task GetByIdAsync_should_return_null_for_inactive_customer()
+    public async Task GetCustomerById_should_return_null_for_inactive_customer()
     {
         var repository = new FakeCustomerRepository();
         var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
         customer.Deactivate();
         await repository.AddAsync(customer, CancellationToken.None);
-        var service = new CustomerService(repository);
+        var useCase = new GetCustomerByIdUseCase(repository);
 
-        var result = await service.GetByIdAsync(customer.Id, CancellationToken.None);
+        var result = await useCase.GetByIdAsync(customer.Id, CancellationToken.None);
 
         Assert.Null(result);
     }
 
     [Fact]
-    public async Task CreateAsync_should_add_new_customer()
+    public async Task GetCustomerById_should_return_response_for_active_customer()
     {
         var repository = new FakeCustomerRepository();
-        var service = new CustomerService(repository);
+        var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
+        await repository.AddAsync(customer, CancellationToken.None);
+        var useCase = new GetCustomerByIdUseCase(repository);
 
-        var response = await service.CreateAsync(
+        var result = await useCase.GetByIdAsync(customer.Id, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(customer.Id, result.Id);
+        Assert.Equal(customer.Name, result.Name);
+        Assert.Equal(customer.Email, result.Email);
+        Assert.Equal(customer.TelephoneNumber, result.TelephoneNumber);
+        Assert.Equal(customer.Document, result.Document);
+    }
+
+    [Fact]
+    public async Task CreateCustomer_should_add_new_customer()
+    {
+        var repository = new FakeCustomerRepository();
+        var useCase = new CreateCustomerUseCase(repository);
+
+        var response = await useCase.CreateAsync(
             CreateRequest("Ana Silva", "ana@email.com", "11999990000", "11144477735"),
             CancellationToken.None);
 
@@ -66,28 +86,28 @@ public sealed class CustomerServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_should_throw_conflict_when_document_belongs_to_active_customer()
+    public async Task CreateCustomer_should_throw_conflict_when_document_belongs_to_active_customer()
     {
         var repository = new FakeCustomerRepository();
         var existing = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
         await repository.AddAsync(existing, CancellationToken.None);
-        var service = new CustomerService(repository);
+        var useCase = new CreateCustomerUseCase(repository);
 
-        await Assert.ThrowsAsync<ConflictException>(() => service.CreateAsync(
+        await Assert.ThrowsAsync<ConflictException>(() => useCase.CreateAsync(
             CreateRequest("Outro Nome", "outro@email.com", "11977770000", "11144477735"),
             CancellationToken.None));
     }
 
     [Fact]
-    public async Task CreateAsync_should_reactivate_inactive_customer_with_same_document()
+    public async Task CreateCustomer_should_reactivate_inactive_customer_with_same_document()
     {
         var repository = new FakeCustomerRepository();
         var existing = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
         existing.Deactivate();
         await repository.AddAsync(existing, CancellationToken.None);
-        var service = new CustomerService(repository);
+        var useCase = new CreateCustomerUseCase(repository);
 
-        var response = await service.CreateAsync(
+        var response = await useCase.CreateAsync(
             CreateRequest("Ana Reativada", "ana.nova@email.com", "11911110000", "11144477735"),
             CancellationToken.None);
 
@@ -97,14 +117,14 @@ public sealed class CustomerServiceTests
     }
 
     [Fact]
-    public async Task UpdateAsync_should_change_customer_data()
+    public async Task UpdateCustomer_should_change_customer_data()
     {
         var repository = new FakeCustomerRepository();
         var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
         await repository.AddAsync(customer, CancellationToken.None);
-        var service = new CustomerService(repository);
+        var useCase = new UpdateCustomerUseCase(repository);
 
-        var response = await service.UpdateAsync(
+        var response = await useCase.UpdateAsync(
             customer.Id,
             new UpdateCustomerRequest("Ana Souza", "ana.souza@email.com", "11988880000", "11144477735"),
             CancellationToken.None);
@@ -114,54 +134,54 @@ public sealed class CustomerServiceTests
     }
 
     [Fact]
-    public async Task UpdateAsync_should_throw_conflict_when_document_belongs_to_another_customer()
+    public async Task UpdateCustomer_should_throw_conflict_when_document_belongs_to_another_customer()
     {
         var repository = new FakeCustomerRepository();
         var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
         var otherCustomer = Customer.Create("Bruno Souza", "bruno@email.com", "11988880000", "52998224725");
         await repository.AddAsync(customer, CancellationToken.None);
         await repository.AddAsync(otherCustomer, CancellationToken.None);
-        var service = new CustomerService(repository);
+        var useCase = new UpdateCustomerUseCase(repository);
 
-        await Assert.ThrowsAsync<ConflictException>(() => service.UpdateAsync(
+        await Assert.ThrowsAsync<ConflictException>(() => useCase.UpdateAsync(
             customer.Id,
             new UpdateCustomerRequest("Ana Silva", "ana@email.com", "11999990000", "52998224725"),
             CancellationToken.None));
     }
 
     [Fact]
-    public async Task UpdateAsync_should_throw_when_customer_does_not_exist()
+    public async Task UpdateCustomer_should_throw_when_customer_does_not_exist()
     {
         var repository = new FakeCustomerRepository();
-        var service = new CustomerService(repository);
+        var useCase = new UpdateCustomerUseCase(repository);
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.UpdateAsync(
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => useCase.UpdateAsync(
             Guid.NewGuid(),
             new UpdateCustomerRequest("Ana Silva", "ana@email.com", "11999990000", "11144477735"),
             CancellationToken.None));
     }
 
     [Fact]
-    public async Task DeleteAsync_should_deactivate_existing_customer()
+    public async Task DeleteCustomer_should_deactivate_existing_customer()
     {
         var repository = new FakeCustomerRepository();
         var customer = Customer.Create("Ana Silva", "ana@email.com", "11999990000", "11144477735");
         await repository.AddAsync(customer, CancellationToken.None);
-        var service = new CustomerService(repository);
+        var useCase = new DeleteCustomerUseCase(repository);
 
-        var result = await service.DeleteAsync(customer.Id, CancellationToken.None);
+        var result = await useCase.DeleteAsync(customer.Id, CancellationToken.None);
 
         Assert.True(result);
         Assert.False(customer.IsActive);
     }
 
     [Fact]
-    public async Task DeleteAsync_should_return_false_when_customer_does_not_exist()
+    public async Task DeleteCustomer_should_return_false_when_customer_does_not_exist()
     {
         var repository = new FakeCustomerRepository();
-        var service = new CustomerService(repository);
+        var useCase = new DeleteCustomerUseCase(repository);
 
-        var result = await service.DeleteAsync(Guid.NewGuid(), CancellationToken.None);
+        var result = await useCase.DeleteAsync(Guid.NewGuid(), CancellationToken.None);
 
         Assert.False(result);
     }

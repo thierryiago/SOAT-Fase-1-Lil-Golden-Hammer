@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Oficina.Application.Budgets;
-using Oficina.Application.Customers;
+using Oficina.Application.Customers.UseCases;
+using Oficina.Application.Customers.UseCases.Queries;
 using Oficina.Application.Mechanics.UseCases;
 using Oficina.Application.Mechanics.UseCases.Queries;
 using Oficina.Application.Metrics.UseCases.Queries;
@@ -14,7 +15,8 @@ using Oficina.Application.ServiceOrders.UseCases.Queries;
 using Oficina.Application.Stocks;
 using Oficina.Application.Stocks.UseCases;
 using Oficina.Application.Stocks.UseCases.Queries;
-using Oficina.Application.Vehicles;
+using Oficina.Application.Vehicles.UseCases;
+using Oficina.Application.Vehicles.UseCases.Queries;
 using Oficina.Application.WorkshopServices.UseCases;
 using Oficina.Application.WorkshopServices.UseCases.Queries;
 
@@ -24,7 +26,11 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        services.AddScoped<CustomerService>();
+        services.AddScoped<CreateCustomerUseCase>();
+        services.AddScoped<UpdateCustomerUseCase>();
+        services.AddScoped<DeleteCustomerUseCase>();
+        services.AddScoped<ListCustomersUseCase>();
+        services.AddScoped<GetCustomerByIdUseCase>();
         services.AddScoped<PartService>();
         services.AddScoped<CreatePartUseCase>();
         services.AddScoped<UpdatePartUseCase>();
@@ -41,7 +47,12 @@ public static class DependencyInjection
         services.AddScoped<TrackServiceOrdersByDocumentUseCase>();
         services.AddScoped<ListSchedulesUseCase>();
         services.AddScoped<ListSchedulesByDateUseCase>();
-        services.AddScoped<VehicleService>();
+        services.AddScoped<CreateVehicleUseCase>();
+        services.AddScoped<IdentifyCustomerAndRegisterVehicleUseCase>();
+        services.AddScoped<UpdateVehicleUseCase>();
+        services.AddScoped<DeleteVehicleUseCase>();
+        services.AddScoped<ListVehiclesUseCase>();
+        services.AddScoped<GetVehicleByIdUseCase>();
         services.AddScoped<CreateWorkshopServiceUseCase>();
         services.AddScoped<UpdateWorkshopServiceUseCase>();
         services.AddScoped<DeleteWorkshopServiceUseCase>();

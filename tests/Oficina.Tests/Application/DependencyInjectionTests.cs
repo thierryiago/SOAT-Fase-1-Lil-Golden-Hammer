@@ -1,7 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Oficina.Application;
 using Oficina.Application.Budgets;
-using Oficina.Application.Customers;
+using Oficina.Application.Customers.UseCases;
+using Oficina.Application.Customers.UseCases.Queries;
 using Oficina.Application.Mechanics.UseCases;
 using Oficina.Application.Mechanics.UseCases.Queries;
 using Oficina.Application.Metrics.UseCases.Queries;
@@ -15,7 +16,8 @@ using Oficina.Application.ServiceOrders.UseCases.Queries;
 using Oficina.Application.Stocks;
 using Oficina.Application.Stocks.UseCases;
 using Oficina.Application.Stocks.UseCases.Queries;
-using Oficina.Application.Vehicles;
+using Oficina.Application.Vehicles.UseCases;
+using Oficina.Application.Vehicles.UseCases.Queries;
 using Oficina.Application.WorkshopServices.UseCases;
 using Oficina.Application.WorkshopServices.UseCases.Queries;
 
@@ -32,7 +34,11 @@ public sealed class DependencyInjectionTests
 
         Type[] expectedServices =
         [
-            typeof(CustomerService),
+            typeof(CreateCustomerUseCase),
+            typeof(UpdateCustomerUseCase),
+            typeof(DeleteCustomerUseCase),
+            typeof(ListCustomersUseCase),
+            typeof(GetCustomerByIdUseCase),
             typeof(PartService),
             typeof(CreatePartUseCase),
             typeof(UpdatePartUseCase),
@@ -49,7 +55,12 @@ public sealed class DependencyInjectionTests
             typeof(TrackServiceOrdersByDocumentUseCase),
             typeof(ListSchedulesUseCase),
             typeof(ListSchedulesByDateUseCase),
-            typeof(VehicleService),
+            typeof(CreateVehicleUseCase),
+            typeof(IdentifyCustomerAndRegisterVehicleUseCase),
+            typeof(UpdateVehicleUseCase),
+            typeof(DeleteVehicleUseCase),
+            typeof(ListVehiclesUseCase),
+            typeof(GetVehicleByIdUseCase),
             typeof(CreateWorkshopServiceUseCase),
             typeof(UpdateWorkshopServiceUseCase),
             typeof(DeleteWorkshopServiceUseCase),
