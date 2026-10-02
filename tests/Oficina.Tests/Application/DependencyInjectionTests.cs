@@ -11,7 +11,8 @@ using Oficina.Application.ServiceOrders.UseCases;
 using Oficina.Application.ServiceOrders.UseCases.Queries;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
-using Oficina.Application.WorkshopServices;
+using Oficina.Application.WorkshopServices.UseCases;
+using Oficina.Application.WorkshopServices.UseCases.Queries;
 
 namespace Oficina.Tests.Application;
 
@@ -38,7 +39,11 @@ public sealed class DependencyInjectionTests
             typeof(ListSchedulesUseCase),
             typeof(ListSchedulesByDateUseCase),
             typeof(VehicleService),
-            typeof(ServiceCatalogService),
+            typeof(CreateWorkshopServiceUseCase),
+            typeof(UpdateWorkshopServiceUseCase),
+            typeof(DeleteWorkshopServiceUseCase),
+            typeof(ListWorkshopServicesUseCase),
+            typeof(GetWorkshopServiceByIdUseCase),
             typeof(StockService),
             typeof(MechanicService),
             typeof(MetricsService),
