@@ -5,6 +5,8 @@ using Oficina.Application.Mechanics;
 using Oficina.Application.Metrics;
 using Oficina.Application.Notifications;
 using Oficina.Application.Parts;
+using Oficina.Application.Parts.UseCases;
+using Oficina.Application.Parts.UseCases.Queries;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.ServiceOrders.UseCases;
 using Oficina.Application.ServiceOrders.UseCases.Queries;
@@ -20,6 +22,12 @@ public static class DependencyInjection
     {
         services.AddScoped<CustomerService>();
         services.AddScoped<PartService>();
+        services.AddScoped<CreatePartUseCase>();
+        services.AddScoped<UpdatePartUseCase>();
+        services.AddScoped<AdjustPartStockUseCase>();
+        services.AddScoped<DeletePartUseCase>();
+        services.AddScoped<ListPartsUseCase>();
+        services.AddScoped<GetPartByIdUseCase>();
         services.AddScoped<ServiceOrderService>();
         services.AddScoped<OpenServiceOrderUseCase>();
         services.AddScoped<UpdateServiceOrderUseCase>();

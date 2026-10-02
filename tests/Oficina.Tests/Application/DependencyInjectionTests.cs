@@ -6,6 +6,8 @@ using Oficina.Application.Mechanics;
 using Oficina.Application.Metrics;
 using Oficina.Application.Notifications;
 using Oficina.Application.Parts;
+using Oficina.Application.Parts.UseCases;
+using Oficina.Application.Parts.UseCases.Queries;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.ServiceOrders.UseCases;
 using Oficina.Application.ServiceOrders.UseCases.Queries;
@@ -28,6 +30,12 @@ public sealed class DependencyInjectionTests
         [
             typeof(CustomerService),
             typeof(PartService),
+            typeof(CreatePartUseCase),
+            typeof(UpdatePartUseCase),
+            typeof(AdjustPartStockUseCase),
+            typeof(DeletePartUseCase),
+            typeof(ListPartsUseCase),
+            typeof(GetPartByIdUseCase),
             typeof(ServiceOrderService),
             typeof(OpenServiceOrderUseCase),
             typeof(UpdateServiceOrderUseCase),
