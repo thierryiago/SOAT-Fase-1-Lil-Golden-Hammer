@@ -5,11 +5,11 @@ using System.Net.Mail;
 
 namespace Oficina.Infrastructure.Notifications;
 
-public sealed class SmtpNotificationEmailSender : INotificationEmailSender
+public sealed class SmtpEmailTransport : IEmailTransport
 {
     private readonly SmtpOptions _options;
 
-    public SmtpNotificationEmailSender(IOptions<SmtpOptions> options)
+    public SmtpEmailTransport(IOptions<SmtpOptions> options)
     {
         _options = options.Value;
     }

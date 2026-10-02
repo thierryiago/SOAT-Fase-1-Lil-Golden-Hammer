@@ -10,9 +10,9 @@ namespace Oficina.Api.Controllers;
 [ApiController]
 [Route("api/v1/notifications")]
 [ExcludeFromCodeCoverage]
-public sealed class NotificationsController(NotificationService notifications, IBudgetService budgetService, ServiceOrderService serviceOrderService) : ControllerBase
+public sealed class NotificationsController(INotificationEmailSender notificationEmailSender, IBudgetService budgetService, ServiceOrderService serviceOrderService) : ControllerBase
 {
-    private readonly NotificationService _notifications = notifications;
+    private readonly INotificationEmailSender _notificationEmailSender = notificationEmailSender;
     private readonly IBudgetService _budgetService = budgetService;
     private readonly ServiceOrderService _serviceOrderService = serviceOrderService;
 
@@ -23,7 +23,7 @@ public sealed class NotificationsController(NotificationService notifications, I
         SendEmailNotificationRequest request,
         CancellationToken cancellationToken)
     {
-        await _notifications.SendEmailAsync(request, cancellationToken);
+        await _notificationEmailSender.SendEmailAsync(request, cancellationToken);
         return NoContent();
     }
 

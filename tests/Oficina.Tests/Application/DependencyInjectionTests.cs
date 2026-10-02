@@ -6,7 +6,6 @@ using Oficina.Application.Customers.UseCases.Queries;
 using Oficina.Application.Mechanics.UseCases;
 using Oficina.Application.Mechanics.UseCases.Queries;
 using Oficina.Application.Metrics.UseCases.Queries;
-using Oficina.Application.Notifications;
 using Oficina.Application.Parts;
 using Oficina.Application.Parts.UseCases;
 using Oficina.Application.Parts.UseCases.Queries;
@@ -80,7 +79,6 @@ public sealed class DependencyInjectionTests
             typeof(GetMechanicByIdUseCase),
             typeof(GetWorkshopServiceExecutionTimesUseCase),
             typeof(BudgetService),
-            typeof(NotificationService),
         ];
 
         foreach (var serviceType in expectedServices)

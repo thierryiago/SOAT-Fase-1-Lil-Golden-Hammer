@@ -33,6 +33,7 @@ public sealed class DependencyInjectionTests
             typeof(IServiceOrderRepository),
             typeof(IMechanicRepository),
             typeof(INotificationEmailSender),
+            typeof(IEmailTransport),
         ];
 
         foreach (var serviceType in expectedServices)

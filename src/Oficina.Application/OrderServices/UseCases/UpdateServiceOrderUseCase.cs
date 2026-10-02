@@ -21,7 +21,7 @@ public sealed class UpdateServiceOrderUseCase(
     IServiceOrderHistoryRepository history,
     IBudgetService budgets,
     ICustomerRepository customers,
-    NotificationService notifications)
+    INotificationEmailSender notificationEmailSender)
 {
     private readonly IServiceOrderRepository _serviceOrderRepository = serviceOrders;
     private readonly IPartRepository _parts = parts;
@@ -30,7 +30,7 @@ public sealed class UpdateServiceOrderUseCase(
     private readonly IServiceOrderHistoryRepository _history = history;
     private readonly IBudgetService _budgets = budgets;
     private readonly ICustomerRepository _customerRepository = customers;
-    private readonly NotificationService _notifications = notifications;
+    private readonly INotificationEmailSender _notificationEmailSender = notificationEmailSender;
 
     public async Task<ServiceOrderDetailResponse> ExecuteAsync(
         UpdateServiceOrderRequest request,
@@ -95,7 +95,7 @@ public sealed class UpdateServiceOrderUseCase(
             var customer = await _customerRepository.GetByIdAsync(serviceOrder.CustomerId, cancellationToken)
                 ?? throw new InvalidOperationException("Customer was not found.");
 
-            await _notifications.SendBudgetAwaitingApprovalAsync(
+            await _notificationEmailSender.SendBudgetAwaitingApprovalAsync(
                 customer.Name,
                 customer.Email,
                 budget,
