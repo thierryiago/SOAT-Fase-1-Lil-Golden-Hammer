@@ -1,18 +1,19 @@
 using Oficina.Application.Metrics;
+using Oficina.Application.Metrics.UseCases.Queries;
 using Oficina.Domain.ServiceOrders;
 
 namespace Oficina.Tests.Application;
 
-public sealed class MetricsServiceTests
+public sealed class MetricsUseCasesTests
 {
     [Fact]
-    public async Task GetWorkshopServiceExecutionTimesAsync_should_distribute_order_duration_by_estimated_time()
+    public async Task GetWorkshopServiceExecutionTimes_should_distribute_order_duration_by_estimated_time()
     {
         var oilChangeId = Guid.NewGuid();
         var alignmentId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
         var baseDate = new DateTime(2026, 8, 19, 8, 0, 0, DateTimeKind.Utc);
-        var service = CreateService(
+        var useCase = CreateUseCase(
             Services((oilChangeId, "Oil change", 60), (alignmentId, "Wheel alignment", 120)),
             [
                 Order(
@@ -24,20 +25,20 @@ public sealed class MetricsServiceTests
                     ])
             ]);
 
-        var response = await service.GetWorkshopServiceExecutionTimesAsync(CancellationToken.None);
+        var response = await useCase.GetWorkshopServiceExecutionTimesAsync(CancellationToken.None);
 
         Assert.Equal(60m, response.Single(metric => metric.Id == oilChangeId).AverageTimeMinutes);
         Assert.Equal(120m, response.Single(metric => metric.Id == alignmentId).AverageTimeMinutes);
     }
 
     [Fact]
-    public async Task GetWorkshopServiceExecutionTimesAsync_should_average_allocated_durations_for_the_same_service()
+    public async Task GetWorkshopServiceExecutionTimes_should_average_allocated_durations_for_the_same_service()
     {
         var workshopServiceId = Guid.NewGuid();
         var firstOrderId = Guid.NewGuid();
         var secondOrderId = Guid.NewGuid();
         var baseDate = new DateTime(2026, 8, 19, 8, 0, 0, DateTimeKind.Utc);
-        var service = CreateService(
+        var useCase = CreateUseCase(
             Services((workshopServiceId, "Oil change", 60)),
             [
                 Order(
@@ -56,19 +57,19 @@ public sealed class MetricsServiceTests
                     ])
             ]);
 
-        var response = await service.GetWorkshopServiceExecutionTimesAsync(CancellationToken.None);
+        var response = await useCase.GetWorkshopServiceExecutionTimesAsync(CancellationToken.None);
 
         Assert.Equal(90m, Assert.Single(response).AverageTimeMinutes);
     }
 
     [Fact]
-    public async Task GetWorkshopServiceExecutionTimesAsync_should_consolidate_repeated_services_in_an_order()
+    public async Task GetWorkshopServiceExecutionTimes_should_consolidate_repeated_services_in_an_order()
     {
         var oilChangeId = Guid.NewGuid();
         var alignmentId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
         var baseDate = new DateTime(2026, 8, 19, 8, 0, 0, DateTimeKind.Utc);
-        var service = CreateService(
+        var useCase = CreateUseCase(
             Services((oilChangeId, "Oil change", 30), (alignmentId, "Wheel alignment", 120)),
             [
                 Order(
@@ -80,18 +81,18 @@ public sealed class MetricsServiceTests
                     ])
             ]);
 
-        var response = await service.GetWorkshopServiceExecutionTimesAsync(CancellationToken.None);
+        var response = await useCase.GetWorkshopServiceExecutionTimesAsync(CancellationToken.None);
 
         Assert.Equal(60m, response.Single(metric => metric.Id == oilChangeId).AverageTimeMinutes);
         Assert.Equal(120m, response.Single(metric => metric.Id == alignmentId).AverageTimeMinutes);
     }
 
     [Fact]
-    public async Task GetWorkshopServiceExecutionTimesAsync_should_keep_services_without_valid_executions()
+    public async Task GetWorkshopServiceExecutionTimes_should_keep_services_without_valid_executions()
     {
         var workshopServiceId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
-        var service = CreateService(
+        var useCase = CreateUseCase(
             Services((workshopServiceId, "Wheel alignment", 45)),
             [
                 Order(
@@ -100,7 +101,30 @@ public sealed class MetricsServiceTests
                     [History(orderId, ServiceOrderStatus.Finalized, DateTime.UtcNow)])
             ]);
 
-        var response = await service.GetWorkshopServiceExecutionTimesAsync(CancellationToken.None);
+        var response = await useCase.GetWorkshopServiceExecutionTimesAsync(CancellationToken.None);
+
+        Assert.Null(Assert.Single(response).AverageTimeMinutes);
+    }
+
+    [Fact]
+    public async Task GetWorkshopServiceExecutionTimes_should_ignore_orders_without_estimated_duration()
+    {
+        var workshopServiceId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var baseDate = new DateTime(2026, 8, 19, 8, 0, 0, DateTimeKind.Utc);
+        var useCase = CreateUseCase(
+            Services((workshopServiceId, "Inspection", 0)),
+            [
+                Order(
+                    orderId,
+                    [(workshopServiceId, 0)],
+                    [
+                        History(orderId, ServiceOrderStatus.InExecution, baseDate),
+                        History(orderId, ServiceOrderStatus.Finalized, baseDate.AddMinutes(30))
+                    ])
+            ]);
+
+        var response = await useCase.GetWorkshopServiceExecutionTimesAsync(CancellationToken.None);
 
         Assert.Null(Assert.Single(response).AverageTimeMinutes);
     }
@@ -127,7 +151,7 @@ public sealed class MetricsServiceTests
                 .ToList(),
             histories);
 
-    private static MetricsService CreateService(
+    private static GetWorkshopServiceExecutionTimesUseCase CreateUseCase(
         IReadOnlyCollection<WorkshopServiceExecutionTimeData> workshopServices,
         IReadOnlyCollection<ServiceOrderExecutionTimeData> serviceOrders) =>
         new(new FakeWorkshopServiceExecutionTimeRepository(
