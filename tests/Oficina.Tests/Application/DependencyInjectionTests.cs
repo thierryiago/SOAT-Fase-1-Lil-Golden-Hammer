@@ -3,7 +3,7 @@ using Oficina.Application;
 using Oficina.Application.Budgets;
 using Oficina.Application.Customers;
 using Oficina.Application.Mechanics;
-using Oficina.Application.Metrics;
+using Oficina.Application.Metrics.UseCases.Queries;
 using Oficina.Application.Notifications;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
@@ -41,7 +41,7 @@ public sealed class DependencyInjectionTests
             typeof(ServiceCatalogService),
             typeof(StockService),
             typeof(MechanicService),
-            typeof(MetricsService),
+            typeof(GetWorkshopServiceExecutionTimesUseCase),
             typeof(BudgetService),
             typeof(NotificationService),
         ];

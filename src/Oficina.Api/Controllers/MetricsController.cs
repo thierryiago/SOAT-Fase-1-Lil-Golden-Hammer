@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Metrics;
+using Oficina.Application.Metrics.UseCases.Queries;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Oficina.Api.Controllers;
@@ -9,16 +10,17 @@ namespace Oficina.Api.Controllers;
 [Authorize]
 [Route("api/v1/metrics")]
 [ExcludeFromCodeCoverage]
-public sealed class MetricsController(MetricsService metrics) : ControllerBase
+public sealed class MetricsController(
+    GetWorkshopServiceExecutionTimesUseCase getWorkshopServiceExecutionTimes) : ControllerBase
 {
-    private readonly MetricsService _metrics = metrics;
+    private readonly GetWorkshopServiceExecutionTimesUseCase _getWorkshopServiceExecutionTimes = getWorkshopServiceExecutionTimes;
 
     [HttpGet("workshop-service/execution-time", Name = "GetWorkshopServiceExecutionTimes")]
     [ProducesResponseType(typeof(IReadOnlyCollection<WorkshopServiceExecutionTimeResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetWorkshopServiceExecutionTimes(
         CancellationToken cancellationToken)
     {
-        var executionTimes = await _metrics.GetWorkshopServiceExecutionTimesAsync(cancellationToken);
+        var executionTimes = await _getWorkshopServiceExecutionTimes.GetWorkshopServiceExecutionTimesAsync(cancellationToken);
         return Ok(executionTimes);
     }
 }
