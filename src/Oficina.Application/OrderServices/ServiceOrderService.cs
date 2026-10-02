@@ -4,7 +4,6 @@ using Oficina.Application.Notifications;
 using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
-using Oficina.Domain.Customers;
 using Oficina.Domain.OrderService;
 using Oficina.Domain.OrderServiceHistory;
 using Oficina.Domain.ServiceOrders;
@@ -27,55 +26,6 @@ public sealed class ServiceOrderService(
     private readonly IServiceOrderHistoryRepository _history = history;
     private readonly IBudgetService _budgets = budgets;
     private readonly NotificationService _notifications = notifications;
-
-    public async Task<IReadOnlyCollection<ServiceOrderListItemResponse>> ListAsync(CancellationToken cancellationToken)
-    {
-        var orders = await _serviceOrderRepository.ListAsync(cancellationToken);
-        return orders.Select(MapListItem).ToList();
-    }
-
-    public async Task<ServiceOrderDetailResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
-    {
-        var order = await _serviceOrderRepository.GetByIdAsync(id, cancellationToken);
-        return order is null ? null : ServiceOrderResponseMapper.MapDetail(order);
-    }
-
-    public async Task<ServiceOrderTrackingResponse?> TrackAsync(Guid serviceOrderId, string document, CancellationToken cancellationToken)
-    {
-        var order = await _serviceOrderRepository.GetByIdAsync(serviceOrderId, cancellationToken);
-        if (order is null)
-        {
-            return null;
-        }
-
-        var customer = await _customerRepository.GetByIdAsync(order.CustomerId, cancellationToken);
-        if (customer is null || customer.Document != Customer.NormalizeDocument(document))
-        {
-            return null;
-        }
-
-        var history = await _history.FindByServiceOrderAsync(serviceOrderId, cancellationToken);
-        var timeline = history
-            .OrderByDescending(entry => entry.CreatedDate)
-            .Select(entry => new ServiceOrderTrackingHistoryItem(entry.StatusName, entry.CreatedDate))
-            .ToList();
-
-        return new ServiceOrderTrackingResponse(order.Id, order.Status?.ToString(), order.Description, order.CreatedAt, timeline);
-    }
-
-    public async Task<IReadOnlyCollection<ServiceOrderTrackingSummaryResponse>> TrackByDocumentAsync(string document, CancellationToken cancellationToken)
-    {
-        var customer = await _customerRepository.GetByDocumentAsync(Customer.NormalizeDocument(document), cancellationToken);
-        if (customer is null)
-        {
-            return [];
-        }
-
-        var orders = await _serviceOrderRepository.ListByCustomerAsync(customer.Id, cancellationToken);
-        return [.. orders
-            .OrderByDescending(order => order.CreatedAt)
-            .Select(order => new ServiceOrderTrackingSummaryResponse(order.Id, order.Status?.ToString(), order.Description, order.CreatedAt))];
-    }
 
     public async Task<ServiceOrderDetailResponse> ApproveAsync(Guid serviceOrderId, CancellationToken cancellationToken)
     {
@@ -236,42 +186,4 @@ public sealed class ServiceOrderService(
         }
     }
 
-    public async Task<List<ServiceOrderSchedulesDto>> ListSchedulesAsync()
-    {
-        var serviceOrders = await _serviceOrderRepository.ListSchedulesAsync(CancellationToken.None);
-        if (serviceOrders.Count != 0)
-        {
-            var scheduleList = serviceOrders.Select(so => new ServiceOrderSchedulesDto
-            {
-                OrderServiceId = so.Id,
-                ScheduleDate = TimeZoneInfo.ConvertTimeFromUtc(so.ScheduledAt.DateTime, TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time"))
-            }).ToList();
-
-            return scheduleList;
-        }
-
-        return [];
-    }
-
-    public async Task<List<ServiceOrderSchedulesDto>> ListSchedulesByDateAsync(DateTime date)
-    {
-        var serviceOrders = await _serviceOrderRepository.ListSchedulesByDateAsync(date, CancellationToken.None);
-        if (serviceOrders.Count != 0)
-        {
-
-            var scheduleList = serviceOrders.Select(so => new ServiceOrderSchedulesDto
-            {
-                OrderServiceId = so.Id,
-                ScheduleDate = TimeZoneInfo.ConvertTimeFromUtc(so.ScheduledAt.DateTime, TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time"))
-            }).ToList();
-
-            return scheduleList;
-        }
-
-        return [];
-    }
-
-    private static ServiceOrderListItemResponse MapListItem(ServiceOrder order) =>
-        new(order.Id, order.CustomerId, order.VehicleId, order.MechanicId, order.Description,
-            order.Status, order.CreatedAt, order.TotalParts);
 }

@@ -5,6 +5,7 @@ using Oficina.Application.OrderServiceHistory;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.ServiceOrders.UseCases;
+using Oficina.Application.ServiceOrders.UseCases.Queries;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
 using Oficina.Application.WorkshopServices;
@@ -51,9 +52,10 @@ public sealed class ServiceOrderContractTests
         await customers.AddAsync(customer, CancellationToken.None);
         var order = ServiceOrder.Open(customer.Id, Guid.NewGuid(), "Revisao preventiva");
         await orders.AddAsync(order, CancellationToken.None);
-        var service = CreateService(customers, vehicles, orders);
+        var useCase = new ListServiceOrdersUseCase(orders);
 
-        IReadOnlyCollection<ServiceOrderListItemResponse> response = await service.ListAsync(CancellationToken.None);
+        IReadOnlyCollection<ServiceOrderListItemResponse> response =
+            await useCase.ExecuteAsync(CancellationToken.None);
 
         Assert.Equal(order.Id, Assert.Single(response).Id);
     }
@@ -87,7 +89,7 @@ public sealed class ServiceOrderContractTests
     {
         var context = await CreateOpenedOrderAsync();
 
-        var response = await context.Service.GetByIdAsync(Guid.NewGuid(), CancellationToken.None);
+        var response = await context.GetServiceOrderById.ExecuteAsync(Guid.NewGuid(), CancellationToken.None);
 
         Assert.Null(response);
     }
@@ -97,7 +99,9 @@ public sealed class ServiceOrderContractTests
     {
         var context = await CreateOpenedOrderAsync();
 
-        var response = await context.Service.GetByIdAsync(context.ServiceOrderId, CancellationToken.None);
+        var response = await context.GetServiceOrderById.ExecuteAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
 
         Assert.NotNull(response);
         Assert.Equal(context.ServiceOrderId, response!.Id);
@@ -142,16 +146,9 @@ public sealed class ServiceOrderContractTests
     [Fact]
     public async Task ListSchedulesAsync_should_return_empty_when_no_orders_are_registered()
     {
-        var service = new ServiceOrderService(
-            new FakeServiceOrderRepository(),
-            new FakeCustomerRepository(),
-            new FakeVehicleRepository(),
-            new FakeStockRepository(),
-            new FakeServiceOrderHistoryRepository(),
-            new FakeBudgetService(),
-            CreateNotificationService());
+        var useCase = new ListSchedulesUseCase(new FakeServiceOrderRepository());
 
-        var schedules = await service.ListSchedulesAsync();
+        var schedules = await useCase.ExecuteAsync(CancellationToken.None);
 
         Assert.Empty(schedules);
     }
@@ -476,7 +473,9 @@ public sealed class ServiceOrderContractTests
                 WorkshopServiceIds: Array.Empty<Guid>()),
             CancellationToken.None));
 
-        var response = await context.Service.GetByIdAsync(context.ServiceOrderId, CancellationToken.None);
+        var response = await context.GetServiceOrderById.ExecuteAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
         Assert.Equal(ServiceOrderStatus.InExecution, response!.Status);
         Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
         Assert.Equal(1, context.EmailSender.SendCount);
@@ -535,7 +534,9 @@ public sealed class ServiceOrderContractTests
                 Parts: [new AddPartToServiceOrderRequest(context.PartId, 4)]),
             CancellationToken.None));
 
-        var response = await context.Service.GetByIdAsync(context.ServiceOrderId, CancellationToken.None);
+        var response = await context.GetServiceOrderById.ExecuteAsync(
+            context.ServiceOrderId,
+            CancellationToken.None);
         var stock = await context.Stocks.GetByPartIdAsync(context.PartId, CancellationToken.None);
         Assert.Equal(ServiceOrderStatus.InExecution, response!.Status);
         Assert.Equal(2, Assert.Single(response.Parts).QuantityUsed);
@@ -679,7 +680,7 @@ public sealed class ServiceOrderContractTests
     {
         var context = await CreateOpenedOrderAsync();
 
-        var schedules = await context.Service.ListSchedulesAsync();
+        var schedules = await context.ListSchedules.ExecuteAsync(CancellationToken.None);
 
         Assert.Equal(context.ServiceOrderId, Assert.Single(schedules).OrderServiceId);
     }
@@ -689,25 +690,16 @@ public sealed class ServiceOrderContractTests
     {
         var context = await CreateOpenedOrderAsync();
 
-        var matching = await context.Service.ListSchedulesByDateAsync(DateTime.UtcNow);
-        var notMatching = await context.Service.ListSchedulesByDateAsync(DateTime.UtcNow.AddDays(-5));
+        var matching = await context.ListSchedulesByDate.ExecuteAsync(
+            DateTimeOffset.UtcNow,
+            CancellationToken.None);
+        var notMatching = await context.ListSchedulesByDate.ExecuteAsync(
+            DateTimeOffset.UtcNow.AddDays(-5),
+            CancellationToken.None);
 
         Assert.Single(matching);
         Assert.Empty(notMatching);
     }
-
-    private static ServiceOrderService CreateService(
-        ICustomerRepository customers,
-        IVehicleRepository vehicles,
-        IServiceOrderRepository orders) =>
-        new(
-            orders,
-            customers,
-            vehicles,
-            new FakeStockRepository(),
-            new FakeServiceOrderHistoryRepository(),
-            new FakeBudgetService(),
-            CreateNotificationService());
 
     private static OpenServiceOrderUseCase CreateOpenServiceOrderUseCase(
         ICustomerRepository customers,
@@ -718,6 +710,9 @@ public sealed class ServiceOrderContractTests
     private sealed record ServiceOrderTestContext(
         ServiceOrderService Service,
         UpdateServiceOrderUseCase UpdateServiceOrder,
+        GetServiceOrderByIdUseCase GetServiceOrderById,
+        ListSchedulesUseCase ListSchedules,
+        ListSchedulesByDateUseCase ListSchedulesByDate,
         BudgetService BudgetService,
         FakeStockRepository Stocks,
         FakeServiceOrderHistoryRepository History,
@@ -772,6 +767,9 @@ public sealed class ServiceOrderContractTests
             budgetService,
             customers,
             notificationService);
+        var getServiceOrderById = new GetServiceOrderByIdUseCase(orders);
+        var listSchedules = new ListSchedulesUseCase(orders);
+        var listSchedulesByDate = new ListSchedulesByDateUseCase(orders);
 
         var opened = await openServiceOrder.ExecuteAsync(
             new OpenServiceOrderRequest(customer.Id, vehicle.Id, "Revisao"), CancellationToken.None);
@@ -779,6 +777,9 @@ public sealed class ServiceOrderContractTests
         return new ServiceOrderTestContext(
             service,
             updateServiceOrder,
+            getServiceOrderById,
+            listSchedules,
+            listSchedulesByDate,
             budgetService,
             stocks,
             history,

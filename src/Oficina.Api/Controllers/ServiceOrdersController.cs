@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.ServiceOrders.UseCases;
+using Oficina.Application.ServiceOrders.UseCases.Queries;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Oficina.Api.Controllers;
@@ -13,24 +14,36 @@ namespace Oficina.Api.Controllers;
 public sealed class ServiceOrdersController : ControllerBase
 {
     private readonly ServiceOrderService _serviceOrders;
+    private readonly ListServiceOrdersUseCase _listServiceOrders;
+    private readonly GetServiceOrderByIdUseCase _getServiceOrderById;
+    private readonly TrackServiceOrderUseCase _trackServiceOrder;
+    private readonly TrackServiceOrdersByDocumentUseCase _trackServiceOrdersByDocument;
     private readonly OpenServiceOrderUseCase _openServiceOrder;
     private readonly UpdateServiceOrderUseCase _updateServiceOrder;
 
     public ServiceOrdersController(
         ServiceOrderService serviceOrders,
         OpenServiceOrderUseCase openServiceOrder,
-        UpdateServiceOrderUseCase updateServiceOrder)
+        UpdateServiceOrderUseCase updateServiceOrder,
+        ListServiceOrdersUseCase listServiceOrders,
+        GetServiceOrderByIdUseCase getServiceOrderById,
+        TrackServiceOrderUseCase trackServiceOrder,
+        TrackServiceOrdersByDocumentUseCase trackServiceOrdersByDocument)
     {
         _serviceOrders = serviceOrders;
         _openServiceOrder = openServiceOrder;
         _updateServiceOrder = updateServiceOrder;
+        _listServiceOrders = listServiceOrders;
+        _getServiceOrderById = getServiceOrderById;
+        _trackServiceOrder = trackServiceOrder;
+        _trackServiceOrdersByDocument = trackServiceOrdersByDocument;
     }
 
     [HttpGet(Name = "ListServiceOrders")]
     [ProducesResponseType(typeof(IReadOnlyCollection<ServiceOrderListItemResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
-        var serviceOrders = await _serviceOrders.ListAsync(cancellationToken);
+        var serviceOrders = await _listServiceOrders.ExecuteAsync(cancellationToken);
         return Ok(serviceOrders);
     }
 
@@ -39,7 +52,7 @@ public sealed class ServiceOrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var serviceOrder = await _serviceOrders.GetByIdAsync(id, cancellationToken);
+        var serviceOrder = await _getServiceOrderById.ExecuteAsync(id, cancellationToken);
         return serviceOrder is null ? NotFound() : Ok(serviceOrder);
     }
 
@@ -49,7 +62,7 @@ public sealed class ServiceOrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Track(Guid id, [FromQuery] string document, CancellationToken cancellationToken)
     {
-        var result = await _serviceOrders.TrackAsync(id, document, cancellationToken);
+        var result = await _trackServiceOrder.ExecuteAsync(id, document, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
 
@@ -58,7 +71,7 @@ public sealed class ServiceOrdersController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyCollection<ServiceOrderTrackingSummaryResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> TrackByDocument([FromQuery] string document, CancellationToken cancellationToken)
     {
-        var result = await _serviceOrders.TrackByDocumentAsync(document, cancellationToken);
+        var result = await _trackServiceOrdersByDocument.ExecuteAsync(document, cancellationToken);
         return Ok(result);
     }
 

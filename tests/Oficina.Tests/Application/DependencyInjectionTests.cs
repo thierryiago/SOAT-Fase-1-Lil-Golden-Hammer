@@ -8,6 +8,7 @@ using Oficina.Application.Notifications;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.ServiceOrders.UseCases;
+using Oficina.Application.ServiceOrders.UseCases.Queries;
 using Oficina.Application.Stocks;
 using Oficina.Application.Vehicles;
 using Oficina.Application.WorkshopServices;
@@ -30,6 +31,12 @@ public sealed class DependencyInjectionTests
             typeof(ServiceOrderService),
             typeof(OpenServiceOrderUseCase),
             typeof(UpdateServiceOrderUseCase),
+            typeof(ListServiceOrdersUseCase),
+            typeof(GetServiceOrderByIdUseCase),
+            typeof(TrackServiceOrderUseCase),
+            typeof(TrackServiceOrdersByDocumentUseCase),
+            typeof(ListSchedulesUseCase),
+            typeof(ListSchedulesByDateUseCase),
             typeof(VehicleService),
             typeof(ServiceCatalogService),
             typeof(StockService),
