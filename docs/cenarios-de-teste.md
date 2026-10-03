@@ -75,6 +75,10 @@ Convenções: **OK** = fluxo válido; **Erro** = valida rejeição/exceção; **
 - **Erro** — `ValidateUpdate` bloqueia itens novos antes de mecânico atribuído e durante `InExecution`.
 - **OK** — `ValidateUpdate` permite omitir mecânico já atribuído durante diagnóstico.
 - **OK** — teste de ciclo de vida completo (`Full_lifecycle...`) percorre todas as transições em sequência e confirma que não é possível voltar/pular estados.
+- **OK** — `AddPart` adiciona e acumula `TotalParts`; `AddWorkshopService` adiciona.
+- **Erro** — `AddPart`/`AddWorkshopService` recusam item já presente na OS, sem alterar a coleção; `Update` com coleção contendo peça ou serviço repetido também lança.
+- **OK** — as guardas estáticas `EnsureNoRepeatedParts`/`EnsureNoRepeatedWorkshopServices` aceitam conjunto vazio e sem repetição, e lançam quando há id repetido.
+- **Borda** — `Update` substitui a coleção em vez de acumular, então o mesmo id pode voltar numa atualização seguinte sem ser tratado como repetição; e o mesmo id pode ser usado por OS diferentes.
 
 ### `ServiceOrderPart` — `tests/Oficina.Tests/Domain/ServiceOrderPartTests.cs`
 - **OK** — `Create` define ids e quantidade; `UpdateQuantity` altera a quantidade usada.
@@ -153,6 +157,7 @@ Convenções: **OK** = fluxo válido; **Erro** = valida rejeição/exceção; **
 - **Borda** — `GetByIdAsync` retorna `null` para ordem inexistente; retorna detalhe para ordem existente.
 - **OK** — `UpdateAsync` consome estoque ao adicionar peça nova; devolve estoque ao reduzir a quantidade de uma peça já usada.
 - **Erro** — `UpdateAsync` lança `InsufficientStockException` quando o estoque é insuficiente; lança `InvalidOperationException` quando a peça não existe, o serviço de oficina não existe, ou ao tentar trocar o mecânico após o diagnóstico ter começado.
+- **Erro** — `UpdateAsync` recusa a mesma peça ou o mesmo serviço enviados duas vezes no mesmo payload, **e o estoque permanece intacto** (os dois testes afirmam o saldo e a OS depois da recusa). São eles que provam que a guarda de duplicidade roda antes da reserva: sem a chamada antecipada à guarda do domínio, a exceção ainda é lançada por `AddPart`, mas o estoque já foi debitado e persistido.
 - **OK** — `ApproveAsync` avança para `InExecution`; `FinalizeAsync` avança para `Finalized`; `DeliverAsync` avança para `Delivered`.
 - **Erro** — `ApproveAsync`/`CancelAsync`/`FinalizeAsync`/`DeliverAsync` lançam quando a ordem está no status errado **ou** quando a ordem não existe.
 - **OK** — `CancelAsync` rejeita a ordem e devolve ao estoque as peças já consumidas.

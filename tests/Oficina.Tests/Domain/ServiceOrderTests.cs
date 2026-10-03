@@ -1,4 +1,5 @@
 using Oficina.Domain.OrderService;
+using Oficina.Domain.Parts;
 using Oficina.Domain.ServiceOrders;
 
 namespace Oficina.Tests.Domain;
@@ -130,7 +131,7 @@ public sealed class ServiceOrderTests
     {
         var serviceOrder = OpenAndAdvanceToInDiagnosis();
 
-        AddPart(serviceOrder);
+        AttachPart(serviceOrder);
         serviceOrder.UpdateStatus();
 
         Assert.Equal(ServiceOrderStatus.InDiagnosis, serviceOrder.Status);
@@ -141,7 +142,7 @@ public sealed class ServiceOrderTests
     {
         var serviceOrder = OpenAndAdvanceToInDiagnosis();
 
-        AddWorkshopService(serviceOrder);
+        AttachWorkshopService(serviceOrder);
         serviceOrder.UpdateStatus();
 
         Assert.Equal(ServiceOrderStatus.AwaitingApproval, serviceOrder.Status);
@@ -152,8 +153,8 @@ public sealed class ServiceOrderTests
     {
         var serviceOrder = OpenAndAdvanceToInDiagnosis();
 
-        AddPart(serviceOrder);
-        AddWorkshopService(serviceOrder);
+        AttachPart(serviceOrder);
+        AttachWorkshopService(serviceOrder);
         serviceOrder.UpdateStatus();
 
         Assert.Equal(ServiceOrderStatus.AwaitingApproval, serviceOrder.Status);
@@ -339,7 +340,7 @@ public sealed class ServiceOrderTests
         serviceOrder.UpdateStatus();
         visited.Add(serviceOrder.Status);
 
-        AddWorkshopService(serviceOrder);
+        AttachWorkshopService(serviceOrder);
         serviceOrder.UpdateStatus();
         visited.Add(serviceOrder.Status);
 
@@ -381,10 +382,194 @@ public sealed class ServiceOrderTests
         return serviceOrder;
     }
 
+    // ARCH-9: a regra "uma peca/servico nao pode se repetir na ordem" vive no dominio.
+    // AddPart/AddWorkshopService guardam a invariante do agregado; as guardas estaticas
+    // validam o payload antes de o caso de uso reservar estoque.
+
+    [Fact]
+    public void AddPart_adds_the_part_and_accumulates_total_parts()
+    {
+        var serviceOrder = OpenAndAdvanceToInDiagnosis();
+        var part = Part.Create("Filtro", "FLT-1", 10m, EnumPartKind.Part);
+
+        var first = ServiceOrderPart.Create(part.Id, serviceOrder.Id, 2);
+        first.Part = part;
+        var second = ServiceOrderPart.Create(Guid.NewGuid(), serviceOrder.Id, 3);
+        second.Part = part;
+
+        serviceOrder.AddPart(first);
+        serviceOrder.AddPart(second);
+
+        Assert.Equal(2, serviceOrder.Parts.Count);
+        Assert.Equal(50m, serviceOrder.TotalParts);
+    }
+
+    [Fact]
+    public void AddPart_rejects_a_part_already_in_the_order()
+    {
+        var serviceOrder = OpenAndAdvanceToInDiagnosis();
+        var partId = Guid.NewGuid();
+        serviceOrder.AddPart(ServiceOrderPart.Create(partId, serviceOrder.Id, 1));
+
+        var act = () => serviceOrder.AddPart(ServiceOrderPart.Create(partId, serviceOrder.Id, 4));
+
+        var exception = Assert.Throws<InvalidOperationException>(act);
+        Assert.Equal("A part cannot be repeated in the service order.", exception.Message);
+        Assert.Single(serviceOrder.Parts);
+    }
+
+    [Fact]
+    public void AddWorkshopService_adds_the_service()
+    {
+        var serviceOrder = OpenAndAdvanceToInDiagnosis();
+
+        serviceOrder.AddWorkshopService(ServiceOrderWorkshop.Create(serviceOrder.Id, Guid.NewGuid()));
+        serviceOrder.AddWorkshopService(ServiceOrderWorkshop.Create(serviceOrder.Id, Guid.NewGuid()));
+
+        Assert.Equal(2, serviceOrder.WorkshopServices.Count);
+    }
+
+    [Fact]
+    public void AddWorkshopService_rejects_a_service_already_in_the_order()
+    {
+        var serviceOrder = OpenAndAdvanceToInDiagnosis();
+        var workshopServiceId = Guid.NewGuid();
+        serviceOrder.AddWorkshopService(ServiceOrderWorkshop.Create(serviceOrder.Id, workshopServiceId));
+
+        var act = () => serviceOrder.AddWorkshopService(
+            ServiceOrderWorkshop.Create(serviceOrder.Id, workshopServiceId));
+
+        var exception = Assert.Throws<InvalidOperationException>(act);
+        Assert.Equal("A workshop service cannot be repeated in the service order.", exception.Message);
+        Assert.Single(serviceOrder.WorkshopServices);
+    }
+
+    [Fact]
+    public void Update_rejects_a_collection_with_a_repeated_part()
+    {
+        var serviceOrder = OpenAndAdvanceToInDiagnosis();
+        var partId = Guid.NewGuid();
+
+        var act = () => serviceOrder.Update(
+            serviceOrder.MechanicId,
+            description: null,
+            checkList: null,
+            parts: new[]
+            {
+                ServiceOrderPart.Create(partId, serviceOrder.Id, 1),
+                ServiceOrderPart.Create(partId, serviceOrder.Id, 2)
+            },
+            workshopServices: null);
+
+        Assert.Throws<InvalidOperationException>(act);
+    }
+
+    [Fact]
+    public void Update_rejects_a_collection_with_a_repeated_workshop_service()
+    {
+        var serviceOrder = OpenAndAdvanceToInDiagnosis();
+        var workshopServiceId = Guid.NewGuid();
+
+        var act = () => serviceOrder.Update(
+            serviceOrder.MechanicId,
+            description: null,
+            checkList: null,
+            parts: null,
+            workshopServices: new[]
+            {
+                ServiceOrderWorkshop.Create(serviceOrder.Id, workshopServiceId),
+                ServiceOrderWorkshop.Create(serviceOrder.Id, workshopServiceId)
+            });
+
+        Assert.Throws<InvalidOperationException>(act);
+    }
+
+    [Fact]
+    public void Update_replaces_the_previous_collection_instead_of_accumulating()
+    {
+        var serviceOrder = OpenAndAdvanceToInDiagnosis();
+        var partId = Guid.NewGuid();
+        AttachPart(serviceOrder);
+
+        // O mesmo id pode voltar numa atualizacao seguinte: Update substitui a colecao,
+        // entao nao e considerado repeticao.
+        serviceOrder.Update(
+            serviceOrder.MechanicId,
+            description: null,
+            checkList: null,
+            parts: new[] { ServiceOrderPart.Create(partId, serviceOrder.Id, 1) },
+            workshopServices: null);
+        serviceOrder.Update(
+            serviceOrder.MechanicId,
+            description: null,
+            checkList: null,
+            parts: new[] { ServiceOrderPart.Create(partId, serviceOrder.Id, 7) },
+            workshopServices: null);
+
+        var part = Assert.Single(serviceOrder.Parts);
+        Assert.Equal(partId, part.PartId);
+        Assert.Equal(7, part.QuantityUsed);
+    }
+
+    [Fact]
+    public void EnsureNoRepeatedParts_accepts_an_empty_or_distinct_set()
+    {
+        ServiceOrder.EnsureNoRepeatedParts([]);
+        ServiceOrder.EnsureNoRepeatedParts([Guid.NewGuid(), Guid.NewGuid()]);
+    }
+
+    [Fact]
+    public void EnsureNoRepeatedParts_rejects_a_repeated_id()
+    {
+        var partId = Guid.NewGuid();
+
+        var act = () => ServiceOrder.EnsureNoRepeatedParts([partId, Guid.NewGuid(), partId]);
+
+        var exception = Assert.Throws<InvalidOperationException>(act);
+        Assert.Equal("A part cannot be repeated in the service order.", exception.Message);
+    }
+
+    [Fact]
+    public void EnsureNoRepeatedWorkshopServices_accepts_an_empty_or_distinct_set()
+    {
+        ServiceOrder.EnsureNoRepeatedWorkshopServices([]);
+        ServiceOrder.EnsureNoRepeatedWorkshopServices([Guid.NewGuid(), Guid.NewGuid()]);
+    }
+
+    [Fact]
+    public void EnsureNoRepeatedWorkshopServices_rejects_a_repeated_id()
+    {
+        var workshopServiceId = Guid.NewGuid();
+
+        var act = () => ServiceOrder.EnsureNoRepeatedWorkshopServices([workshopServiceId, workshopServiceId]);
+
+        var exception = Assert.Throws<InvalidOperationException>(act);
+        Assert.Equal("A workshop service cannot be repeated in the service order.", exception.Message);
+    }
+
+    [Fact]
+    public void The_same_part_and_service_can_be_used_by_different_service_orders()
+    {
+        var partId = Guid.NewGuid();
+        var workshopServiceId = Guid.NewGuid();
+        var first = OpenAndAdvanceToInDiagnosis();
+        var second = OpenAndAdvanceToInDiagnosis();
+
+        first.AddPart(ServiceOrderPart.Create(partId, first.Id, 1));
+        first.AddWorkshopService(ServiceOrderWorkshop.Create(first.Id, workshopServiceId));
+        second.AddPart(ServiceOrderPart.Create(partId, second.Id, 1));
+        second.AddWorkshopService(ServiceOrderWorkshop.Create(second.Id, workshopServiceId));
+
+        Assert.Single(first.Parts);
+        Assert.Single(second.Parts);
+        Assert.Single(first.WorkshopServices);
+        Assert.Single(second.WorkshopServices);
+    }
+
     private static ServiceOrder OpenAndAdvanceToAwaitingApproval()
     {
         var serviceOrder = OpenAndAdvanceToInDiagnosis();
-        AddWorkshopService(serviceOrder);
+        AttachWorkshopService(serviceOrder);
         serviceOrder.UpdateStatus();
         return serviceOrder;
     }
@@ -409,7 +594,7 @@ public sealed class ServiceOrderTests
     private static void AssignMechanic(ServiceOrder serviceOrder, Guid mechanicId) =>
         serviceOrder.Update(mechanicId, description: null, checkList: null, parts: null, workshopServices: null);
 
-    private static void AddPart(ServiceOrder serviceOrder) =>
+    private static void AttachPart(ServiceOrder serviceOrder) =>
         serviceOrder.Update(
             serviceOrder.MechanicId,
             description: null,
@@ -417,7 +602,7 @@ public sealed class ServiceOrderTests
             parts: new[] { ServiceOrderPart.Create(Guid.NewGuid(), serviceOrder.Id, 1) },
             workshopServices: null);
 
-    private static void AddWorkshopService(ServiceOrder serviceOrder) =>
+    private static void AttachWorkshopService(ServiceOrder serviceOrder) =>
         serviceOrder.Update(
             serviceOrder.MechanicId,
             description: null,

@@ -145,10 +145,7 @@ public sealed class UpdateServiceOrderUseCase(
         var stockDeltas = new Dictionary<Guid, int>();
         var quantitiesToUpdate = new List<(ServiceOrderPart Part, int Quantity)>();
 
-        if (items.Select(item => item.PartId).Distinct().Count() != items.Count)
-        {
-            throw new InvalidOperationException("A part cannot be repeated in the service order.");
-        }
+        ServiceOrder.EnsureNoRepeatedParts(items.Select(item => item.PartId));
 
         foreach (var item in items)
         {
@@ -257,11 +254,7 @@ public sealed class UpdateServiceOrderUseCase(
         var workshopServices = new List<ServiceOrderWorkshop>();
         var newWorkshopServices = new List<ServiceOrderWorkshop>();
 
-        if (workshopServiceIds.Distinct().Count() != workshopServiceIds.Count)
-        {
-            throw new InvalidOperationException(
-                "A workshop service cannot be repeated in the service order.");
-        }
+        ServiceOrder.EnsureNoRepeatedWorkshopServices(workshopServiceIds);
 
         foreach (var id in workshopServiceIds)
         {
