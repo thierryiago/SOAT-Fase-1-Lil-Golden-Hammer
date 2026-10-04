@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Budgets;
 using Oficina.Application.Notifications;
-using Oficina.Application.ServiceOrders;
+using Oficina.Application.ServiceOrders.UseCases;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Oficina.Api.Controllers;
@@ -10,11 +10,16 @@ namespace Oficina.Api.Controllers;
 [ApiController]
 [Route("api/v1/notifications")]
 [ExcludeFromCodeCoverage]
-public sealed class NotificationsController(INotificationEmailSender notificationEmailSender, IBudgetService budgetService, ServiceOrderService serviceOrderService) : ControllerBase
+public sealed class NotificationsController(
+    INotificationEmailSender notificationEmailSender,
+    IBudgetService budgetService,
+    ApproveServiceOrderUseCase approveServiceOrder,
+    CancelServiceOrderUseCase cancelServiceOrder) : ControllerBase
 {
     private readonly INotificationEmailSender _notificationEmailSender = notificationEmailSender;
     private readonly IBudgetService _budgetService = budgetService;
-    private readonly ServiceOrderService _serviceOrderService = serviceOrderService;
+    private readonly ApproveServiceOrderUseCase _approveServiceOrder = approveServiceOrder;
+    private readonly CancelServiceOrderUseCase _cancelServiceOrder = cancelServiceOrder;
 
     [HttpPost("email", Name = "SendEmailNotification")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -35,7 +40,7 @@ public sealed class NotificationsController(INotificationEmailSender notificatio
         string budgetId, CancellationToken cancellationToken)
     {
         var budget = await _budgetService.SetApprovalByBudgetIdAsync(Guid.Parse(budgetId), true, cancellationToken);
-        await _serviceOrderService.ApproveAsync(budget.ServiceOrderId, cancellationToken);
+        await _approveServiceOrder.ExecuteAsync(budget.ServiceOrderId, cancellationToken);
         return Ok("Orçamento aprovado");
     }
 
@@ -47,7 +52,7 @@ public sealed class NotificationsController(INotificationEmailSender notificatio
         string budgetId, CancellationToken cancellationToken)
     {
         var budget = await _budgetService.SetApprovalByBudgetIdAsync(Guid.Parse(budgetId), false, cancellationToken);
-        await _serviceOrderService.CancelAsync(budget.ServiceOrderId, cancellationToken);
+        await _cancelServiceOrder.ExecuteAsync(budget.ServiceOrderId, cancellationToken);
         return Ok("Orçamento rejeitado");
     }
 }

@@ -13,7 +13,10 @@ namespace Oficina.Api.Controllers;
 [ExcludeFromCodeCoverage]
 public sealed class ServiceOrdersController : ControllerBase
 {
-    private readonly ServiceOrderService _serviceOrders;
+    private readonly ApproveServiceOrderUseCase _approveServiceOrder;
+    private readonly CancelServiceOrderUseCase _cancelServiceOrder;
+    private readonly FinalizeServiceOrderUseCase _finalizeServiceOrder;
+    private readonly DeliverServiceOrderUseCase _deliverServiceOrder;
     private readonly ListServiceOrdersUseCase _listServiceOrders;
     private readonly GetServiceOrderByIdUseCase _getServiceOrderById;
     private readonly TrackServiceOrderUseCase _trackServiceOrder;
@@ -22,7 +25,10 @@ public sealed class ServiceOrdersController : ControllerBase
     private readonly UpdateServiceOrderUseCase _updateServiceOrder;
 
     public ServiceOrdersController(
-        ServiceOrderService serviceOrders,
+        ApproveServiceOrderUseCase approveServiceOrder,
+        CancelServiceOrderUseCase cancelServiceOrder,
+        FinalizeServiceOrderUseCase finalizeServiceOrder,
+        DeliverServiceOrderUseCase deliverServiceOrder,
         OpenServiceOrderUseCase openServiceOrder,
         UpdateServiceOrderUseCase updateServiceOrder,
         ListServiceOrdersUseCase listServiceOrders,
@@ -30,7 +36,10 @@ public sealed class ServiceOrdersController : ControllerBase
         TrackServiceOrderUseCase trackServiceOrder,
         TrackServiceOrdersByDocumentUseCase trackServiceOrdersByDocument)
     {
-        _serviceOrders = serviceOrders;
+        _approveServiceOrder = approveServiceOrder;
+        _cancelServiceOrder = cancelServiceOrder;
+        _finalizeServiceOrder = finalizeServiceOrder;
+        _deliverServiceOrder = deliverServiceOrder;
         _openServiceOrder = openServiceOrder;
         _updateServiceOrder = updateServiceOrder;
         _listServiceOrders = listServiceOrders;
@@ -99,7 +108,7 @@ public sealed class ServiceOrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Approve(Guid id, CancellationToken cancellationToken)
     {
-        var service = await _serviceOrders.ApproveAsync(id, cancellationToken);
+        var service = await _approveServiceOrder.ExecuteAsync(id, cancellationToken);
         return Ok(service);
     }
 
@@ -108,7 +117,7 @@ public sealed class ServiceOrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken cancellationToken)
     {
-        var service = await _serviceOrders.CancelAsync(id, cancellationToken);
+        var service = await _cancelServiceOrder.ExecuteAsync(id, cancellationToken);
         return Ok(service);
     }
 
@@ -117,7 +126,7 @@ public sealed class ServiceOrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Finalize(Guid id, CancellationToken cancellationToken)
     {
-        var service = await _serviceOrders.FinalizeAsync(id, cancellationToken);
+        var service = await _finalizeServiceOrder.ExecuteAsync(id, cancellationToken);
         return Ok(service);
     }
 
@@ -126,7 +135,7 @@ public sealed class ServiceOrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Deliver(Guid id, CancellationToken cancellationToken)
     {
-        var service = await _serviceOrders.DeliverAsync(id, cancellationToken);
+        var service = await _deliverServiceOrder.ExecuteAsync(id, cancellationToken);
         return Ok(service);
     }
 
