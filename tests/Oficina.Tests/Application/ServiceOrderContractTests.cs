@@ -238,6 +238,60 @@ public sealed class ServiceOrderContractTests
             CancellationToken.None));
     }
 
+    // ARCH-9: a regra de nao repeticao vive em ServiceOrder. O caso de uso chama a
+    // guarda estatica do dominio antes de resolver pecas, entao a recusa acontece
+    // sem debitar estoque - StockPartRepository.UpdateAsync persiste de imediato e
+    // uma validacao tardia deixaria estoque debitado numa OS inalterada.
+
+    [Fact]
+    public async Task UpdateAsync_should_throw_when_the_same_part_is_sent_twice()
+    {
+        var context = await CreateOpenedOrderAsync(initialStock: 10);
+        await AdvanceToInDiagnosisAsync(context);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => context.UpdateServiceOrder.ExecuteAsync(
+                new UpdateServiceOrderRequest(
+                    context.ServiceOrderId,
+                    Parts:
+                    [
+                        new AddPartToServiceOrderRequest(context.PartId, 2),
+                        new AddPartToServiceOrderRequest(context.PartId, 3)
+                    ]),
+                CancellationToken.None));
+
+        Assert.Equal("A part cannot be repeated in the service order.", exception.Message);
+
+        var stock = await context.Stocks.GetByPartIdAsync(context.PartId, CancellationToken.None);
+        Assert.Equal(10, stock!.Quantity);
+        var order = await context.GetServiceOrderById.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
+        Assert.Empty(order!.Parts);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_should_throw_when_the_same_workshop_service_is_sent_twice()
+    {
+        var context = await CreateOpenedOrderAsync(initialStock: 10);
+        await AdvanceToInDiagnosisAsync(context);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => context.UpdateServiceOrder.ExecuteAsync(
+                new UpdateServiceOrderRequest(
+                    context.ServiceOrderId,
+                    Parts: [new AddPartToServiceOrderRequest(context.PartId, 2)],
+                    WorkshopServiceIds: [context.WorkshopServiceId, context.WorkshopServiceId]),
+                CancellationToken.None));
+
+        Assert.Equal("A workshop service cannot be repeated in the service order.", exception.Message);
+
+        // Os servicos sao resolvidos antes das pecas, entao a peca valida do mesmo
+        // payload tambem nao chega a consumir estoque.
+        var stock = await context.Stocks.GetByPartIdAsync(context.PartId, CancellationToken.None);
+        Assert.Equal(10, stock!.Quantity);
+        var order = await context.GetServiceOrderById.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
+        Assert.Empty(order!.WorkshopServices);
+    }
+
     [Fact]
     public async Task UpdateAsync_should_throw_when_part_does_not_exist()
     {

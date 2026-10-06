@@ -6,6 +6,14 @@ namespace Oficina.Domain.ServiceOrders;
 
 public sealed class ServiceOrder
 {
+    private const string RepeatedPartMessage = "A part cannot be repeated in the service order.";
+    private const string RepeatedWorkshopServiceMessage = "A workshop service cannot be repeated in the service order.";
+
+    // Campos mutaveis, nao readonly: Replace* atribui uma lista nova para manter
+    // a semantica de substituicao que o EF ve hoje em Parts = parts.ToList().
+    private List<ServiceOrderPart> _parts = [];
+    private List<ServiceOrderWorkshop> _workshopServices = [];
+
     private ServiceOrder(Guid id, Guid customerId, Guid? vehicleId,
         string description)
     {
@@ -15,8 +23,6 @@ public sealed class ServiceOrder
         Description = description;
         Status = ServiceOrderStatus.Created;
         CreatedAt = DateTimeOffset.UtcNow;
-        Parts = new List<ServiceOrderPart>();
-        WorkshopServices = new List<ServiceOrderWorkshop>();
     }
 
     public Guid Id { get; }
@@ -32,8 +38,8 @@ public sealed class ServiceOrder
     public Customer Customer { get; private set; } = null!;
     public Mechanic? Mechanic { get; private set; }
     public Vehicle? Vehicle { get; set; }
-    public IReadOnlyCollection<ServiceOrderPart> Parts { get; private set; }
-    public IReadOnlyCollection<ServiceOrderWorkshop> WorkshopServices { get; private set; }
+    public IReadOnlyCollection<ServiceOrderPart> Parts => _parts;
+    public IReadOnlyCollection<ServiceOrderWorkshop> WorkshopServices => _workshopServices;
 
     public static ServiceOrder Open(Guid customerId, Guid vehicleId, string description)
     {
@@ -82,25 +88,96 @@ public sealed class ServiceOrder
 
         if (parts is not null)
         {
-            SetParts(parts);
+            ReplaceParts(parts);
         }
 
         if (workshopServices is not null)
         {
-            SetWorkshopServices(workshopServices);
+            ReplaceWorkshopServices(workshopServices);
         }
     }
 
-    private void SetParts(IReadOnlyCollection<ServiceOrderPart> parts)
+    /// <summary>
+    /// Adiciona uma peca a ordem de servico, recusando uma peca que ja esteja
+    /// presente. Junto de <see cref="AddWorkshopService"/>, e o unico ponto por
+    /// onde as colecoes crescem, o que mantem a invariante de nao repeticao
+    /// dentro do agregado.
+    /// </summary>
+    public void AddPart(ServiceOrderPart part)
     {
-        Parts = parts.ToList();
-        TotalParts = Parts.Sum(item => item.QuantityUsed * (item.Part?.UnitPrice ?? 0));
+        ArgumentNullException.ThrowIfNull(part);
+
+        if (_parts.Any(existing => existing.PartId == part.PartId))
+        {
+            throw new InvalidOperationException(RepeatedPartMessage);
+        }
+
+        _parts.Add(part);
+        RecalculateTotalParts();
     }
 
-    private void SetWorkshopServices(IReadOnlyCollection<ServiceOrderWorkshop> workshopServices)
+    public void AddWorkshopService(ServiceOrderWorkshop workshopService)
     {
-        WorkshopServices = workshopServices.ToList();
+        ArgumentNullException.ThrowIfNull(workshopService);
+
+        if (_workshopServices.Any(existing => existing.WorkshopServiceId == workshopService.WorkshopServiceId))
+        {
+            throw new InvalidOperationException(RepeatedWorkshopServiceMessage);
+        }
+
+        _workshopServices.Add(workshopService);
     }
+
+    /// <summary>
+    /// Valida os identificadores recebidos antes de qualquer efeito colateral.
+    /// Existe porque o caso de uso reserva estoque (com persistencia imediata)
+    /// enquanto resolve as pecas, muito antes de montar a colecao: recusar aqui
+    /// evita debitar estoque de um pedido que seria rejeitado depois.
+    /// </summary>
+    public static void EnsureNoRepeatedParts(IEnumerable<Guid> partIds)
+    {
+        if (HasRepetition(partIds))
+        {
+            throw new InvalidOperationException(RepeatedPartMessage);
+        }
+    }
+
+    public static void EnsureNoRepeatedWorkshopServices(IEnumerable<Guid> workshopServiceIds)
+    {
+        if (HasRepetition(workshopServiceIds))
+        {
+            throw new InvalidOperationException(RepeatedWorkshopServiceMessage);
+        }
+    }
+
+    private static bool HasRepetition(IEnumerable<Guid> ids)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+
+        var seen = new HashSet<Guid>();
+        return ids.Any(id => !seen.Add(id));
+    }
+
+    private void ReplaceParts(IReadOnlyCollection<ServiceOrderPart> parts)
+    {
+        _parts = [];
+        foreach (var part in parts)
+        {
+            AddPart(part);
+        }
+    }
+
+    private void ReplaceWorkshopServices(IReadOnlyCollection<ServiceOrderWorkshop> workshopServices)
+    {
+        _workshopServices = [];
+        foreach (var workshopService in workshopServices)
+        {
+            AddWorkshopService(workshopService);
+        }
+    }
+
+    private void RecalculateTotalParts() =>
+        TotalParts = _parts.Sum(item => item.QuantityUsed * (item.Part?.UnitPrice ?? 0));
 
     public void UpdateStatus(
         bool? clientApproved = null,
