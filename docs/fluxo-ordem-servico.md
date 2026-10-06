@@ -53,7 +53,7 @@ O fluxo atravessa quatro camadas:
 ```text
 Cliente HTTP
   -> ServiceOrdersController
-  -> ServiceOrderService
+  -> caso de uso da operação
   -> entidades e regras de domínio
   -> repositórios
   -> Entity Framework Core / PostgreSQL
@@ -68,17 +68,14 @@ Responsabilidades:
 | Domain | Valida a OS e decide suas transições de status. |
 | Infrastructure | Consulta e grava a OS e suas relações por Entity Framework Core. |
 
-`ServiceOrderService` depende de sete repositórios e de dois serviços de aplicação:
+As transições são orquestradas por quatro casos de uso em `OrderServices/UseCases/`, cada um com um único método público `ExecuteAsync`:
 
-- `IServiceOrderRepository`;
-- `ICustomerRepository`;
-- `IVehicleRepository`;
-- `IPartRepository`;
-- `IWorkshopServiceRepository`;
-- `IStockRepository`;
-- `IServiceOrderHistoryRepository`;
-- `IBudgetService`;
-- `NotificationService`.
+- `ApproveServiceOrderUseCase`: ordem, histórico e orçamento;
+- `CancelServiceOrderUseCase`: ordem, histórico, orçamento e estoque;
+- `FinalizeServiceOrderUseCase`: ordem, histórico, cliente, veículo e notificação;
+- `DeliverServiceOrderUseCase`: ordem e histórico.
+
+Os helpers permanecem privados nos casos de uso que os utilizam. `ServiceOrdersController` usa os quatro casos diretamente; `NotificationsController` usa aprovação e cancelamento. `ServiceOrderService` foi preservado inteiramente comentado, sem registro na DI. As rotas e os comportamentos HTTP permanecem iguais.
 
 Não há chamada HTTP entre microsserviços nesse fluxo. As “interações com outros services” são chamadas entre serviços/repositórios do mesmo monólito e usam o mesmo banco PostgreSQL.
 

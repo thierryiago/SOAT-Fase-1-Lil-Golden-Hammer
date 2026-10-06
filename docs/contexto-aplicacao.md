@@ -44,7 +44,10 @@ classDiagram
     class PartService
     class ServiceCatalogService
     class MechanicService
-    class ServiceOrderService
+    class ApproveServiceOrderUseCase
+    class CancelServiceOrderUseCase
+    class FinalizeServiceOrderUseCase
+    class DeliverServiceOrderUseCase
     class Customer
     class Vehicle
     class Part
@@ -63,22 +66,33 @@ classDiagram
     PartsController --> PartService
     ServicesController --> ServiceCatalogService
     MechanicsController --> MechanicService
-    ServiceOrdersController --> ServiceOrderService
+    ServiceOrdersController --> ApproveServiceOrderUseCase
+    ServiceOrdersController --> CancelServiceOrderUseCase
+    ServiceOrdersController --> FinalizeServiceOrderUseCase
+    ServiceOrdersController --> DeliverServiceOrderUseCase
     CustomerService --> ICustomerRepository
     VehicleService --> IVehicleRepository
     PartService --> IPartRepository
     ServiceCatalogService --> IWorkshopServiceRepository
     MechanicService --> IMechanicRepository
-    ServiceOrderService --> IServiceOrderRepository
+    ApproveServiceOrderUseCase --> IServiceOrderRepository
+    CancelServiceOrderUseCase --> IServiceOrderRepository
+    FinalizeServiceOrderUseCase --> IServiceOrderRepository
+    DeliverServiceOrderUseCase --> IServiceOrderRepository
     CustomerService ..> Customer
     VehicleService ..> Vehicle
     PartService ..> Part
     ServiceCatalogService ..> WorkshopService
     MechanicService ..> Mechanic
-    ServiceOrderService ..> ServiceOrder
+    ApproveServiceOrderUseCase ..> ServiceOrder
+    CancelServiceOrderUseCase ..> ServiceOrder
+    FinalizeServiceOrderUseCase ..> ServiceOrder
+    DeliverServiceOrderUseCase ..> ServiceOrder
 ```
 
 O domínio mantém invariantes como validação de CPF/CNPJ, placa, valores, quantidades e transições básicas da ordem. DTOs evitam que os contratos HTTP dependam diretamente dos objetos de entrada internos. A API usa `Problem+JSON` para erros tratados: 400 para argumentos/operações inválidas, 404 para recursos ausentes, 409 para conflitos e 500 para erros não previstos.
+
+As quatro transições usam casos de uso individuais com `ExecuteAsync`, registrados como `Scoped`. O `NotificationsController` também usa os casos de aprovação e cancelamento. `ServiceOrderService` permanece inteiramente comentado como referência, sem registro na DI.
 
 ## 4. Modelo de dados e Entity Framework Core
 
