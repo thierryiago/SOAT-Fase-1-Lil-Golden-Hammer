@@ -1,5 +1,7 @@
 # Oficina API
 
+[![CI](https://github.com/thierryiago/SOAT-Fase-1-Lil-Golden-Hammer/actions/workflows/ci.yml/badge.svg)](https://github.com/thierryiago/SOAT-Fase-1-Lil-Golden-Hammer/actions/workflows/ci.yml)
+
 API REST em .NET 10 para gestão operacional de uma oficina mecânica, cobrindo clientes, veículos, peças, estoque, mecânicos, serviços, ordens de serviço, orçamentos, histórico, métricas e notificações por e-mail.
 
 ## Sumário
@@ -564,6 +566,15 @@ dotnet test tests/Oficina.Tests/Oficina.Tests.csproj
 ```bash
 dotnet test tests/Oficina.Api.ContractTests/Oficina.Api.ContractTests.csproj
 ```
+
+### Integração contínua
+
+O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda em todo pull request e push na `main`, com dois jobs:
+
+- `gitignore-check`: garante que artefatos de build, resultados de testes, coverage, configurações locais e segredos (`bin/`, `obj/`, `TestResults/`, `*.trx`, `coverage.xml`, `.env`, `appsettings.Development.json` etc.) continuam cobertos pelo `.gitignore` e não estão versionados.
+- `build-and-test`: `restore` → `build` (Release) → testes de arquitetura → testes unitários (com coverage) → testes de contrato. Os resultados (`.trx` e coverage) ficam disponíveis como artifact `test-results`.
+
+A versão do SDK é fixada em [`global.json`](global.json).
 
 ---
 

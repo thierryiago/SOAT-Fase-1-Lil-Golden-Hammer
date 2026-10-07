@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  ARCH_TESTS_FILTER: FullyQualifiedName~Oficina.Tests.Architeture
+
+jobs:
+  gitignore-check:
+    name: gitignore-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validar regras do .gitignore
+        shell: bash
+        run: |
+          set -uo pipefail
+          failed=0
+
+          # 1) Caminhos de exemplo que DEVEM ser ignorados pelo .gitignore.
+          must_ignore=(
+            "src/Oficina.Api/bin/Release/Oficina.Api.dll"
+            "src/Oficina.Api/obj/project.assets.json"
+            "tests/Oficina.Tests/TestResults/resultado.trx"
+            "resultado.trx"
+            "coverage.xml"
+            "coverage/index.html"
+            "RelatorioHTML/index.html"
+            ".sonarqube/out/0/Issues.json"
+            ".vs/Oficina/v17/.suo"
+            ".vscode/settings.json"
+            ".idea/workspace.xml"
+            "Oficina.Api.csproj.user"
+            ".env"
+            "src/Oficina.Api/appsettings.Development.json"
+          )
+          for path in "${must_ignore[@]}"; do
+            if ! git check-ignore -q --no-index "$path"; then
+              echo "::error file=.gitignore::O caminho '$path' deveria ser ignorado pelo .gitignore"
+              failed=1
+            fi
+          done
+
+          # 2) Caminhos que NAO podem ser ignorados.
+          must_track=(
+            ".env.example"
+            "src/Oficina.Api/appsettings.json"
+            "global.json"
+          )
+          for path in "${must_track[@]}"; do
+            if git check-ignore -q --no-index "$path"; then
+              echo "::error file=.gitignore::O caminho '$path' nao deveria ser ignorado pelo .gitignore"
+              failed=1
+            fi
+          done
+
+          # 3) Arquivos versionados que deveriam estar fora do repositorio.
+          forbidden='(^|/)(bin|obj|TestResults|coverage|RelatorioHTML|\.vs|\.sonarqube)/|\.trx$|(^|/)coverage\.xml$|(^|/)\.env$|\.user$|(^|/)appsettings\.Development\.json$'
+          tracked=$(git ls-files | grep -E "$forbidden" || true)
+          if [ -n "$tracked" ]; then
+            while IFS= read -r file; do
+              echo "::error file=$file::Arquivo versionado deveria estar no .gitignore (remova com 'git rm --cached')"
+            done <<< "$tracked"
+            failed=1
+          fi
+
+          if [ "$failed" -ne 0 ]; then
+            echo "Validacao do .gitignore falhou."
+            exit 1
+          fi
+          echo "Validacao do .gitignore OK."
+
+  build-and-test:
+    name: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+
+      - name: Restore
+        run: dotnet restore Oficina.sln
+
+      - name: Build
+        run: dotnet build Oficina.sln -c Release --no-restore
+
+      - name: Testes de arquitetura
+        run: >
+          dotnet test tests/Oficina.Tests/Oficina.Tests.csproj
+          -c Release --no-build
+          --filter "${{ env.ARCH_TESTS_FILTER }}"
+          --logger "trx;LogFileName=architecture.trx"
+          --results-directory TestResults/architecture
+
+      - name: Testes unitarios
+        run: >
+          dotnet test tests/Oficina.Tests/Oficina.Tests.csproj
+          -c Release --no-build
+          --filter "FullyQualifiedName!~Oficina.Tests.Architeture"
+          --logger "trx;LogFileName=unit.trx"
+          --collect "XPlat Code Coverage"
+          --results-directory TestResults/unit
+
+      - name: Testes de contrato
+        run: >
+          dotnet test tests/Oficina.Api.ContractTests/Oficina.Api.ContractTests.csproj
+          -c Release --no-build
+          --logger "trx;LogFileName=contract.trx"
+          --results-directory TestResults/contract
+
+      - name: Publicar resultados dos testes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/**
+          if-no-files-found: ignore
+          retention-days: 14
