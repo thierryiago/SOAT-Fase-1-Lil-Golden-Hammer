@@ -114,7 +114,7 @@ public sealed class ServiceOrderContractTests
         var context = await CreateOpenedOrderAsync();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            context.Service.ApproveAsync(Guid.NewGuid(), CancellationToken.None));
+            context.ApproveServiceOrder.ExecuteAsync(Guid.NewGuid(), CancellationToken.None));
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class ServiceOrderContractTests
         var context = await CreateOpenedOrderAsync();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            context.Service.CancelAsync(Guid.NewGuid(), CancellationToken.None));
+            context.CancelServiceOrder.ExecuteAsync(Guid.NewGuid(), CancellationToken.None));
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public sealed class ServiceOrderContractTests
         var context = await CreateOpenedOrderAsync();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            context.Service.FinalizeAsync(Guid.NewGuid(), CancellationToken.None));
+            context.FinalizeServiceOrder.ExecuteAsync(Guid.NewGuid(), CancellationToken.None));
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public sealed class ServiceOrderContractTests
         var context = await CreateOpenedOrderAsync();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            context.Service.DeliverAsync(Guid.NewGuid(), CancellationToken.None));
+            context.DeliverServiceOrder.ExecuteAsync(Guid.NewGuid(), CancellationToken.None));
     }
 
     [Fact]
@@ -185,11 +185,10 @@ public sealed class ServiceOrderContractTests
         serviceOrder.UpdateStatus();
         await orders.AddAsync(serviceOrder, CancellationToken.None);
 
-        var service = new ServiceOrderService(
-            orders, customers, vehicles, stocks,
-            new FakeServiceOrderHistoryRepository(), new FakeBudgetService(), CreateNotificationEmailSender(new FakeEmailSender()));
+        var cancelServiceOrder = new CancelServiceOrderUseCase(
+            orders, new FakeServiceOrderHistoryRepository(), new FakeBudgetService(), stocks);
 
-        var response = await service.CancelAsync(serviceOrder.Id, CancellationToken.None);
+        var response = await cancelServiceOrder.ExecuteAsync(serviceOrder.Id, CancellationToken.None);
 
         Assert.Equal(ServiceOrderStatus.Rejected, response.Status);
         Assert.Null(await stocks.GetByPartIdAsync(orphanPartId, CancellationToken.None));
@@ -332,7 +331,7 @@ public sealed class ServiceOrderContractTests
         await AdvanceToInDiagnosisAsync(context);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None));
+            context.ApproveServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None));
     }
 
     [Fact]
@@ -384,7 +383,7 @@ public sealed class ServiceOrderContractTests
         var context = await CreateOpenedOrderAsync();
         await AdvanceToAwaitingApprovalAsync(context);
 
-        var response = await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        var response = await context.ApproveServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
         var budget = await context.Budgets.GetByServiceOrderIdAsync(
             context.ServiceOrderId,
             CancellationToken.None);
@@ -403,7 +402,7 @@ public sealed class ServiceOrderContractTests
             CancellationToken.None);
 
         await context.BudgetService.SetApprovalByBudgetIdAsync(budget!.Id, true, CancellationToken.None);
-        var response = await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        var response = await context.ApproveServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
         var decidedBudget = await context.Budgets.GetByServiceOrderIdAsync(
             context.ServiceOrderId,
             CancellationToken.None);
@@ -427,7 +426,7 @@ public sealed class ServiceOrderContractTests
                 context.ServiceOrderId,
                 WorkshopServiceIds: [context.WorkshopServiceId]),
             CancellationToken.None);
-        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.ApproveServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
 
         var firstBudget = Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
         var response = await context.UpdateServiceOrder.ExecuteAsync(
@@ -473,7 +472,7 @@ public sealed class ServiceOrderContractTests
                 context.ServiceOrderId,
                 WorkshopServiceIds: [context.WorkshopServiceId]),
             CancellationToken.None);
-        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.ApproveServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
 
         var response = await context.UpdateServiceOrder.ExecuteAsync(
             new UpdateServiceOrderRequest(
@@ -496,7 +495,7 @@ public sealed class ServiceOrderContractTests
     {
         var context = await CreateOpenedOrderAsync();
         await AdvanceToAwaitingApprovalAsync(context);
-        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.ApproveServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
         var replacement = WorkshopService.Create("Alinhamento", "Descricao", 80m, 45);
         await context.WorkshopServices.AddAsync(replacement, CancellationToken.None);
 
@@ -520,7 +519,7 @@ public sealed class ServiceOrderContractTests
     {
         var context = await CreateOpenedOrderAsync();
         await AdvanceToAwaitingApprovalAsync(context);
-        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.ApproveServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => context.UpdateServiceOrder.ExecuteAsync(
             new UpdateServiceOrderRequest(
@@ -551,7 +550,7 @@ public sealed class ServiceOrderContractTests
                 context.ServiceOrderId,
                 WorkshopServiceIds: [context.WorkshopServiceId]),
             CancellationToken.None);
-        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.ApproveServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
 
         var response = await context.UpdateServiceOrder.ExecuteAsync(
             new UpdateServiceOrderRequest(
@@ -581,7 +580,7 @@ public sealed class ServiceOrderContractTests
                 context.ServiceOrderId,
                 WorkshopServiceIds: [context.WorkshopServiceId]),
             CancellationToken.None);
-        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.ApproveServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
 
         await Assert.ThrowsAsync<InsufficientStockException>(() => context.UpdateServiceOrder.ExecuteAsync(
             new UpdateServiceOrderRequest(
@@ -606,7 +605,7 @@ public sealed class ServiceOrderContractTests
         await AdvanceToInDiagnosisAsync(context);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            context.Service.CancelAsync(context.ServiceOrderId, CancellationToken.None));
+            context.CancelServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None));
     }
 
     [Fact]
@@ -621,7 +620,7 @@ public sealed class ServiceOrderContractTests
             new UpdateServiceOrderRequest(context.ServiceOrderId, WorkshopServiceIds: [context.WorkshopServiceId]),
             CancellationToken.None);
 
-        var response = await context.Service.CancelAsync(context.ServiceOrderId, CancellationToken.None);
+        var response = await context.CancelServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
 
         var stock = await context.Stocks.GetByPartIdAsync(context.PartId, CancellationToken.None);
         var budget = await context.Budgets.GetByServiceOrderIdAsync(
@@ -648,7 +647,7 @@ public sealed class ServiceOrderContractTests
             CancellationToken.None);
 
         await context.BudgetService.SetApprovalByBudgetIdAsync(budget!.Id, false, CancellationToken.None);
-        var response = await context.Service.CancelAsync(context.ServiceOrderId, CancellationToken.None);
+        var response = await context.CancelServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
         var decidedBudget = await context.Budgets.GetByServiceOrderIdAsync(
             context.ServiceOrderId,
             CancellationToken.None);
@@ -666,7 +665,7 @@ public sealed class ServiceOrderContractTests
         await AdvanceToAwaitingApprovalAsync(context);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            context.Service.FinalizeAsync(context.ServiceOrderId, CancellationToken.None));
+            context.FinalizeServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None));
     }
 
     [Fact]
@@ -674,9 +673,9 @@ public sealed class ServiceOrderContractTests
     {
         var context = await CreateOpenedOrderAsync();
         await AdvanceToAwaitingApprovalAsync(context);
-        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.ApproveServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
 
-        var response = await context.Service.FinalizeAsync(context.ServiceOrderId, CancellationToken.None);
+        var response = await context.FinalizeServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
 
         Assert.Equal(ServiceOrderStatus.Finalized, response.Status);
         Assert.Equal("john@email.com", context.EmailSender.Recipient);
@@ -695,10 +694,10 @@ public sealed class ServiceOrderContractTests
     {
         var context = await CreateOpenedOrderAsync();
         await AdvanceToAwaitingApprovalAsync(context);
-        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.ApproveServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            context.Service.DeliverAsync(context.ServiceOrderId, CancellationToken.None));
+            context.DeliverServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None));
     }
 
     [Fact]
@@ -706,10 +705,10 @@ public sealed class ServiceOrderContractTests
     {
         var context = await CreateOpenedOrderAsync();
         await AdvanceToAwaitingApprovalAsync(context);
-        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
-        await context.Service.FinalizeAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.ApproveServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.FinalizeServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
 
-        var response = await context.Service.DeliverAsync(context.ServiceOrderId, CancellationToken.None);
+        var response = await context.DeliverServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
 
         Assert.Equal(ServiceOrderStatus.Delivered, response.Status);
     }
@@ -719,9 +718,9 @@ public sealed class ServiceOrderContractTests
     {
         var context = await CreateOpenedOrderAsync();
         await AdvanceToAwaitingApprovalAsync(context);
-        await context.Service.ApproveAsync(context.ServiceOrderId, CancellationToken.None);
-        await context.Service.FinalizeAsync(context.ServiceOrderId, CancellationToken.None);
-        await context.Service.DeliverAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.ApproveServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.FinalizeServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
+        await context.DeliverServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
 
         var history = await context.History.FindByServiceOrderAsync(context.ServiceOrderId, CancellationToken.None);
 
@@ -756,6 +755,57 @@ public sealed class ServiceOrderContractTests
         Assert.Empty(notMatching);
     }
 
+    [Theory]
+    [InlineData(typeof(ApproveServiceOrderUseCase))]
+    [InlineData(typeof(CancelServiceOrderUseCase))]
+    [InlineData(typeof(FinalizeServiceOrderUseCase))]
+    [InlineData(typeof(DeliverServiceOrderUseCase))]
+    public void Status_transition_use_case_should_expose_only_ExecuteAsync(Type useCaseType)
+    {
+        var methods = useCaseType.GetMethods(
+            System.Reflection.BindingFlags.Public |
+            System.Reflection.BindingFlags.Instance |
+            System.Reflection.BindingFlags.DeclaredOnly);
+
+        var execute = Assert.Single(methods);
+        Assert.Equal("ExecuteAsync", execute.Name);
+        Assert.Equal(typeof(Task<ServiceOrderDetailResponse>), execute.ReturnType);
+        Assert.Equal(
+            new[] { typeof(Guid), typeof(CancellationToken) },
+            execute.GetParameters().Select(parameter => parameter.ParameterType));
+    }
+
+    [Theory]
+    [InlineData(true, "Customer was not found.")]
+    [InlineData(false, "Vehicle was not found.")]
+    public async Task FinalizeAsync_should_preserve_transition_and_history_when_notification_recipient_is_missing(
+        bool customerMissing,
+        string expectedMessage)
+    {
+        var context = await CreateOpenedOrderAsync();
+        await AdvanceToAwaitingApprovalAsync(context);
+        await context.ApproveServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
+        var historyBefore = await context.History.FindByServiceOrderAsync(context.ServiceOrderId, CancellationToken.None);
+        var emailCountBefore = context.EmailSender.SendCount;
+        var finalizeServiceOrder = new FinalizeServiceOrderUseCase(
+            context.Orders,
+            context.History,
+            customerMissing ? new FakeCustomerRepository() : context.Customers,
+            new FakeVehicleRepository(),
+            CreateNotificationEmailSender(context.EmailSender));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            finalizeServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None));
+
+        Assert.Equal(expectedMessage, exception.Message);
+        var order = await context.Orders.GetByIdAsync(context.ServiceOrderId, CancellationToken.None);
+        Assert.Equal(ServiceOrderStatus.Finalized, order!.Status);
+        var historyAfter = await context.History.FindByServiceOrderAsync(context.ServiceOrderId, CancellationToken.None);
+        Assert.Equal(historyBefore.Count + 1, historyAfter.Count);
+        Assert.Equal(nameof(ServiceOrderStatus.Finalized), historyAfter.Last().StatusName);
+        Assert.Equal(emailCountBefore, context.EmailSender.SendCount);
+    }
+
     private static OpenServiceOrderUseCase CreateOpenServiceOrderUseCase(
         ICustomerRepository customers,
         IVehicleRepository vehicles,
@@ -763,7 +813,10 @@ public sealed class ServiceOrderContractTests
         new(orders, customers, vehicles);
 
     private sealed record ServiceOrderTestContext(
-        ServiceOrderService Service,
+        ApproveServiceOrderUseCase ApproveServiceOrder,
+        CancelServiceOrderUseCase CancelServiceOrder,
+        FinalizeServiceOrderUseCase FinalizeServiceOrder,
+        DeliverServiceOrderUseCase DeliverServiceOrder,
         UpdateServiceOrderUseCase UpdateServiceOrder,
         GetServiceOrderByIdUseCase GetServiceOrderById,
         ListSchedulesUseCase ListSchedules,
@@ -771,6 +824,8 @@ public sealed class ServiceOrderContractTests
         BudgetService BudgetService,
         FakeStockRepository Stocks,
         FakeServiceOrderHistoryRepository History,
+        FakeServiceOrderRepository Orders,
+        FakeCustomerRepository Customers,
         FakeBudgetRepository Budgets,
         FakeEmailSender EmailSender,
         FakeWorkshopServiceRepository WorkshopServices,
@@ -804,14 +859,10 @@ public sealed class ServiceOrderContractTests
 
         var budgetService = new BudgetService(budgets, orders, parts, workshopServices);
         var notificationEmailSender = CreateNotificationEmailSender(emailSender);
-        var service = new ServiceOrderService(
-            orders,
-            customers,
-            vehicles,
-            stocks,
-            history,
-            budgetService,
-            notificationEmailSender);
+        var approveServiceOrder = new ApproveServiceOrderUseCase(orders, history, budgetService);
+        var cancelServiceOrder = new CancelServiceOrderUseCase(orders, history, budgetService, stocks);
+        var finalizeServiceOrder = new FinalizeServiceOrderUseCase(orders, history, customers, vehicles, notificationEmailSender);
+        var deliverServiceOrder = new DeliverServiceOrderUseCase(orders, history);
         var openServiceOrder = new OpenServiceOrderUseCase(orders, customers, vehicles);
         var updateServiceOrder = new UpdateServiceOrderUseCase(
             orders,
@@ -830,7 +881,10 @@ public sealed class ServiceOrderContractTests
             new OpenServiceOrderRequest(customer.Id, vehicle.Id, "Revisao"), CancellationToken.None);
 
         return new ServiceOrderTestContext(
-            service,
+            approveServiceOrder,
+            cancelServiceOrder,
+            finalizeServiceOrder,
+            deliverServiceOrder,
             updateServiceOrder,
             getServiceOrderById,
             listSchedules,
@@ -838,6 +892,8 @@ public sealed class ServiceOrderContractTests
             budgetService,
             stocks,
             history,
+            orders,
+            customers,
             budgets,
             emailSender,
             workshopServices,
