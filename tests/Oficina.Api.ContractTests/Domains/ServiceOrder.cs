@@ -578,7 +578,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
 
         // The order continues its normal flow using the now-deactivated mechanic's id - nothing
-        // in ServiceOrderService/ValidateUpdate checks Mechanic.IsActive.
+        // in UpdateServiceOrderUseCase/ValidateUpdate checks Mechanic.IsActive.
         var awaitingApprovalResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
         {
             serviceOrderId = ctx.Order.Id,

@@ -151,7 +151,7 @@ Convenções: **OK** = fluxo válido; **Erro** = valida rejeição/exceção; **
 - **OK** — `UpdateAsync` altera dados do serviço com sucesso.
 - **OK/Borda** — `DeleteAsync` desativa existente; retorna `false` se não existe.
 
-### `ServiceOrderService` — `ServiceOrderContractTests.cs` (o arquivo mais extenso da suíte)
+### Use Cases de ordens de serviço — `ServiceOrderContractTests.cs` (o arquivo mais extenso da suíte)
 - **OK** — `OpenAsync` retorna DTO de detalhe; `ListAsync` retorna resumo das ordens.
 - **Erro** — `OpenAsync` lança `InvalidOperationException` quando cliente ou veículo não existem.
 - **Borda** — `GetByIdAsync` retorna `null` para ordem inexistente; retorna detalhe para ordem existente.
@@ -267,7 +267,7 @@ Sobem a aplicação inteira via `WebApplicationFactory<Program>` (`OficinaApiFac
   - **Grupo E — cenários adicionais de negócio (2026-08-27, docs/analise-gaps-e-cenarios-faltantes.md seção 2.3, itens 12/13/23/24)**:
     - **Erro/Borda** (item 12) — `Cancel_twice_in_a_row_should_fail_the_second_time`: primeiro `POST /cancel` em `AwaitingApproval` funciona (200, `Rejected`); o segundo, na mesma OS já `Rejected`, falha com 400 — idempotência do cancelamento (não há devolução dupla de estoque porque a segunda chamada nem chega a mexer no estoque).
     - **OK** (item 13) — `Full_lifecycle_without_any_part_should_reach_delivered_and_budget_should_total_services_only`: ciclo completo de uma OS **sem nenhuma peça**, só com um serviço de oficina de R$250 — confirma `TotalParts = 0`, orçamento aberto com `TotalValue = 250` e `Parts` vazio, e a OS chega normalmente a `Delivered`.
-    - **Borda/Caracterização** (item 23) — `Order_should_keep_working_after_its_assigned_mechanic_is_deactivated`: soft-deleta (`DELETE /api/v1/mechanics/{id}`) o mecânico já atribuído a uma OS em `InDiagnosis` e confirma que a OS continua avançando normalmente (chega a `AwaitingApproval`, mantém o mesmo `mechanicId`). Documenta o comportamento atual — nada em `ServiceOrderService`/`ValidateUpdate` verifica `Mechanic.IsActive` — sem prescrever se deveria ser diferente.
+    - **Borda/Caracterização** (item 23) — `Order_should_keep_working_after_its_assigned_mechanic_is_deactivated`: soft-deleta (`DELETE /api/v1/mechanics/{id}`) o mecânico já atribuído a uma OS em `InDiagnosis` e confirma que a OS continua avançando normalmente (chega a `AwaitingApproval`, mantém o mesmo `mechanicId`). Documenta o comportamento atual — nada em `UpdateServiceOrderUseCase`/`ValidateUpdate` verifica `Mechanic.IsActive` — sem prescrever se deveria ser diferente.
     - **Borda/Caracterização** (item 24) — `Order_and_budget_should_stay_consistent_after_an_attached_workshop_service_is_deactivated` e `Order_and_budget_should_stay_consistent_after_an_attached_part_is_deactivated`: soft-deleta um serviço de oficina/peça já anexado a uma OS aberta — o item some do catálogo ativo (`GET` por id retorna 404), mas a OS (`GET /api/v1/service-orders/{id}`) e o orçamento automaticamente aberto continuam referenciando o item e com o total consistente.
 - **`Domains/Customer.cs` (`CustomerTests`)**: valida CPF/CNPJ com dígito verificador real (algoritmo mod-11), não só o formato/tamanho. 4 testes, todos verdes (verificado 2026-08-26).
   - **OK** — CPF válido (`086.043.100-29`) e CNPJ válido (`11.222.333/0001-81`, dígitos verificadores conferidos manualmente) são aceitos (201).
@@ -316,7 +316,7 @@ Sobem a aplicação inteira via `WebApplicationFactory<Program>` (`OficinaApiFac
   - **Erro** (2026-08-27, item 10) — **`Service_order_should_reject_increasing_attached_part_quantity_beyond_available_stock`**: anexa 3 unidades (sobram 2 em estoque), depois tenta aumentar a quantidade já anexada para 10 (precisaria de +7, só há 2) — 409.
   - **Borda** (2026-08-27, item 11) — **`Two_orders_disputing_the_same_part_should_reject_the_second_once_stock_is_exhausted`**: OS A anexa as 5 unidades restantes de uma peça; OS B tenta anexar 1 unidade da mesma peça em seguida — 409 (esgotamento sequencial disputado por duas OS).
 
-- **`Domains/Budget.cs` (`BudgetTests`)**: `BudgetsController` só expõe `GET` (lista) e `GET /{id}` — não há rota HTTP para abrir orçamento manualmente (a abertura é sempre automática, disparada pelo `ServiceOrderService`). As chamadas também não enviam token — reflete o comportamento real de hoje, já que `BudgetsController` não tem `[Authorize]`: decisão intencional, pois o cliente precisa consultar seu orçamento sem credencial administrativa.
+- **`Domains/Budget.cs` (`BudgetTests`)**: `BudgetsController` só expõe `GET` (lista) e `GET /{id}` — não há rota HTTP para abrir orçamento manualmente (a abertura é sempre automática, disparada pelo `UpdateServiceOrderUseCase`). As chamadas também não enviam token — reflete o comportamento real de hoje, já que `BudgetsController` não tem `[Authorize]`: decisão intencional, pois o cliente precisa consultar seu orçamento sem credencial administrativa.
   - **OK** — `GET /api/v1/budgets` lista um orçamento recém-inserido, sem token.
   - **OK** — `GET /api/v1/budgets/{id}` retorna o orçamento com `TotalValue` calculado corretamente (2 unidades de peça a R$50 + 1 serviço de oficina a R$200 = R$300).
   - **Borda** — `GET /api/v1/budgets/{id}` com id inexistente retorna 404.

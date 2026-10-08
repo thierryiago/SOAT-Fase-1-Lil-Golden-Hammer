@@ -75,7 +75,7 @@ As transições são orquestradas por quatro casos de uso em `OrderServices/UseC
 - `FinalizeServiceOrderUseCase`: ordem, histórico, cliente, veículo e notificação;
 - `DeliverServiceOrderUseCase`: ordem e histórico.
 
-Os helpers permanecem privados nos casos de uso que os utilizam. `ServiceOrdersController` usa os quatro casos diretamente; `NotificationsController` usa aprovação e cancelamento. `ServiceOrderService` foi preservado inteiramente comentado, sem registro na DI. As rotas e os comportamentos HTTP permanecem iguais.
+Os helpers permanecem privados nos casos de uso que os utilizam. `ServiceOrdersController` usa os quatro casos diretamente; `NotificationsController` usa aprovação e cancelamento. O arquivo do serviço legado foi removido, e as operações são executadas pelos casos de uso. As rotas e os comportamentos HTTP permanecem iguais.
 
 Não há chamada HTTP entre microsserviços nesse fluxo. As “interações com outros services” são chamadas entre serviços/repositórios do mesmo monólito e usam o mesmo banco PostgreSQL.
 
@@ -195,7 +195,7 @@ Endpoint:
 POST /api/v1/service-orders
 ```
 
-`ServiceOrderService.OpenAsync()`:
+`OpenServiceOrderUseCase.ExecuteAsync()`:
 
 1. busca o cliente por `CustomerId`;
 2. retorna erro se o cliente não existir;
@@ -470,7 +470,7 @@ depois da persistência e somente na transição para `AwaitingApproval`, repeti
 
 ```mermaid
 sequenceDiagram
-    participant SOS as ServiceOrderService
+    participant SOS as UpdateServiceOrderUseCase
     participant BS as BudgetService
     participant BR as IBudgetRepository
     participant OSR as IServiceOrderRepository
@@ -508,7 +508,7 @@ O orçamento recebe:
 
 ### Estado atual da integração
 
-A criação faz parte do fluxo HTTP da OS por meio de `ServiceOrderService`. Não há
+A criação faz parte do fluxo HTTP da OS por meio de `UpdateServiceOrderUseCase`. Não há
 endpoint `POST` público para criar budgets diretamente; o gatilho de produção é a
 transição para `AwaitingApproval`.
 
@@ -523,14 +523,14 @@ recente.
 
 ### Envio da notificação do budget
 
-Após receber o `BudgetResponse`, `ServiceOrderService` carrega o cliente e delega
+Após receber o `BudgetResponse`, `UpdateServiceOrderUseCase` carrega o cliente e delega
 o envio ao `NotificationService`, que usa `INotificationEmailSender`. Na
 infraestrutura, `SmtpNotificationEmailSender` cria um `MailMessage` com
 `IsBodyHtml = false` e o envia pelo host e porta definidos na seção `Smtp`.
 
 ```mermaid
 sequenceDiagram
-    participant SOS as ServiceOrderService
+    participant SOS as UpdateServiceOrderUseCase
     participant CR as ICustomerRepository
     participant NS as NotificationService
     participant SMTP as SmtpNotificationEmailSender
@@ -577,7 +577,7 @@ O repositório não aplica ordenação explícita. Consumidores não devem assum
 
 Ao abrir a OS, `ScheduledAt` é definido automaticamente como o horário UTC atual; o contrato de abertura não permite escolher a data.
 
-`ScheduleController` reutiliza `ServiceOrderService`:
+`ScheduleController` usa `ListSchedulesUseCase` e `ListSchedulesByDateUseCase`, ambos com `ExecuteAsync`:
 
 | Endpoint | Comportamento |
 |---|---|
@@ -722,7 +722,7 @@ Os testes de domínio e aplicação verificam, entre outros pontos:
 ## 16. Arquivos principais
 
 - `src/Oficina.Api/Controllers/ServiceOrdersController.cs`
-- `src/Oficina.Application/OrderServices/ServiceOrderService.cs`
+- `src/Oficina.Application/OrderServices/UseCases/`
 - `src/Oficina.Application/OrderServices/ServiceOrderDtos.cs`
 - `src/Oficina.Application/OrderServices/UseCases/UpdateServiceOrderUseCase.cs`
 - `src/Oficina.Domain/OrderServices/ServiceOrder.cs`

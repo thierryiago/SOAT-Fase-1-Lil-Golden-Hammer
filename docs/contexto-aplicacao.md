@@ -92,7 +92,7 @@ classDiagram
 
 O domínio mantém invariantes como validação de CPF/CNPJ, placa, valores, quantidades e transições básicas da ordem. DTOs evitam que os contratos HTTP dependam diretamente dos objetos de entrada internos. A API usa `Problem+JSON` para erros tratados: 400 para argumentos/operações inválidas, 404 para recursos ausentes, 409 para conflitos e 500 para erros não previstos.
 
-As quatro transições usam casos de uso individuais com `ExecuteAsync`, registrados como `Scoped`. O `NotificationsController` também usa os casos de aprovação e cancelamento. `ServiceOrderService` permanece inteiramente comentado como referência, sem registro na DI.
+As quatro transições usam casos de uso individuais com `ExecuteAsync`, registrados como `Scoped`. O `NotificationsController` também usa os casos de aprovação e cancelamento. O arquivo do serviço legado foi removido; os Controllers executam as operações pelos casos de uso.
 
 ## 4. Modelo de dados e Entity Framework Core
 
