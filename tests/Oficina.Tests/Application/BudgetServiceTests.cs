@@ -69,11 +69,32 @@ public sealed class BudgetServiceTests
         var workshopServices = new FakeWorkshopServiceRepository();
         await workshopServices.AddAsync(workshopService, CancellationToken.None);
         var partsRepository = new FakePartRepository();
-        // Note: part intentionally NOT added, simulating a part removed from the catalog.
-        var service = CreateService(new FakeBudgetRepository(), serviceOrders, partsRepository, workshopServices);
+        var budgets = new FakeBudgetRepository();
+        var service = CreateService(budgets, serviceOrders, partsRepository, workshopServices);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.OpenFromServiceOrderAsync(serviceOrder.Id, CancellationToken.None));
+
+        Assert.Equal($"Parts '{part.Id}' were not found.", exception.Message);
+        Assert.Empty(await budgets.ListAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task OpenFromServiceOrderAsync_should_not_persist_when_a_referenced_service_is_missing()
+    {
+        var serviceOrders = new FakeServiceOrderRepository();
+        var (serviceOrder, part, workshopService) = CreateServiceOrderWithItems();
+        await serviceOrders.AddAsync(serviceOrder, CancellationToken.None);
+        var parts = new FakePartRepository();
+        await parts.AddAsync(part, CancellationToken.None);
+        var budgets = new FakeBudgetRepository();
+        var service = CreateService(budgets, serviceOrders, parts, new FakeWorkshopServiceRepository());
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.OpenFromServiceOrderAsync(serviceOrder.Id, CancellationToken.None));
+
+        Assert.Equal($"Workshop services '{workshopService.Id}' were not found.", exception.Message);
+        Assert.Empty(await budgets.ListAsync(CancellationToken.None));
     }
 
     [Fact]
@@ -308,7 +329,7 @@ public sealed class BudgetServiceTests
         FakeServiceOrderRepository serviceOrders,
         FakePartRepository parts,
         FakeWorkshopServiceRepository workshopServices) =>
-        new(budgets, serviceOrders, parts, workshopServices);
+        new(budgets, serviceOrders, parts, workshopServices, new BudgetFactory());
 
     private sealed class FakeBudgetRepository : IBudgetRepository
     {

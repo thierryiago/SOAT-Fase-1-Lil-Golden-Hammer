@@ -29,6 +29,17 @@ InExecution -- alteração de peças/serviços --> AwaitingApproval
 - Não há outbox, worker ou retry automático: a chamada HTTP aguarda o SMTP.
 - O corpo usa os snapshots do budget e `IsBodyHtml = false`.
 
+### Composição do orçamento
+
+`BudgetService` carrega a OS e os catálogos de peças e serviços sequencialmente,
+encaminhando o `CancellationToken`, e persiste o orçamento após a composição.
+`BudgetFactory`, no domínio, recebe essas entidades já carregadas, exige ao menos
+um serviço na OS e valida todas as referências, primeiro peças e depois serviços.
+A factory cria os snapshots de nomes, preços e quantidades e delega o cálculo do
+total a `Budget.Open`. Referências ausentes continuam gerando
+`InvalidOperationException` (HTTP 400); itens inativos carregados continuam aceitos.
+Cada composição cria um orçamento novo, preservando as versões anteriores.
+
 ## 1. Objetivo e escopo
 
 Este documento descreve o fluxo implementado para uma Ordem de Serviço (OS), desde sua abertura até a entrega ou rejeição. A análise cobre:

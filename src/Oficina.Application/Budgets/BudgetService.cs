@@ -3,9 +3,6 @@ using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.WorkshopServices;
 using Oficina.Domain.Budget;
-using Oficina.Domain.Parts;
-using Oficina.Domain.ServiceOrders;
-using Oficina.Domain.WorkshopServices;
 
 namespace Oficina.Application.Budgets;
 
@@ -13,12 +10,14 @@ public sealed class BudgetService(
     IBudgetRepository budgets,
     IServiceOrderRepository serviceOrders,
     IPartRepository parts,
-    IWorkshopServiceRepository workshopServices) : IBudgetService
+    IWorkshopServiceRepository workshopServices,
+    BudgetFactory budgetFactory) : IBudgetService
 {
     private readonly IBudgetRepository _budgetsRepository = budgets;
     private readonly IServiceOrderRepository _serviceOrdersRepository = serviceOrders;
     private readonly IPartRepository _partsRepository = parts;
     private readonly IWorkshopServiceRepository _workshopServicesRepository = workshopServices;
+    private readonly BudgetFactory _budgetFactory = budgetFactory;
 
     public async Task<PagedResponse<BudgetResponse>> ListAsync(
         PageRequest request,
@@ -46,27 +45,13 @@ public sealed class BudgetService(
             throw new InvalidOperationException("Service order was not found.");
         }
 
-        if (serviceOrder.WorkshopServices.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "The service order must have at least one workshop service to open a budget.");
-        }
-
         var budgetId = Guid.NewGuid();
-
         var partIds = serviceOrder.Parts.Select(part => part.PartId).ToList();
-        var osParts = await _partsRepository.GetAllById(partIds, cancellationToken);
-        var budgetParts = CheckBudgetParts(serviceOrder, osParts, budgetId, partIds);
+        var catalogParts = await _partsRepository.GetAllById(partIds, cancellationToken);
+        var workshopServiceIds = serviceOrder.WorkshopServices.Select(service => service.WorkshopServiceId).ToList();
+        var catalogWorkshopServices = await _workshopServicesRepository.GetAllById(workshopServiceIds, cancellationToken);
 
-        var workshopServicesIds = serviceOrder.WorkshopServices.Select(service => service.WorkshopServiceId).ToList();
-        var osWorkshopServices = await _workshopServicesRepository.GetAllById(workshopServicesIds, cancellationToken);
-        var workshopServices = CheckBudgetWorkshopServices(
-            serviceOrder,
-            osWorkshopServices,
-            budgetId,
-            workshopServicesIds);
-
-        var budget = Budget.Open(budgetId, serviceOrder.CustomerId, serviceOrder.Id, budgetParts, workshopServices);
+        var budget = _budgetFactory.Create(budgetId, serviceOrder, catalogParts, catalogWorkshopServices);
         await _budgetsRepository.AddAsync(budget, cancellationToken);
         return Map(budget);
     }
@@ -106,70 +91,6 @@ public sealed class BudgetService(
         await _budgetsRepository.UpdateAsync(budget, cancellationToken);
 
         return budget;
-    }
-
-    private static List<BudgetParts> CheckBudgetParts(
-        ServiceOrder serviceOrder,
-        List<Part> osParts,
-        Guid budgetId,
-        List<Guid> partIds)
-    {
-        var missingPartsIds = partIds
-            .Except(osParts.Select(part => part.Id))
-            .ToList();
-        if (missingPartsIds.Count > 0)
-        {
-            throw new InvalidOperationException(
-                $"Parts '{string.Join(", ", missingPartsIds)}' were not found.");
-        }
-
-        var partsById = osParts.ToDictionary(part => part.Id);
-        var budgetParts = new List<BudgetParts>();
-        foreach (var item in serviceOrder.Parts)
-        {
-            var part = partsById[item.PartId];
-            var budgetPart = BudgetParts.Create(
-                budgetId,
-                item.PartId,
-                part.Name,
-                part.UnitPrice,
-                item.QuantityUsed);
-            budgetPart.Part = part;
-            budgetParts.Add(budgetPart);
-        }
-        return budgetParts;
-    }
-
-    private static List<BudgetWorkshopServices> CheckBudgetWorkshopServices(
-        ServiceOrder serviceOrder,
-        List<WorkshopService> osWorkshopServices,
-        Guid budgetId,
-        List<Guid> workshopServiceIds)
-    {
-        var missingServiceIds = workshopServiceIds
-            .Except(osWorkshopServices.Select(workshopService => workshopService.Id))
-            .ToList();
-        if (missingServiceIds.Count > 0)
-        {
-            throw new InvalidOperationException(
-                $"Workshop services '{string.Join(", ", missingServiceIds)}' were not found.");
-        }
-
-        var servicesById = osWorkshopServices.ToDictionary(service => service.Id);
-        var workshopServices = new List<BudgetWorkshopServices>();
-        foreach (var item in serviceOrder.WorkshopServices.Select(x => x.WorkshopServiceId))
-        {
-            var workshopService = servicesById[item];
-            var budgetWorkshopService = BudgetWorkshopServices.Create(
-                budgetId,
-                item,
-                workshopService.Name,
-                workshopService.UnitPrice);
-            budgetWorkshopService.WorkshopService = workshopService;
-            workshopServices.Add(budgetWorkshopService);
-        }
-
-        return workshopServices;
     }
 
     private static BudgetResponse Map(Budget budget) =>
