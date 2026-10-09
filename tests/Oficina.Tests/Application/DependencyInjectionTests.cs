@@ -6,6 +6,8 @@ using Oficina.Application.Customers.UseCases.Queries;
 using Oficina.Application.Mechanics.UseCases;
 using Oficina.Application.Mechanics.UseCases.Queries;
 using Oficina.Application.Metrics.UseCases.Queries;
+using Oficina.Application.OrderServiceHistory.UseCases;
+using Oficina.Application.OrderServiceHistory.UseCases.Queries;
 using Oficina.Application.Parts;
 using Oficina.Application.Parts.UseCases;
 using Oficina.Application.Parts.UseCases.Queries;
@@ -80,6 +82,9 @@ public sealed class DependencyInjectionTests
             typeof(ListMechanicsUseCase),
             typeof(GetMechanicByIdUseCase),
             typeof(GetWorkshopServiceExecutionTimesUseCase),
+            typeof(CreateServiceOrderHistoryUseCase),
+            typeof(ListServiceOrderHistoryUseCase),
+            typeof(GetServiceOrderHistoryByServiceOrderUseCase),
             typeof(BudgetService),
         ];
 

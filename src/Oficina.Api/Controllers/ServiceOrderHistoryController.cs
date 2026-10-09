@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.OrderServiceHistory;
+using Oficina.Application.OrderServiceHistory.UseCases.Queries;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Oficina.Api.Controllers;
@@ -11,18 +12,22 @@ namespace Oficina.Api.Controllers;
 [ExcludeFromCodeCoverage]
 public sealed class ServiceOrderHistoryController : ControllerBase
 {
-    private readonly ServiceOrderHistoryService _serviceOrderHistory;
+    private readonly ListServiceOrderHistoryUseCase _listServiceOrderHistory;
+    private readonly GetServiceOrderHistoryByServiceOrderUseCase _getServiceOrderHistoryByServiceOrder;
 
-    public ServiceOrderHistoryController(ServiceOrderHistoryService serviceOrderHistory)
+    public ServiceOrderHistoryController(
+        ListServiceOrderHistoryUseCase listServiceOrderHistory,
+        GetServiceOrderHistoryByServiceOrderUseCase getServiceOrderHistoryByServiceOrder)
     {
-        _serviceOrderHistory = serviceOrderHistory;
+        _listServiceOrderHistory = listServiceOrderHistory;
+        _getServiceOrderHistoryByServiceOrder = getServiceOrderHistoryByServiceOrder;
     }
 
     [HttpGet(Name = "FindAllServiceOrderHistory")]
     [ProducesResponseType(typeof(IReadOnlyCollection<ServiceOrderHistoryResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> FindAll(CancellationToken cancellationToken)
     {
-        var history = await _serviceOrderHistory.FindAllAsync(cancellationToken);
+        var history = await _listServiceOrderHistory.FindAllAsync(cancellationToken);
         return Ok(history);
     }
 
@@ -30,7 +35,7 @@ public sealed class ServiceOrderHistoryController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyCollection<ServiceOrderHistoryResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> FindByServiceOrder(Guid serviceOrderId, CancellationToken cancellationToken)
     {
-        var history = await _serviceOrderHistory.FindByServiceOrderAsync(serviceOrderId, cancellationToken);
+        var history = await _getServiceOrderHistoryByServiceOrder.FindByServiceOrderAsync(serviceOrderId, cancellationToken);
         return Ok(history);
     }
 }

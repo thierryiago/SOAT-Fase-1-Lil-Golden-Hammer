@@ -5,6 +5,8 @@ using Oficina.Application.Customers.UseCases.Queries;
 using Oficina.Application.Mechanics.UseCases;
 using Oficina.Application.Mechanics.UseCases.Queries;
 using Oficina.Application.Metrics.UseCases.Queries;
+using Oficina.Application.OrderServiceHistory.UseCases;
+using Oficina.Application.OrderServiceHistory.UseCases.Queries;
 using Oficina.Application.Parts;
 using Oficina.Application.Parts.UseCases;
 using Oficina.Application.Parts.UseCases.Queries;
@@ -72,6 +74,9 @@ public static class DependencyInjection
         services.AddScoped<ListMechanicsUseCase>();
         services.AddScoped<GetMechanicByIdUseCase>();
         services.AddScoped<GetWorkshopServiceExecutionTimesUseCase>();
+        services.AddScoped<CreateServiceOrderHistoryUseCase>();
+        services.AddScoped<ListServiceOrderHistoryUseCase>();
+        services.AddScoped<GetServiceOrderHistoryByServiceOrderUseCase>();
         services.AddScoped<BudgetService>();
         services.AddScoped<IBudgetService>(provider => provider.GetRequiredService<BudgetService>());
         return services;
