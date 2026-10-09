@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  ARCH_TESTS_FILTER: FullyQualifiedName~Oficina.Tests.Architeture
+
+jobs:
+  build-and-test:
+    name: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+
+      - name: Restore
+        run: dotnet restore Oficina.sln
+
+      - name: Build
+        run: dotnet build Oficina.sln -c Release --no-restore
+
+      - name: Testes de arquitetura
+        run: >
+          dotnet test tests/Oficina.Tests/Oficina.Tests.csproj
+          -c Release --no-build
+          --filter "${{ env.ARCH_TESTS_FILTER }}"
+          --logger "trx;LogFileName=architecture.trx"
+          --results-directory TestResults/architecture
+
+      - name: Testes unitarios
+        run: >
+          dotnet test tests/Oficina.Tests/Oficina.Tests.csproj
+          -c Release --no-build
+          --filter "FullyQualifiedName!~Oficina.Tests.Architeture"
+          --logger "trx;LogFileName=unit.trx"
+          --collect "XPlat Code Coverage"
+          --results-directory TestResults/unit
+
+      - name: Testes de contrato
+        run: >
+          dotnet test tests/Oficina.Api.ContractTests/Oficina.Api.ContractTests.csproj
+          -c Release --no-build
+          --logger "trx;LogFileName=contract.trx"
+          --results-directory TestResults/contract
+
+      - name: Publicar resultados dos testes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/**
+          if-no-files-found: ignore
+          retention-days: 14
