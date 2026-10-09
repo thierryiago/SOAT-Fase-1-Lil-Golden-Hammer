@@ -19,6 +19,7 @@ using Oficina.Application.Vehicles.UseCases;
 using Oficina.Application.Vehicles.UseCases.Queries;
 using Oficina.Application.WorkshopServices.UseCases;
 using Oficina.Application.WorkshopServices.UseCases.Queries;
+using Oficina.Domain.Budget;
 
 namespace Oficina.Application;
 
@@ -77,6 +78,7 @@ public static class DependencyInjection
         services.AddScoped<CreateServiceOrderHistoryUseCase>();
         services.AddScoped<ListServiceOrderHistoryUseCase>();
         services.AddScoped<GetServiceOrderHistoryByServiceOrderUseCase>();
+        services.AddScoped<BudgetFactory>();
         services.AddScoped<BudgetService>();
         services.AddScoped<IBudgetService>(provider => provider.GetRequiredService<BudgetService>());
         return services;

@@ -857,7 +857,7 @@ public sealed class ServiceOrderContractTests
         var workshopService = WorkshopService.Create("Troca de oleo", "Descricao", 100m, 30);
         await workshopServices.AddAsync(workshopService, CancellationToken.None);
 
-        var budgetService = new BudgetService(budgets, orders, parts, workshopServices);
+        var budgetService = new BudgetService(budgets, orders, parts, workshopServices, new BudgetFactory());
         var notificationEmailSender = CreateNotificationEmailSender(emailSender);
         var approveServiceOrder = new ApproveServiceOrderUseCase(orders, history, budgetService);
         var cancelServiceOrder = new CancelServiceOrderUseCase(orders, history, budgetService, stocks);

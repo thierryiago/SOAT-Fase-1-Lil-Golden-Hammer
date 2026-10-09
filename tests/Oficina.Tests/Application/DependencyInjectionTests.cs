@@ -20,6 +20,7 @@ using Oficina.Application.Vehicles.UseCases;
 using Oficina.Application.Vehicles.UseCases.Queries;
 using Oficina.Application.WorkshopServices.UseCases;
 using Oficina.Application.WorkshopServices.UseCases.Queries;
+using Oficina.Domain.Budget;
 
 namespace Oficina.Tests.Application;
 
@@ -85,6 +86,7 @@ public sealed class DependencyInjectionTests
             typeof(CreateServiceOrderHistoryUseCase),
             typeof(ListServiceOrderHistoryUseCase),
             typeof(GetServiceOrderHistoryByServiceOrderUseCase),
+            typeof(BudgetFactory),
             typeof(BudgetService),
         ];
 
