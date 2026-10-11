@@ -1,6 +1,6 @@
-namespace Oficina.Domain.Customers;
+namespace Oficina.Domain.Vehicles;
 
-using Oficina.Domain.Vehicles;
+using Oficina.Domain.Customers;
 using System.Text.RegularExpressions;
 
 public sealed class Vehicle

@@ -1,6 +1,6 @@
 using Oficina.Domain.Parts;
 
-namespace Oficina.Domain.Stock;
+namespace Oficina.Domain.Stocks;
 
 public sealed class StockPart
 {

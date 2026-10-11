@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Oficina.Domain.Budget;
-using Oficina.Domain.OrderService;
+using Oficina.Domain.ServiceOrders;
 using Oficina.Infrastructure.Persistence;
 
 namespace Oficina.Tests.Infrastructure;

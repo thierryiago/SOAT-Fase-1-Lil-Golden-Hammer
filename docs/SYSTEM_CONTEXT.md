@@ -41,7 +41,7 @@ Ordem de bootstrap:
 6. Middleware de exceção global (`UseExceptionHandler`) mapeia:
    - `KeyNotFoundException` → 404
    - `ConflictException` (custom, `Oficina.Application.Common`) → 409
-   - `InsufficientStockException` (custom, `Oficina.Domain.Stock`) → 409
+   - `InsufficientStockException` (custom, `Oficina.Domain.Stocks`) → 409
    - `ArgumentException` / `InvalidOperationException` → 400
    - qualquer outra → 500 (mensagem oculta, só loga)
    Resposta sempre em `application/problem+json` com `title`, `status`, `detail`, `traceId`.
@@ -64,26 +64,26 @@ Entidades ricas (construtor privado + factory `Create`/`Open` + métodos de muta
 | Entidade | Namespace | Campos principais | Regras notáveis |
 |---|---|---|---|
 | `Customer` | `Oficina.Domain.Customers` | Id, Name, Email, TelephoneNumber, Document (CPF/CNPJ), CreateDate, IsActive, `Vehicles`, `ServiceOrders` | Valida e normaliza documento (remove não-dígitos se 11/14 chars), rejeita dígitos repetidos. `Activate()/Deactivate()`. |
-| `Vehicle` | `Oficina.Domain.Customers` (arquivo em `Vehicles/Vehicle.cs` mas namespace `Customers`) | Id, CustomerId, Plate, Brand, Model, Year, `EnumVehicleCategory` Category, IsActive | Valida e normaliza placa (formato antigo `ABC-1234` ou Mercosul `ABC1D23`), ano entre 1900 e ano atual+1. |
+| `Vehicle` | `Oficina.Domain.Vehicles` | Id, CustomerId, Plate, Brand, Model, Year, `EnumVehicleCategory` Category, IsActive | Valida e normaliza placa (formato antigo `ABC-1234` ou Mercosul `ABC1D23`), ano entre 1900 e ano atual+1. |
 | `EnumVehicleCategory` | `Oficina.Domain.Vehicles` | Car=1, Motorcycle=2, Truck=3, Bus=4 | |
 | `Part` | `Oficina.Domain.Parts` | Id, Name, Code, UnitPrice, `EnumPartKind` Kind, CreateDate, UpdateDate, IsActive | Código normalizado uppercase. Métodos de estoque (`AdjustStock`/`WithdrawStock`) estão **comentados/mortos no código** — estoque de fato vive em `StockPart`. |
 | `EnumPartKind` | `Oficina.Domain.Parts` | Part=1, Consumable=2 | |
-| `StockPart` | `Oficina.Domain.Stock` | Id, PartId, Quantity, CreatedDate, `Part?` | `Reserve` (debita, lança `InsufficientStockException` se o saldo não cobre), `Release` (credita) e `EnsureCanReserve` (valida sem mutar, para uma operação com várias peças falhar antes de mover qualquer saldo) concentram a regra; `AddQuantity`/`RemoveQuantity`/`AdjustQuantity` delegam para elas, e `SetQuantity` grava o valor absoluto. Toda quantidade não pode ficar < 0. |
+| `StockPart` | `Oficina.Domain.Stocks` | Id, PartId, Quantity, CreatedDate, `Part?` | `Reserve` (debita, lança `InsufficientStockException` se o saldo não cobre), `Release` (credita) e `EnsureCanReserve` (valida sem mutar, para uma operação com várias peças falhar antes de mover qualquer saldo) concentram a regra; `AddQuantity`/`RemoveQuantity`/`AdjustQuantity` delegam para elas, e `SetQuantity` grava o valor absoluto. Toda quantidade não pode ficar < 0. |
 | `Mechanic` | `Oficina.Domain.Mechanics` | Id, Name, IsActive | CRUD simples. |
 | `WorkshopService` | `Oficina.Domain.WorkshopServices` | Id, Name, Description, UnitPrice, EstimatedDurationMinutes, IsActive | Catálogo de serviços oferecidos pela oficina. |
 | `ServiceOrder` | `Oficina.Domain.ServiceOrders` | Id, CustomerId, MechanicId?, VehicleId?, Description, CheckList?, `ServiceOrderStatus?` Status, CreatedAt, ScheduledAt, TotalParts, `Customer`, `Mechanic?`, `Vehicle?`, `Parts` (`ServiceOrderPart`), `WorkshopServices` (`ServiceOrderWorkshop`) | Máquina de estados em `UpdateStatus()` (ver §6). `AddPart`/`AddWorkshopService` são o único caminho por onde as coleções crescem e recusam item repetido; `Update` substitui a coleção re-adicionando item a item por eles, e `TotalParts` é recalculado a cada peça. As guardas estáticas `EnsureNoRepeatedParts`/`EnsureNoRepeatedWorkshopServices` validam os ids do payload antes de qualquer efeito colateral. `ValidateUpdate` bloqueia troca de mecânico e adição de itens fora de certos estágios. |
 | `ServiceOrderStatus` (enum) | `Oficina.Domain.ServiceOrders` | Received=1, InDiagnosis=2, AwaitingApproval=3, InExecution=4, Finalized=5, Delivered=6, Rejected=7 | Persistido como `string` no banco (`HasConversion<string>`). |
-| `ServiceOrderPart` | `Oficina.Domain.OrderService` | Id, PartId, OrderServiceId, QuantityUsed, `OrderService?`, `Part?` | Item de peça consumida numa OS. |
-| `ServiceOrderWorkshop` | `Oficina.Domain.OrderService` | Id, ServiceOrderId, WorkshopServiceId, navegações | Serviço de oficina vinculado a uma OS. |
-| `ServiceOrderHistory` | `Oficina.Domain.OrderServiceHistory` | record: Id, OrderServiceId, StatusName, CreatedDate, `OrderService?` | Snapshot do status a cada mudança (auditoria). |
+| `ServiceOrderPart` | `Oficina.Domain.ServiceOrders` | Id, PartId, OrderServiceId, QuantityUsed, `OrderService?`, `Part?` | Item de peça consumida numa OS. |
+| `ServiceOrderWorkshop` | `Oficina.Domain.ServiceOrders` | Id, ServiceOrderId, WorkshopServiceId, navegações | Serviço de oficina vinculado a uma OS. |
+| `ServiceOrderHistory` | `Oficina.Domain.ServiceOrderHistories` | record: Id, OrderServiceId, StatusName, CreatedDate, `OrderService?` | Snapshot do status a cada mudança (auditoria). |
 | `Budget` (orçamento) | `Oficina.Domain.Budget` | Id, CustomerId, ServiceOrderId, CreatedAt, IsApproved (bool?), TotalValue, `Parts` (`BudgetParts`), `WorkshopServices` (`BudgetWorkshopServices`) | `Open(...)` exige ao menos 1 serviço de oficina; `TotalValue` calculado a partir de peças + serviços. |
 | `BudgetParts` / `BudgetWorkshopServices` | `Oficina.Domain.Budget` | Ligações N:N Budget↔Part e Budget↔WorkshopService com Quantity (parts) | |
 
-Exceções de negócio: `ConflictException` (`Oficina.Application.Common`) e `InsufficientStockException` (`Oficina.Domain.Stock`, lançada por `StockPart.Reserve`/`EnsureCanReserve` e carregando `PartId`/`Available`/`Requested`) — ambas mapeadas para HTTP 409 no `Program.cs`.
+Exceções de negócio: `ConflictException` (`Oficina.Application.Common`) e `InsufficientStockException` (`Oficina.Domain.Stocks`, lançada por `StockPart.Reserve`/`EnsureCanReserve` e carregando `PartId`/`Available`/`Requested`) — ambas mapeadas para HTTP 409 no `Program.cs`.
 
 ## 6. Máquina de estados da Ordem de Serviço
 
-Fluxo linear controlado em `ServiceOrder.UpdateStatus()` (`src/Oficina.Domain/OrderServices/ServiceOrder.cs`), avaliado em cascata (primeira transição aplicável vence):
+Fluxo linear controlado em `ServiceOrder.UpdateStatus()` (`src/Oficina.Domain/ServiceOrders/ServiceOrder.cs`), avaliado em cascata (primeira transição aplicável vence):
 
 ```
 (null) --[tem CheckList]--> Received
@@ -128,7 +128,7 @@ Um *Service* por bounded context, registrado em `DependencyInjection.AddApplicat
 
 `Common/`:
 - `Pagination.cs` — helper `Pagination.Create(query, PageRequest)` que produz `PagedResponse<T>` (paginação padrão usada por quase todos os `List` endpoints).
-- `ConflictException.cs` — exceção de negócio → HTTP 409. (A regra de saldo insuficiente vive no domínio: `Oficina.Domain.Stock.InsufficientStockException`, também → 409.)
+- `ConflictException.cs` — exceção de negócio → HTTP 409. (A regra de saldo insuficiente vive no domínio: `Oficina.Domain.Stocks.InsufficientStockException`, também → 409.)
 
 ## 8. Camada Infrastructure (`src/Oficina.Infrastructure/`)
 

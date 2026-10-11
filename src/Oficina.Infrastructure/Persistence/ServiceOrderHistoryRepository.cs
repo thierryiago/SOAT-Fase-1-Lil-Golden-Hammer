@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using Oficina.Application.OrderServiceHistory;
-using Oficina.Domain.OrderServiceHistory;
+using Oficina.Application.ServiceOrderHistories;
+using Oficina.Domain.ServiceOrderHistories;
 
 namespace Oficina.Infrastructure.Persistence;
 

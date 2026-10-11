@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Oficina.Domain.Stock;
+using Oficina.Domain.Stocks;
 using Oficina.Infrastructure.Persistence;
 
 namespace Oficina.Tests.Infrastructure;

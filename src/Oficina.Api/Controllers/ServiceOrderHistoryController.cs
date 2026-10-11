@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Oficina.Application.OrderServiceHistory;
-using Oficina.Application.OrderServiceHistory.UseCases.Queries;
+using Oficina.Application.ServiceOrderHistories;
+using Oficina.Application.ServiceOrderHistories.UseCases.Queries;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Oficina.Api.Controllers;

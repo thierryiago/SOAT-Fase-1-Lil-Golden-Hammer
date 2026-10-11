@@ -1,15 +1,14 @@
 using Oficina.Application.Budgets;
 using Oficina.Application.Customers;
 using Oficina.Application.Notifications;
-using Oficina.Application.OrderServiceHistory;
+using Oficina.Application.ServiceOrderHistories;
 using Oficina.Application.Parts;
 using Oficina.Application.Stocks;
 using Oficina.Application.WorkshopServices;
-using Oficina.Domain.OrderService;
-using Oficina.Domain.OrderServiceHistory;
-using Oficina.Domain.Parts;
 using Oficina.Domain.ServiceOrders;
-using Oficina.Domain.Stock;
+using Oficina.Domain.ServiceOrderHistories;
+using Oficina.Domain.Parts;
+using Oficina.Domain.Stocks;
 
 namespace Oficina.Application.ServiceOrders.UseCases;
 

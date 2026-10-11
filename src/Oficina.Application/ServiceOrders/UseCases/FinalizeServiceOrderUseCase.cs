@@ -1,10 +1,9 @@
 using Oficina.Application.Customers;
 using Oficina.Application.Notifications;
-using Oficina.Application.OrderServiceHistory;
+using Oficina.Application.ServiceOrderHistories;
 using Oficina.Application.Vehicles;
-using Oficina.Domain.OrderService;
-using Oficina.Domain.OrderServiceHistory;
 using Oficina.Domain.ServiceOrders;
+using Oficina.Domain.ServiceOrderHistories;
 
 namespace Oficina.Application.ServiceOrders.UseCases;
 

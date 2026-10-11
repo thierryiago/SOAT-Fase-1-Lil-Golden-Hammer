@@ -152,7 +152,7 @@ namespace Oficina.Infrastructure.Migrations
                     b.ToTable("Customers");
                 });
 
-            modelBuilder.Entity("Oficina.Domain.Customers.Vehicle", b =>
+            modelBuilder.Entity("Oficina.Domain.Vehicles.Vehicle", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -212,7 +212,7 @@ namespace Oficina.Infrastructure.Migrations
                     b.ToTable("Mechanics");
                 });
 
-            modelBuilder.Entity("Oficina.Domain.OrderService.ServiceOrderPart", b =>
+            modelBuilder.Entity("Oficina.Domain.ServiceOrders.ServiceOrderPart", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -236,7 +236,7 @@ namespace Oficina.Infrastructure.Migrations
                     b.ToTable("ServiceOrderPart");
                 });
 
-            modelBuilder.Entity("Oficina.Domain.OrderService.ServiceOrderWorkshop", b =>
+            modelBuilder.Entity("Oficina.Domain.ServiceOrders.ServiceOrderWorkshop", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -257,7 +257,7 @@ namespace Oficina.Infrastructure.Migrations
                     b.ToTable("ServiceOrderWorkshops");
                 });
 
-            modelBuilder.Entity("Oficina.Domain.OrderServiceHistory.ServiceOrderHistory", b =>
+            modelBuilder.Entity("Oficina.Domain.ServiceOrderHistories.ServiceOrderHistory", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -364,7 +364,7 @@ namespace Oficina.Infrastructure.Migrations
                     b.ToTable("ServiceOrders");
                 });
 
-            modelBuilder.Entity("Oficina.Domain.Stock.StockPart", b =>
+            modelBuilder.Entity("Oficina.Domain.Stocks.StockPart", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -469,7 +469,7 @@ namespace Oficina.Infrastructure.Migrations
                     b.Navigation("WorkshopService");
                 });
 
-            modelBuilder.Entity("Oficina.Domain.Customers.Vehicle", b =>
+            modelBuilder.Entity("Oficina.Domain.Vehicles.Vehicle", b =>
                 {
                     b.HasOne("Oficina.Domain.Customers.Customer", "Customer")
                         .WithMany("Vehicles")
@@ -480,7 +480,7 @@ namespace Oficina.Infrastructure.Migrations
                     b.Navigation("Customer");
                 });
 
-            modelBuilder.Entity("Oficina.Domain.OrderService.ServiceOrderPart", b =>
+            modelBuilder.Entity("Oficina.Domain.ServiceOrders.ServiceOrderPart", b =>
                 {
                     b.HasOne("Oficina.Domain.ServiceOrders.ServiceOrder", "OrderService")
                         .WithMany("Parts")
@@ -499,7 +499,7 @@ namespace Oficina.Infrastructure.Migrations
                     b.Navigation("Part");
                 });
 
-            modelBuilder.Entity("Oficina.Domain.OrderService.ServiceOrderWorkshop", b =>
+            modelBuilder.Entity("Oficina.Domain.ServiceOrders.ServiceOrderWorkshop", b =>
                 {
                     b.HasOne("Oficina.Domain.ServiceOrders.ServiceOrder", "ServiceOrder")
                         .WithMany("WorkshopServices")
@@ -518,7 +518,7 @@ namespace Oficina.Infrastructure.Migrations
                     b.Navigation("WorkshopService");
                 });
 
-            modelBuilder.Entity("Oficina.Domain.OrderServiceHistory.ServiceOrderHistory", b =>
+            modelBuilder.Entity("Oficina.Domain.ServiceOrderHistories.ServiceOrderHistory", b =>
                 {
                     b.HasOne("Oficina.Domain.ServiceOrders.ServiceOrder", "OrderService")
                         .WithMany()
@@ -542,7 +542,7 @@ namespace Oficina.Infrastructure.Migrations
                         .HasForeignKey("MechanicId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("Oficina.Domain.Customers.Vehicle", "Vehicle")
+                    b.HasOne("Oficina.Domain.Vehicles.Vehicle", "Vehicle")
                         .WithMany()
                         .HasForeignKey("VehicleId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -554,7 +554,7 @@ namespace Oficina.Infrastructure.Migrations
                     b.Navigation("Vehicle");
                 });
 
-            modelBuilder.Entity("Oficina.Domain.Stock.StockPart", b =>
+            modelBuilder.Entity("Oficina.Domain.Stocks.StockPart", b =>
                 {
                     b.HasOne("Oficina.Domain.Parts.Part", "Part")
                         .WithMany()

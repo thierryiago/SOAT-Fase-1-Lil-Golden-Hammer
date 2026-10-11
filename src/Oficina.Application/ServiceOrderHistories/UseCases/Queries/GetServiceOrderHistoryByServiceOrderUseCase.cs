@@ -1,4 +1,4 @@
-namespace Oficina.Application.OrderServiceHistory.UseCases.Queries;
+namespace Oficina.Application.ServiceOrderHistories.UseCases.Queries;
 
 public sealed class GetServiceOrderHistoryByServiceOrderUseCase(IServiceOrderHistoryRepository historyRepository)
 {

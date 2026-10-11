@@ -1,4 +1,4 @@
-using Oficina.Domain.Stock;
+using Oficina.Domain.Stocks;
 
 namespace Oficina.Tests.Domain;
 

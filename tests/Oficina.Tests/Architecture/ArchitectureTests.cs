@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using Xunit;
+﻿using System.Reflection;
 
-namespace Oficina.Tests.Architeture;
+namespace Oficina.Tests.Architecture;
 
 /// <summary>
 /// Testes de arquitetura baseados em reflection sobre os assemblies COMPILADOS

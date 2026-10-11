@@ -1,11 +1,10 @@
 using Oficina.Application.Customers;
-using Oficina.Application.OrderServiceHistory;
+using Oficina.Application.ServiceOrderHistories;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.ServiceOrders.UseCases.Queries;
 using Oficina.Domain.Customers;
-using Oficina.Domain.OrderService;
-using Oficina.Domain.OrderServiceHistory;
 using Oficina.Domain.ServiceOrders;
+using Oficina.Domain.ServiceOrderHistories;
 
 namespace Oficina.Tests.Application;
 

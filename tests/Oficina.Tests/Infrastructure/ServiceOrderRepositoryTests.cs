@@ -1,8 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Oficina.Domain.Customers;
-using Oficina.Domain.OrderService;
-using Oficina.Domain.Parts;
 using Oficina.Domain.ServiceOrders;
+using Oficina.Domain.Parts;
 using Oficina.Domain.WorkshopServices;
 using Oficina.Infrastructure.Persistence;
 

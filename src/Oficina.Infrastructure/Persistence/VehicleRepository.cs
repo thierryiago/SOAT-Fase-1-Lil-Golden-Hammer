@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Oficina.Application.Vehicles;
 using Oficina.Domain.Customers;
+using Oficina.Domain.Vehicles;
 
 namespace Oficina.Infrastructure.Persistence;
 

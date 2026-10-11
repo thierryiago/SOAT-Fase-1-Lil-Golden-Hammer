@@ -2,7 +2,7 @@ using Oficina.Api.Authentication;
 using Oficina.Api.ContractTests.Infrastructure;
 using Oficina.Application.Customers;
 using Oficina.Application.Mechanics;
-using Oficina.Application.OrderServiceHistory;
+using Oficina.Application.ServiceOrderHistories;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.Vehicles;
 using Oficina.Application.WorkshopServices;

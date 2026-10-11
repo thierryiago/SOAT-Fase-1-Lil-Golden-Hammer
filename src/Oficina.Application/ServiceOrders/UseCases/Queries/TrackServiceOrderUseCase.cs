@@ -1,5 +1,5 @@
 using Oficina.Application.Customers;
-using Oficina.Application.OrderServiceHistory;
+using Oficina.Application.ServiceOrderHistories;
 using Oficina.Domain.Customers;
 
 namespace Oficina.Application.ServiceOrders.UseCases.Queries;

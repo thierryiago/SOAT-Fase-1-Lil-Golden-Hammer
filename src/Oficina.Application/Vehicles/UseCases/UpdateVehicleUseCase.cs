@@ -1,5 +1,6 @@
 using Oficina.Application.Common;
 using Oficina.Domain.Customers;
+using Oficina.Domain.Vehicles;
 
 namespace Oficina.Application.Vehicles.UseCases;
 
