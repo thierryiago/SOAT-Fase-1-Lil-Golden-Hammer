@@ -345,6 +345,16 @@ GET {{baseUrl}}/api/v1/service-order-history/service-order/{{openWeightedService
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ###############################################################################
+# Conferência de e-mails no Mailpit (http://localhost:8025)
+# Filtre pelo destinatário fictício e pelo ID da OS usada no fluxo.
+# Caminho principal: 7 mensagens (Criada, Recebida, Em diagnóstico,
+# Aguardando aprovação, Em execução, Finalizada e Entregue).
+# Rejeição: 5 mensagens. Cada retorno para aprovação + nova aprovação: +2.
+# Orçamento e veículo pronto são as próprias notificações desses status.
+# Atualizações sem mudança de status não devem acrescentar mensagens.
+# Os links do orçamento usam https://localhost:5001; para Docker, use a
+# mesma rota e budgetId na base http://localhost:8080.
+#
 # Limpeza opcional
 #
 # Execute individualmente e somente depois do fluxo principal. Nao existe DELETE

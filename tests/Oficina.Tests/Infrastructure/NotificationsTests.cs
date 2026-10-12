@@ -61,20 +61,20 @@ public sealed class NotificationsTests
             CancellationToken.None);
 
         Assert.Equal("pedro@example.com", sender.Recipient);
-        Assert.Equal("Pedro - Budget Awaiting to Approval", sender.Subject);
+        Assert.Equal("Pedro - Orçamento aguardando aprovação", sender.Subject);
         Assert.True(sender.IsHtml);
-        Assert.Contains($"Budget ID:</strong> {budget.Id}", sender.Body);
-        Assert.Contains("<li>Filtro | Quantity: 2 | Unit Price: 10.00 | Total: 20.00</li>", sender.Body);
-        Assert.Contains("<li>Troca de oleo | Unit Price: 100.00</li>", sender.Body);
-        Assert.Contains("Total Value:</strong> 120.00", sender.Body);
+        Assert.Contains($"Orçamento ID:</strong> {budget.Id}", sender.Body);
+        Assert.Contains("<li>Filtro | Quantidade: 2 | Preço unitário: 10.00 | Total: 20.00</li>", sender.Body);
+        Assert.Contains("<li>Troca de oleo | Preço unitário: 100.00</li>", sender.Body);
+        Assert.Contains("Valor total:</strong> 120.00", sender.Body);
         Assert.Contains(
             $"href=\"https://localhost:5001/api/v1/notifications/approveBudget?budgetId={budget.Id}\"",
             sender.Body);
         Assert.Contains(
             $"href=\"https://localhost:5001/api/v1/notifications/rejectBudget?budgetId={budget.Id}\"",
             sender.Body);
-        Assert.Contains(">Approve Budget</a>", sender.Body);
-        Assert.Contains(">Reject Budget</a>", sender.Body);
+        Assert.Contains(">Aprovar orçamento</a>", sender.Body);
+        Assert.Contains(">Rejeitar orçamento</a>", sender.Body);
     }
 
     [Fact]
@@ -98,8 +98,8 @@ public sealed class NotificationsTests
             budget,
             CancellationToken.None);
 
-        Assert.Equal(2, sender.Body!.Split("<li>None</li>").Length - 1);
-        Assert.Contains("Total Value:</strong> 0.00", sender.Body);
+        Assert.Equal(2, sender.Body!.Split("<li>Nenhum</li>").Length - 1);
+        Assert.Contains("Valor total:</strong> 0.00", sender.Body);
     }
 
     [Fact]
@@ -118,13 +118,13 @@ public sealed class NotificationsTests
             CancellationToken.None);
 
         Assert.Equal("pedro@example.com", sender.Recipient);
-        Assert.Equal("Vehicle ready for pickup", sender.Subject);
-        Assert.Contains("Hello, Pedro!", sender.Body);
-        Assert.Contains("Your vehicle is ready to be picked up at the workshop.", sender.Body);
-        Assert.Contains("- Plate: ABC-1234", sender.Body);
-        Assert.Contains("- Brand: Fiat", sender.Body);
-        Assert.Contains("- Model: Uno", sender.Body);
-        Assert.Contains("- Year: 2020", sender.Body);
+        Assert.Equal("Veículo pronto para retirada", sender.Subject);
+        Assert.Contains("Olá, Pedro!", sender.Body);
+        Assert.Contains("Seu veículo está pronto para retirada na oficina.", sender.Body);
+        Assert.Contains("- Placa: ABC-1234", sender.Body);
+        Assert.Contains("- Marca: Fiat", sender.Body);
+        Assert.Contains("- Modelo: Uno", sender.Body);
+        Assert.Contains("- Ano: 2020", sender.Body);
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public sealed class NotificationsTests
         await notifications.SendBudgetAwaitingApprovalAsync("Pedro", "pedro@example.com", budget, CancellationToken.None);
 
         Assert.Equal("pedro@example.com", sender.Recipient);
-        Assert.Equal("Pedro - Budget Awaiting to Approval", sender.Subject);
+        Assert.Equal("Pedro - Orçamento aguardando aprovação", sender.Subject);
         Assert.True(sender.IsHtml);
     }
 
@@ -170,7 +170,7 @@ public sealed class NotificationsTests
             CancellationToken.None);
 
         Assert.Equal("pedro@example.com", sender.Recipient);
-        Assert.Equal("Vehicle ready for pickup", sender.Subject);
+        Assert.Equal("Veículo pronto para retirada", sender.Subject);
         Assert.False(sender.IsHtml);
     }
 
@@ -178,7 +178,45 @@ public sealed class NotificationsTests
         new(
             new SendEmailNotification(emailTransport),
             new SendBudgetAwaitingApproval(emailTransport),
-            new SendVehicleReadyForPickup(emailTransport));
+            new SendVehicleReadyForPickup(emailTransport),
+            new SendServiceOrderStatus(emailTransport));
+
+    [Fact]
+    public async Task NotificationEmailSender_should_delegate_status_notification()
+    {
+        var sender = new FakeEmailSender();
+        var notifications = CreateNotificationEmailSender(sender);
+        var context = new ServiceOrderStatusEmail(Guid.NewGuid(), "Pedro", "pedro@example.com",
+            "ABC-1234", "Fiat", "Uno", 2020, Oficina.Domain.ServiceOrders.ServiceOrderStatus.Created,
+            Oficina.Domain.ServiceOrders.ServiceOrderStatus.Received);
+
+        await notifications.SendServiceOrderStatusAsync(context, CancellationToken.None);
+
+        Assert.Equal(context.CustomerEmail, sender.Recipient);
+        Assert.Contains(context.ServiceOrderId.ToString(), sender.Subject);
+        Assert.Contains("Status atual: Recebida", sender.Body);
+        Assert.False(sender.IsHtml);
+    }
+
+    [Fact]
+    public async Task Budget_email_should_encode_customer_vehicle_and_catalog_text_as_html()
+    {
+        var sender = new FakeEmailSender();
+        var context = new ServiceOrderStatusEmail(Guid.NewGuid(), "<script>cliente</script>", "cliente@example.com",
+            "ABC-1234", "<b>marca</b>", "Uno", 2020, Oficina.Domain.ServiceOrders.ServiceOrderStatus.InDiagnosis,
+            Oficina.Domain.ServiceOrders.ServiceOrderStatus.AwaitingApproval);
+        var budget = new BudgetResponse(Guid.NewGuid(), Guid.NewGuid(), context.ServiceOrderId,
+            DateTimeOffset.UnixEpoch, null, 10m,
+            [new BudgetPartResponse(Guid.NewGuid(), Guid.NewGuid(), "<script>peça</script>", 1, 10m)], []);
+
+        await new SendBudgetAwaitingApproval(sender).SendBudgetAwaitingApprovalAsync(context.CustomerName,
+            context.CustomerEmail, budget, CancellationToken.None, context);
+
+        Assert.DoesNotContain("<script>", sender.Body);
+        Assert.DoesNotContain("<b>marca</b>", sender.Body);
+        Assert.Contains("&lt;script&gt;", sender.Body);
+        Assert.Contains("&lt;b&gt;marca&lt;/b&gt;", sender.Body);
+    }
 
     private sealed class FakeEmailSender : IEmailTransport
     {

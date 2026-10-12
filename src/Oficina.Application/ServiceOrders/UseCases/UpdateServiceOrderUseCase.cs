@@ -1,5 +1,4 @@
 using Oficina.Application.Budgets;
-using Oficina.Application.Customers;
 using Oficina.Application.Notifications;
 using Oficina.Application.ServiceOrderHistories;
 using Oficina.Application.Parts;
@@ -19,8 +18,7 @@ public sealed class UpdateServiceOrderUseCase(
     IStockRepository stocks,
     IServiceOrderHistoryRepository history,
     IBudgetService budgets,
-    ICustomerRepository customers,
-    INotificationEmailSender notificationEmailSender)
+    ServiceOrderStatusNotifier notifier)
 {
     private readonly IServiceOrderRepository _serviceOrderRepository = serviceOrders;
     private readonly IPartRepository _parts = parts;
@@ -28,8 +26,6 @@ public sealed class UpdateServiceOrderUseCase(
     private readonly IStockRepository _stocks = stocks;
     private readonly IServiceOrderHistoryRepository _history = history;
     private readonly IBudgetService _budgets = budgets;
-    private readonly ICustomerRepository _customerRepository = customers;
-    private readonly INotificationEmailSender _notificationEmailSender = notificationEmailSender;
 
     public async Task<ServiceOrderDetailResponse> ExecuteAsync(
         UpdateServiceOrderRequest request,
@@ -87,19 +83,13 @@ public sealed class UpdateServiceOrderUseCase(
 
         await _serviceOrderRepository.UpdateAsync(serviceOrder, newParts, newWorkshopServices, cancellationToken);
         await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
+        BudgetResponse? budget = null;
         if (previousStatus != ServiceOrderStatus.AwaitingApproval &&
             serviceOrder.Status == ServiceOrderStatus.AwaitingApproval)
         {
-            var budget = await _budgets.OpenFromServiceOrderAsync(serviceOrder.Id, cancellationToken);
-            var customer = await _customerRepository.GetByIdAsync(serviceOrder.CustomerId, cancellationToken)
-                ?? throw new InvalidOperationException("Customer was not found.");
-
-            await _notificationEmailSender.SendBudgetAwaitingApprovalAsync(
-                customer.Name,
-                customer.Email,
-                budget,
-                cancellationToken);
+            budget = await _budgets.OpenFromServiceOrderAsync(serviceOrder.Id, cancellationToken);
         }
+        await notifier.NotifyAsync(serviceOrder, previousStatus, cancellationToken, budget);
         return ServiceOrderResponseMapper.MapDetail(serviceOrder);
     }
 

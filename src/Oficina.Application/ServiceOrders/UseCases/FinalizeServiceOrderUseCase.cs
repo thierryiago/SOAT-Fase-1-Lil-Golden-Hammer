@@ -1,7 +1,5 @@
-using Oficina.Application.Customers;
 using Oficina.Application.Notifications;
 using Oficina.Application.ServiceOrderHistories;
-using Oficina.Application.Vehicles;
 using Oficina.Domain.ServiceOrders;
 using Oficina.Domain.ServiceOrderHistories;
 
@@ -10,15 +8,10 @@ namespace Oficina.Application.ServiceOrders.UseCases;
 public sealed class FinalizeServiceOrderUseCase(
     IServiceOrderRepository serviceOrders,
     IServiceOrderHistoryRepository history,
-    ICustomerRepository customers,
-    IVehicleRepository vehicles,
-    INotificationEmailSender notificationEmailSender)
+    ServiceOrderStatusNotifier notifier)
 {
     private readonly IServiceOrderRepository _serviceOrderRepository = serviceOrders;
     private readonly IServiceOrderHistoryRepository _history = history;
-    private readonly ICustomerRepository _customerRepository = customers;
-    private readonly IVehicleRepository _vehicleRepository = vehicles;
-    private readonly INotificationEmailSender _notificationEmailSender = notificationEmailSender;
 
     public async Task<ServiceOrderDetailResponse> ExecuteAsync(Guid serviceOrderId, CancellationToken cancellationToken)
     {
@@ -44,24 +37,7 @@ public sealed class FinalizeServiceOrderUseCase(
             cancellationToken);
         await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
 
-        var customer = await _customerRepository.GetByIdAsync(serviceOrder.CustomerId, cancellationToken)
-            ?? throw new InvalidOperationException("Customer was not found.");
-        var vehicle = serviceOrder.VehicleId is { } vehicleId
-            ? await _vehicleRepository.GetByIdAsync(vehicleId, cancellationToken)
-            : null;
-        if (vehicle is null)
-        {
-            throw new InvalidOperationException("Vehicle was not found.");
-        }
-
-        await _notificationEmailSender.SendVehicleReadyForPickupAsync(
-            customer.Name,
-            customer.Email,
-            vehicle.Plate,
-            vehicle.Brand,
-            vehicle.Model,
-            vehicle.Year,
-            cancellationToken);
+        await notifier.NotifyAsync(serviceOrder, previousStatus, cancellationToken);
 
         return ServiceOrderResponseMapper.MapDetail(serviceOrder);
     }

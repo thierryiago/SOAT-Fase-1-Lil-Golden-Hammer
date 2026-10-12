@@ -15,20 +15,23 @@ public sealed class SendVehicleReadyForPickup(
         string vehicleBrand,
         string vehicleModel,
         int vehicleYear,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, ServiceOrderStatusEmail? context = null)
     {
-        const string subject = "Vehicle ready for pickup";
+        const string subject = "Veículo pronto para retirada";
         var body = new StringBuilder()
-            .AppendLine($"Hello, {customerName}!")
+            .AppendLine($"Olá, {customerName}!")
             .AppendLine()
-            .AppendLine("Your vehicle is ready to be picked up at the workshop.")
+            .AppendLine("Seu veículo está pronto para retirada na oficina.")
             .AppendLine()
-            .AppendLine("Vehicle details:")
-            .AppendLine($"- Plate: {vehiclePlate}")
-            .AppendLine($"- Brand: {vehicleBrand}")
-            .AppendLine($"- Model: {vehicleModel}")
-            .Append($"- Year: {vehicleYear}")
+            .AppendLine("Dados do veículo:")
+            .AppendLine($"- Placa: {vehiclePlate}")
+            .AppendLine($"- Marca: {vehicleBrand}")
+            .AppendLine($"- Modelo: {vehicleModel}")
+            .Append($"- Ano: {vehicleYear}")
             .ToString();
+
+        if (context is not null)
+            body = SendServiceOrderStatus.BuildBody(context);
 
         return _emailSender.SendAsync(customerEmail, subject, body, isHtml: false, cancellationToken);
     }
