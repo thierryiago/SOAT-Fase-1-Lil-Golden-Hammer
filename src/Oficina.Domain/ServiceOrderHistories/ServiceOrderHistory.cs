@@ -1,6 +1,6 @@
 ﻿using Oficina.Domain.ServiceOrders;
 
-namespace Oficina.Domain.OrderServiceHistory;
+namespace Oficina.Domain.ServiceOrderHistories;
 
 public record ServiceOrderHistory(Guid Id, Guid OrderServiceId, string? StatusName, DateTime CreatedDate)
 {

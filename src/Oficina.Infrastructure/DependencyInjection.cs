@@ -6,7 +6,7 @@ using Oficina.Application.Customers;
 using Oficina.Application.Mechanics;
 using Oficina.Application.Metrics;
 using Oficina.Application.Notifications;
-using Oficina.Application.OrderServiceHistory;
+using Oficina.Application.ServiceOrderHistories;
 using Oficina.Application.Parts;
 using Oficina.Application.ServiceOrders;
 using Oficina.Application.Stocks;

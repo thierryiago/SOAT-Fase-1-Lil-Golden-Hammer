@@ -1,7 +1,7 @@
 using Oficina.Application.Common;
 using Oficina.Application.Stocks;
 using Oficina.Domain.Parts;
-using Oficina.Domain.Stock;
+using Oficina.Domain.Stocks;
 
 namespace Oficina.Application.Parts.UseCases;
 

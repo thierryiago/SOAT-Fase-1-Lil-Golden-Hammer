@@ -1,4 +1,4 @@
-using Oficina.Domain.OrderServiceHistory;
+using Oficina.Domain.ServiceOrderHistories;
 
 namespace Oficina.Tests.Domain;
 

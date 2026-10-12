@@ -1,7 +1,6 @@
-using Oficina.Domain.ServiceOrders;
 using Oficina.Domain.WorkshopServices;
 
-namespace Oficina.Domain.OrderService
+namespace Oficina.Domain.ServiceOrders
 {
     public sealed class ServiceOrderWorkshop
     {

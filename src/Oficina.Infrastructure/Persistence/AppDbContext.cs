@@ -1,12 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Oficina.Domain.Budget;
 using Oficina.Domain.Customers;
+using Oficina.Domain.Vehicles;
 using Oficina.Domain.Mechanics;
-using Oficina.Domain.OrderService;
-using Oficina.Domain.OrderServiceHistory;
-using Oficina.Domain.Parts;
 using Oficina.Domain.ServiceOrders;
-using Oficina.Domain.Stock;
+using Oficina.Domain.ServiceOrderHistories;
+using Oficina.Domain.Parts;
+using Oficina.Domain.Stocks;
 using Oficina.Domain.WorkshopServices;
 
 namespace Oficina.Infrastructure.Persistence;

@@ -1,4 +1,4 @@
-namespace Oficina.Application.OrderServiceHistory;
+namespace Oficina.Application.ServiceOrderHistories;
 
 public sealed record ServiceOrderHistoryResponse(
     Guid Id,

@@ -1,7 +1,7 @@
-using Oficina.Application.OrderServiceHistory;
-using Oficina.Application.OrderServiceHistory.UseCases;
-using Oficina.Application.OrderServiceHistory.UseCases.Queries;
-using Oficina.Domain.OrderServiceHistory;
+using Oficina.Application.ServiceOrderHistories;
+using Oficina.Application.ServiceOrderHistories.UseCases;
+using Oficina.Application.ServiceOrderHistories.UseCases.Queries;
+using Oficina.Domain.ServiceOrderHistories;
 
 namespace Oficina.Tests.Application;
 

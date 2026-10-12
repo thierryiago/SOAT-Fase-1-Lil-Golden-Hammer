@@ -1,7 +1,6 @@
 using Oficina.Domain.Parts;
-using Oficina.Domain.ServiceOrders;
 
-namespace Oficina.Domain.OrderService
+namespace Oficina.Domain.ServiceOrders
 {
     public sealed class ServiceOrderPart
     {

@@ -1,5 +1,5 @@
 using Oficina.Application.Parts;
-using Oficina.Domain.Stock;
+using Oficina.Domain.Stocks;
 
 namespace Oficina.Application.Stocks;
 

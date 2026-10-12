@@ -1,6 +1,6 @@
-using Oficina.Domain.OrderServiceHistory;
+using Oficina.Domain.ServiceOrderHistories;
 
-namespace Oficina.Application.OrderServiceHistory.UseCases;
+namespace Oficina.Application.ServiceOrderHistories.UseCases;
 
 public sealed class CreateServiceOrderHistoryUseCase(IServiceOrderHistoryRepository historyRepository)
 {

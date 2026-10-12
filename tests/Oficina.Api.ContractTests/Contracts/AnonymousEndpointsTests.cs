@@ -10,7 +10,7 @@ namespace Oficina.Api.ContractTests.Contracts;
 // Covers docs/analise-gaps-e-cenarios-faltantes.md, section 2.1 (items 1-5): the security/authorization
 // boundary of the API as it stands today. BudgetsController and NotificationsController are
 // intentionally anonymous (confirmed 2026-08-27, so the customer can check a budget/receive
-// notifications without an administrative credential); MetricsController and ScheduleController are
+// notifications without an administrative credential); MetricsController and SchedulesController are
 // administrative and require a token; and there is no RBAC at all - any valid token can call any
 // administrative endpoint. These tests lock in that behavior as a guard against accidental regression
 // in either direction.

@@ -1,8 +1,7 @@
 using Oficina.Application.Budgets;
-using Oficina.Application.OrderServiceHistory;
-using Oficina.Domain.OrderService;
-using Oficina.Domain.OrderServiceHistory;
+using Oficina.Application.ServiceOrderHistories;
 using Oficina.Domain.ServiceOrders;
+using Oficina.Domain.ServiceOrderHistories;
 
 namespace Oficina.Application.ServiceOrders.UseCases;
 

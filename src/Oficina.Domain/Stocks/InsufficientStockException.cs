@@ -1,4 +1,4 @@
-namespace Oficina.Domain.Stock;
+namespace Oficina.Domain.Stocks;
 
 public sealed class InsufficientStockException : Exception
 {

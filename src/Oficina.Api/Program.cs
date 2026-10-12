@@ -10,7 +10,7 @@ using Oficina.Api.Configuration;
 using Oficina.Api.OpenApi;
 using Oficina.Application;
 using Oficina.Application.Common;
-using Oficina.Domain.Stock;
+using Oficina.Domain.Stocks;
 using Oficina.Infrastructure;
 using Oficina.Infrastructure.Persistence;
 using System.Text;

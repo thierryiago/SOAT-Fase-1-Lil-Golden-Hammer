@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Oficina.Application.OrderServiceHistory;
-using Oficina.Application.OrderServiceHistory.UseCases.Queries;
+using Oficina.Application.ServiceOrderHistories;
+using Oficina.Application.ServiceOrderHistories.UseCases.Queries;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Oficina.Api.Controllers;
@@ -10,12 +10,12 @@ namespace Oficina.Api.Controllers;
 [Authorize]
 [Route("api/v1/service-order-history")]
 [ExcludeFromCodeCoverage]
-public sealed class ServiceOrderHistoryController : ControllerBase
+public sealed class ServiceOrderHistoriesController : ControllerBase
 {
     private readonly ListServiceOrderHistoryUseCase _listServiceOrderHistory;
     private readonly GetServiceOrderHistoryByServiceOrderUseCase _getServiceOrderHistoryByServiceOrder;
 
-    public ServiceOrderHistoryController(
+    public ServiceOrderHistoriesController(
         ListServiceOrderHistoryUseCase listServiceOrderHistory,
         GetServiceOrderHistoryByServiceOrderUseCase getServiceOrderHistoryByServiceOrder)
     {

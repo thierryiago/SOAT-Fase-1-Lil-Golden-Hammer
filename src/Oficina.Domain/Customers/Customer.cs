@@ -1,3 +1,4 @@
+using Oficina.Domain.Vehicles;
 using Oficina.Domain.ServiceOrders;
 using System.Text.RegularExpressions;
 

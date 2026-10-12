@@ -1,6 +1,6 @@
-using Oficina.Domain.OrderServiceHistory;
+using Oficina.Domain.ServiceOrderHistories;
 
-namespace Oficina.Application.OrderServiceHistory;
+namespace Oficina.Application.ServiceOrderHistories;
 
 internal static class ServiceOrderHistoryResponseMapper
 {

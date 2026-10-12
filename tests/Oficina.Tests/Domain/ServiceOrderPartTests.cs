@@ -1,4 +1,4 @@
-using Oficina.Domain.OrderService;
+using Oficina.Domain.ServiceOrders;
 
 namespace Oficina.Tests.Domain;
 

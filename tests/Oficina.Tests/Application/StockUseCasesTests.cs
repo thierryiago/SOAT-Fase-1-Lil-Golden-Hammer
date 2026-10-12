@@ -4,7 +4,7 @@ using Oficina.Application.Stocks;
 using Oficina.Application.Stocks.UseCases;
 using Oficina.Application.Stocks.UseCases.Queries;
 using Oficina.Domain.Parts;
-using Oficina.Domain.Stock;
+using Oficina.Domain.Stocks;
 
 namespace Oficina.Tests.Application;
 

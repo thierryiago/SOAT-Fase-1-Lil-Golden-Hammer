@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 env:
-  ARCH_TESTS_FILTER: FullyQualifiedName~Oficina.Tests.Architeture
+  ARCH_TESTS_FILTER: FullyQualifiedName~Oficina.Tests.Architecture
 
 jobs:
   build-and-test:
@@ -50,7 +50,7 @@ jobs:
         run: >
           dotnet test tests/Oficina.Tests/Oficina.Tests.csproj
           -c Release --no-build
-          --filter "FullyQualifiedName!~Oficina.Tests.Architeture"
+          --filter "FullyQualifiedName!~Oficina.Tests.Architecture"
           --logger "trx;LogFileName=unit.trx"
           --collect "XPlat Code Coverage"
           --results-directory TestResults/unit

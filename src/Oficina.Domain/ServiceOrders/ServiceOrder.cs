@@ -1,6 +1,6 @@
 using Oficina.Domain.Customers;
+using Oficina.Domain.Vehicles;
 using Oficina.Domain.Mechanics;
-using Oficina.Domain.OrderService;
 
 namespace Oficina.Domain.ServiceOrders;
 

@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Oficina.Application.Stocks;
-using Oficina.Domain.Stock;
+using Oficina.Domain.Stocks;
 
 namespace Oficina.Infrastructure.Persistence;
 

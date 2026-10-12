@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Oficina.Application.ServiceOrders;
-using Oficina.Domain.OrderService;
 using Oficina.Domain.ServiceOrders;
 
 namespace Oficina.Infrastructure.Persistence;

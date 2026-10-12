@@ -55,7 +55,7 @@ Este documento descreve o fluxo implementado para uma Ordem de Serviço (OS), de
 - persistência e tratamento de erros;
 - lacunas e riscos identificados no código atual.
 
-O ponto de entrada principal é `src/Oficina.Api/Controllers/ServiceOrdersController.cs`. A regra de aplicação está em `src/Oficina.Application/OrderServices/`, e a máquina de estados está em `src/Oficina.Domain/OrderServices/ServiceOrder.cs`.
+O ponto de entrada principal é `src/Oficina.Api/Controllers/ServiceOrdersController.cs`. A regra de aplicação está em `src/Oficina.Application/ServiceOrders/`, e a máquina de estados está em `src/Oficina.Domain/ServiceOrders/ServiceOrder.cs`.
 
 ## 2. Visão arquitetural
 
@@ -588,7 +588,7 @@ O repositório não aplica ordenação explícita. Consumidores não devem assum
 
 Ao abrir a OS, `ScheduledAt` é definido automaticamente como o horário UTC atual; o contrato de abertura não permite escolher a data.
 
-`ScheduleController` usa `ListSchedulesUseCase` e `ListSchedulesByDateUseCase`, ambos com `ExecuteAsync`:
+`SchedulesController` usa `ListSchedulesUseCase` e `ListSchedulesByDateUseCase`, ambos com `ExecuteAsync`:
 
 | Endpoint | Comportamento |
 |---|---|
@@ -647,7 +647,7 @@ O middleware global converte:
 | `InvalidOperationException` | `400` |
 | demais exceções | `500` |
 
-As falhas da OS são principalmente `InvalidOperationException`. Assim, uma ação sobre uma OS inexistente, como `approve`, `cancel`, `finalize` ou `deliver`, resulta atualmente em `400`, enquanto o `GET /service-orders/{id}` retorna `404` diretamente. A exceção é o estoque insuficiente ao anexar peças: `StockPart.Reserve`/`EnsureCanReserve` lançam `InsufficientStockException` (`Oficina.Domain.Stock`) e a resposta é `409`, por ser conflito de estado e não entrada inválida. O `detail` traz a peça, o disponível e o solicitado.
+As falhas da OS são principalmente `InvalidOperationException`. Assim, uma ação sobre uma OS inexistente, como `approve`, `cancel`, `finalize` ou `deliver`, resulta atualmente em `400`, enquanto o `GET /service-orders/{id}` retorna `404` diretamente. A exceção é o estoque insuficiente ao anexar peças: `StockPart.Reserve`/`EnsureCanReserve` lançam `InsufficientStockException` (`Oficina.Domain.Stocks`) e a resposta é `409`, por ser conflito de estado e não entrada inválida. O `detail` traz a peça, o disponível e o solicitado.
 
 A resposta de erro usa `application/problem+json`, inclui título, status, mensagem para erros conhecidos e `traceId`.
 
@@ -733,11 +733,11 @@ Os testes de domínio e aplicação verificam, entre outros pontos:
 ## 16. Arquivos principais
 
 - `src/Oficina.Api/Controllers/ServiceOrdersController.cs`
-- `src/Oficina.Application/OrderServices/UseCases/`
-- `src/Oficina.Application/OrderServices/ServiceOrderDtos.cs`
-- `src/Oficina.Application/OrderServices/UseCases/UpdateServiceOrderUseCase.cs`
-- `src/Oficina.Domain/OrderServices/ServiceOrder.cs`
-- `src/Oficina.Domain/OrderServices/ServiceOrderStatus.cs`
+- `src/Oficina.Application/ServiceOrders/UseCases/`
+- `src/Oficina.Application/ServiceOrders/ServiceOrderDtos.cs`
+- `src/Oficina.Application/ServiceOrders/UseCases/UpdateServiceOrderUseCase.cs`
+- `src/Oficina.Domain/ServiceOrders/ServiceOrder.cs`
+- `src/Oficina.Domain/ServiceOrders/ServiceOrderStatus.cs`
 - `src/Oficina.Infrastructure/Persistence/ServiceOrderRepository.cs`
 - `src/Oficina.Application/Budgets/BudgetService.cs`
 - `src/Oficina.Application/Notifications/NotificationService.cs`
@@ -747,7 +747,7 @@ Os testes de domínio e aplicação verificam, entre outros pontos:
 - `docker-compose.yml`
 - `src/Oficina.Domain/Budget/Budget.cs`
 - `src/Oficina.Api/Controllers/BudgetsController.cs`
-- `src/Oficina.Domain/OrderServiceHistory/ServiceOrderHistory.cs`
+- `src/Oficina.Domain/ServiceOrderHistories/ServiceOrderHistory.cs`
 - `src/Oficina.Infrastructure/Persistence/AppDbContext.cs`
 - `tests/Oficina.Api.ContractTests/Contracts/ServiceOrderLifecycleContractTests.cs`
 - `tests/Oficina.Tests/Application/ServiceOrderContractTests.cs`
