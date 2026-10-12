@@ -53,7 +53,7 @@ Ordem de bootstrap:
 
 Modelo simples de **token técnico único** (não há cadastro de usuário/senha):
 - `POST /api/v1/auth/token` (`AuthController`, `[AllowAnonymous]`) → gera e devolve um `AccessTokenResponse` via `IAccessTokenGenerator` (`JwtAccessTokenGenerator`).
-- Todos os demais endpoints (exceto `NotificationsController`, `BudgetsController` e a rota de token) exigem `[Authorize]` com Bearer JWT.
+- Todos os demais endpoints (exceto `NotificationsController` e a rota de token) exigem `[Authorize]` com Bearer JWT.
 - `JwtOptions`: `Issuer`, `Audience`, `SigningKey` (HMAC simétrica), `ExpirationMinutes` (default 120). Validado por `JwtOptionsValidator`.
 - **Atenção**: `BudgetsController` e `NotificationsController` atualmente **não têm `[Authorize]`** — endpoints públicos. Vale confirmar se isso é intencional antes de mudanças de segurança.
 
@@ -303,9 +303,9 @@ Todos com `[ApiController]`, prefixo `api/v1/...`, a maioria `[Authorize]` (JWT 
 | `MechanicsController` | `/api/v1/mechanics` | JWT | CRUD completo paginado |
 | `WorkshopServicesController` | `/api/v1/workshop-services` | JWT | CRUD completo paginado |
 | `ServiceOrdersController` | `/api/v1/service-orders` | JWT | `GET` (lista simples, não paginada), `GET /{id}`, `POST` (Open), `PUT` (Update, id no body), `POST /{id}/approve`, `POST /{id}/cancel`, `POST /{id}/finalize`, `POST /{id}/deliver` |
-| `ServiceOrderHistoryController` | `/api/v1/service-order-history` | JWT | `GET` (tudo), `GET /service-order/{serviceOrderId}` |
-| `ScheduleController` | `/api/v1/schedules` | JWT | `GET ?date=` → agenda de OS (por data ou todas); 404 se vazio |
-| `BudgetsController` | `/api/v1/budgets` | **sem `[Authorize]`** | `GET` (paginado), `GET /{id}` — **sem criação/edição exposta** |
+| `ServiceOrderHistoriesController` | `/api/v1/service-order-history` | JWT | `GET` (tudo), `GET /service-order/{serviceOrderId}` |
+| `SchedulesController` | `/api/v1/schedules` | JWT | `GET ?date=` → agenda de OS (por data ou todas); 404 se vazio |
+| `BudgetsController` | `/api/v1/budgets` | JWT | `GET` (paginado), `GET /{id}` — **sem criação/edição exposta** |
 | `MetricsController` | `/api/v1/metrics` | JWT | `GET /workshop-service/execution-time` |
 | `NotificationsController` | `/api/v1/notifications` | **sem `[Authorize]`** | `POST /email` → dispara e-mail avulso |
 
@@ -329,7 +329,7 @@ Infra transversal: `/health` (health checks), `/swagger` (UI + JSON), `BearerSec
 
 ## 12. Pontos de atenção para próximas mudanças
 
-- `BudgetsController` e `NotificationsController` não exigem `[Authorize]` — confirmar se é proposital antes de "proteger todas as rotas administrativas" (há uma issue/PR anterior — #18 — sobre proteger APIs administrativas com JWT, mas parece não ter coberto esses dois).
+- `NotificationsController` não exige `[Authorize]` por decisão (2026-08-27), travada em `AnonymousEndpointsTests`. `BudgetsController` passou a exigir JWT na ARCH-25 (#89).
 - `StockService.CreateAsync` existe na camada de aplicação mas não há `POST /api/v1/stocks` no controller — criação de estoque só acontece implicitamente na 1ª movimentação.
 - `BudgetService` só expõe leitura (`List`/`GetById`) no controller; `OpenFromServiceOrderAsync` existe na camada de aplicação mas não tem endpoint. **Corrigido em 2026-08-25**: esse método usava `ServiceOrderPart.Id`/`ServiceOrderWorkshop.Id` (chave da própria linha de junção) em vez de `PartId`/`WorkshopServiceId` (FK para a Part/WorkshopService real) ao consultar `GetAllById`, o que fazia o método sempre lançar `InvalidOperationException` mesmo em ordens de serviço válidas — corrigido para usar os campos FK corretos, com teste de regressão em `BudgetServiceTests`.
 - Código morto comentado em `Part.cs` (`AdjustStock`/`WithdrawStock`) — o controle real de estoque está em `StockPart`, não em `Part`. Não reativar esse código sem revisar duplicidade de responsabilidade.

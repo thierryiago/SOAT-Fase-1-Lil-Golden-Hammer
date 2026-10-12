@@ -245,7 +245,7 @@ A maior parte da API exige JWT, incluindo:
 - métricas;
 - histórico.
 
-> Observação: no estado atual, alguns endpoints como `BudgetsController` e `NotificationsController` ainda podem estar sem `[Authorize]` e isso deve ser revisado conforme a regra de acesso desejada.
+> Observação: `BudgetsController` exige `[Authorize]` desde a ARCH-25. `NotificationsController` continua sem `[Authorize]` por decisão: é usado no fluxo do cliente, que não tem credencial administrativa.
 
 ---
 

@@ -728,7 +728,7 @@ Os testes de domínio e aplicação verificam, entre outros pontos:
 7. **Métricas após entrega:** OSs `Delivered` são excluídas da consulta de métricas.
 8. **Agenda fixa na abertura:** não existe campo para informar a data agendada no request.
 9. **Sem ordenação do histórico:** a API não garante ordem cronológica.
-10. **Autorização de Budget:** diferentemente dos controllers da OS, histórico, agenda e métricas, `BudgetsController` não possui `[Authorize]` no código analisado.
+10. **Autorização de Budget:** resolvido na ARCH-25 (#89). `BudgetsController` exige `[Authorize]`, como os controllers da OS, histórico, agenda e métricas.
 
 ## 16. Arquivos principais
 
