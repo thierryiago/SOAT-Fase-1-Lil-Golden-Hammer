@@ -1,4 +1,4 @@
-using Oficina.Application.Budgets;
+using Oficina.Application.Budgets.UseCases;
 using Oficina.Application.Customers;
 using Oficina.Application.Notifications;
 using Oficina.Application.ServiceOrderHistories;
@@ -18,7 +18,7 @@ public sealed class UpdateServiceOrderUseCase(
     IWorkshopServiceRepository workshopServices,
     IStockRepository stocks,
     IServiceOrderHistoryRepository history,
-    IBudgetService budgets,
+    OpenBudgetFromServiceOrderUseCase openBudget,
     ICustomerRepository customers,
     INotificationEmailSender notificationEmailSender)
 {
@@ -27,7 +27,7 @@ public sealed class UpdateServiceOrderUseCase(
     private readonly IWorkshopServiceRepository _workshopServices = workshopServices;
     private readonly IStockRepository _stocks = stocks;
     private readonly IServiceOrderHistoryRepository _history = history;
-    private readonly IBudgetService _budgets = budgets;
+    private readonly OpenBudgetFromServiceOrderUseCase _openBudget = openBudget;
     private readonly ICustomerRepository _customerRepository = customers;
     private readonly INotificationEmailSender _notificationEmailSender = notificationEmailSender;
 
@@ -90,7 +90,7 @@ public sealed class UpdateServiceOrderUseCase(
         if (previousStatus != ServiceOrderStatus.AwaitingApproval &&
             serviceOrder.Status == ServiceOrderStatus.AwaitingApproval)
         {
-            var budget = await _budgets.OpenFromServiceOrderAsync(serviceOrder.Id, cancellationToken);
+            var budget = await _openBudget.OpenFromServiceOrderAsync(serviceOrder.Id, cancellationToken);
             var customer = await _customerRepository.GetByIdAsync(serviceOrder.CustomerId, cancellationToken)
                 ?? throw new InvalidOperationException("Customer was not found.");
 

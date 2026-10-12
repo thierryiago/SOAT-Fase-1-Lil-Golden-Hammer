@@ -31,7 +31,7 @@ InExecution -- alteração de peças/serviços --> AwaitingApproval
 
 ### Composição do orçamento
 
-`BudgetService` carrega a OS e os catálogos de peças e serviços sequencialmente,
+`OpenBudgetFromServiceOrderUseCase` carrega a OS e os catálogos de peças e serviços sequencialmente,
 encaminhando o `CancellationToken`, e persiste o orçamento após a composição.
 `BudgetFactory`, no domínio, recebe essas entidades já carregadas, exige ao menos
 um serviço na OS e valida todas as referências, primeiro peças e depois serviços.
@@ -297,7 +297,7 @@ e-mail ao cliente.
 
 Ao detectar a transição real para `AwaitingApproval`, `UpdateServiceOrderUseCase.ExecuteAsync()`:
 
-1. chama `BudgetService.OpenFromServiceOrderAsync(serviceOrderId)`;
+1. chama `OpenBudgetFromServiceOrderUseCase.OpenFromServiceOrderAsync(serviceOrderId)`;
 2. cria um novo budget a partir das peças e serviços atuais, preservando os
    anteriores como histórico de versões;
 3. carrega o cliente pelo `CustomerId` da OS;
@@ -475,29 +475,31 @@ depois da persistência e somente na transição para `AwaitingApproval`, repeti
 
 ## 7. Interação com `Budget`
 
-### Fluxo implementado no serviço de aplicação
+### Fluxo implementado no Use Case de abertura
 
-`BudgetService.OpenFromServiceOrderAsync()` implementa a seguinte sequência:
+`OpenBudgetFromServiceOrderUseCase.OpenFromServiceOrderAsync()` implementa a seguinte sequência:
 
 ```mermaid
 sequenceDiagram
     participant SOS as UpdateServiceOrderUseCase
-    participant BS as BudgetService
+    participant BS as OpenBudgetFromServiceOrderUseCase
     participant BR as IBudgetRepository
     participant OSR as IServiceOrderRepository
     participant PR as IPartRepository
     participant WSR as IWorkshopServiceRepository
+    participant BF as BudgetFactory
 
     SOS->>BS: OpenFromServiceOrderAsync(serviceOrderId)
     BS->>OSR: GetByIdAsync(serviceOrderId)
     OSR-->>BS: OS + vínculos atuais
-    BS->>BS: exige ao menos um serviço
     BS->>PR: GetAllById(partIds)
     PR-->>BS: peças existentes
     BS->>WSR: GetAllById(workshopServiceIds)
     WSR-->>BS: serviços existentes
-    BS->>BS: cria nova versão com snapshots
-    BS->>BS: Budget.Open() calcula TotalValue
+    BS->>BF: Create(budgetId, OS, peças, serviços)
+    BF->>BF: valida serviços e referências, cria snapshots
+    BF->>BF: Budget.Open() calcula TotalValue
+    BF-->>BS: nova versão do orçamento
     BS->>BR: AddAsync(budget)
     BR-->>BS: orçamento persistido
     BS-->>SOS: novo BudgetResponse
@@ -739,7 +741,7 @@ Os testes de domínio e aplicação verificam, entre outros pontos:
 - `src/Oficina.Domain/ServiceOrders/ServiceOrder.cs`
 - `src/Oficina.Domain/ServiceOrders/ServiceOrderStatus.cs`
 - `src/Oficina.Infrastructure/Persistence/ServiceOrderRepository.cs`
-- `src/Oficina.Application/Budgets/BudgetService.cs`
+- `src/Oficina.Application/Budgets/UseCases/OpenBudgetFromServiceOrderUseCase.cs`
 - `src/Oficina.Application/Notifications/NotificationService.cs`
 - `src/Oficina.Application/Notifications/INotificationEmailSender.cs`
 - `src/Oficina.Infrastructure/Notifications/SmtpNotificationEmailSender.cs`

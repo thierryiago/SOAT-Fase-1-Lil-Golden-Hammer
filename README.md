@@ -60,6 +60,12 @@ Dependências:
 - `Api -> Application -> Domain`
 - `Infrastructure -> Application + Domain`
 
+A feature de orçamentos usa cinco Use Cases dedicados na Application: listagem,
+consulta por ID, abertura a partir da OS e decisão por OS ou por ID do orçamento.
+Controllers e Service Orders injetam diretamente essas operações, registradas como
+`Scoped`. A abertura mantém snapshots e versões anteriores; rotas e contratos HTTP
+permanecem iguais.
+
 ---
 
 ## 🧰 Stack tecnológica
