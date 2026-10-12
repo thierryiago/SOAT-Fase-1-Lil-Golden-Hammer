@@ -301,7 +301,7 @@ Sobem a aplicação inteira via `WebApplicationFactory<Program>` (`OficinaApiFac
 - **`Domains/Schedule.cs` (`ScheduleTests`, 2026-08-27, item 15)**: `GET /api/v1/schedules` via HTTP real (a lógica do repositório já era testada em `ServiceOrderRepositoryTests`).
   - **OK** — sem filtro de data, retorna as ordens agendadas nos próximos 30 dias, incluindo uma ordem recém-aberta.
   - **OK** — `?date=YYYY-MM-DD` com a data de hoje inclui a ordem recém-aberta.
-  - **Borda** — `?date=2000-01-01` (data sem nenhuma ordem agendada) retorna 404 (`ScheduleController` responde `NotFound("No schedules found.")` quando a lista vem vazia).
+  - **Borda** — `?date=2000-01-01` (data sem nenhuma ordem agendada) retorna 404 (`SchedulesController` responde `NotFound("No schedules found.")` quando a lista vem vazia).
 
 - **`Domains/ServiceOrderTracking.cs` (`ServiceOrderTrackingTests`, 2026-08-27, item A / Parte 1.1)**: cobre o desenho confirmado para o futuro endpoint de consulta anônima do cliente — `GET /api/v1/service-orders/{id}/track?document={cpfOuCnpj}`. **O endpoint ainda não existe** (não foi implementado de propósito, só o teste).
   - 🔴 **Vermelho de propósito** — `Track_should_return_order_status_when_document_matches_without_a_token`: espera 200 com o status da OS; hoje recebe 404 porque a rota não existe.

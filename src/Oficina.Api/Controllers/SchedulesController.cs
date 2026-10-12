@@ -11,12 +11,12 @@ namespace Oficina.Api.Controllers;
 [Authorize]
 [Route("api/v1/schedules")]
 [ExcludeFromCodeCoverage]
-public class ScheduleController : ControllerBase
+public class SchedulesController : ControllerBase
 {
     private readonly ListSchedulesUseCase _listSchedules;
     private readonly ListSchedulesByDateUseCase _listSchedulesByDate;
 
-    public ScheduleController(
+    public SchedulesController(
         ListSchedulesUseCase listSchedules,
         ListSchedulesByDateUseCase listSchedulesByDate)
     {

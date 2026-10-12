@@ -10,12 +10,12 @@ namespace Oficina.Api.Controllers;
 [Authorize]
 [Route("api/v1/service-order-history")]
 [ExcludeFromCodeCoverage]
-public sealed class ServiceOrderHistoryController : ControllerBase
+public sealed class ServiceOrderHistoriesController : ControllerBase
 {
     private readonly ListServiceOrderHistoryUseCase _listServiceOrderHistory;
     private readonly GetServiceOrderHistoryByServiceOrderUseCase _getServiceOrderHistoryByServiceOrder;
 
-    public ServiceOrderHistoryController(
+    public ServiceOrderHistoriesController(
         ListServiceOrderHistoryUseCase listServiceOrderHistory,
         GetServiceOrderHistoryByServiceOrderUseCase getServiceOrderHistoryByServiceOrder)
     {

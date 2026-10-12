@@ -588,7 +588,7 @@ O repositório não aplica ordenação explícita. Consumidores não devem assum
 
 Ao abrir a OS, `ScheduledAt` é definido automaticamente como o horário UTC atual; o contrato de abertura não permite escolher a data.
 
-`ScheduleController` usa `ListSchedulesUseCase` e `ListSchedulesByDateUseCase`, ambos com `ExecuteAsync`:
+`SchedulesController` usa `ListSchedulesUseCase` e `ListSchedulesByDateUseCase`, ambos com `ExecuteAsync`:
 
 | Endpoint | Comportamento |
 |---|---|

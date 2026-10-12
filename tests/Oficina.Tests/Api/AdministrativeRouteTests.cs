@@ -16,8 +16,8 @@ public sealed class AdministrativeRouteTests
         { typeof(PartsController), "api/v1/parts" },
         { typeof(StocksController), "api/v1/stocks" },
         { typeof(ServiceOrdersController), "api/v1/service-orders" },
-        { typeof(ServiceOrderHistoryController), "api/v1/service-order-history" },
-        { typeof(ScheduleController), "api/v1/schedules" }
+        { typeof(ServiceOrderHistoriesController), "api/v1/service-order-history" },
+        { typeof(SchedulesController), "api/v1/schedules" }
     };
 
     [Theory]
