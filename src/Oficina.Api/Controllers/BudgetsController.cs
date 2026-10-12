@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Budgets;
 using Oficina.Application.Common;
@@ -7,6 +8,7 @@ namespace Oficina.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/budgets")]
+[Authorize]
 [ExcludeFromCodeCoverage]
 public sealed class BudgetsController : ControllerBase
 {

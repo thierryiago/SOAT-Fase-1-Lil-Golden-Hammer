@@ -8,39 +8,38 @@ using Xunit.Abstractions;
 namespace Oficina.Api.ContractTests.Contracts;
 
 // Covers docs/analise-gaps-e-cenarios-faltantes.md, section 2.1 (items 1-5): the security/authorization
-// boundary of the API as it stands today. BudgetsController and NotificationsController are
-// intentionally anonymous (confirmed 2026-08-27, so the customer can check a budget/receive
-// notifications without an administrative credential); MetricsController and SchedulesController are
-// administrative and require a token; and there is no RBAC at all - any valid token can call any
-// administrative endpoint. These tests lock in that behavior as a guard against accidental regression
-// in either direction.
+// boundary of the API as it stands today. NotificationsController is intentionally anonymous
+// (confirmed 2026-08-27, so the customer can receive notifications without an administrative
+// credential); BudgetsController, MetricsController and SchedulesController are administrative and
+// require a token (Budgets gained [Authorize] in ARCH-25); and there is no RBAC at all - any valid
+// token can call any administrative endpoint. These tests lock in that behavior as a guard against
+// accidental regression in either direction.
 public sealed class AnonymousEndpointsTests(OficinaApiFactory factory, ITestOutputHelper output)
     : IClassFixture<OficinaApiFactory>
 {
-    // Item 1 - GET /api/v1/budgets and GET /api/v1/budgets/{id} without a token.
+    // Item 1 - GET /api/v1/budgets and GET /api/v1/budgets/{id} without a token must be 401.
     [Fact]
-    public async Task Budgets_list_should_work_without_a_token_by_design()
+    public async Task Budgets_list_without_token_should_return_unauthorized()
     {
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/api/v1/budgets?page=1&pageSize=20");
-        Log("GET /api/v1/budgets (no Authorization header) - intentionally anonymous", response);
+        Log("GET /api/v1/budgets (no Authorization header)", response);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
-    public async Task Budget_by_id_should_return_not_found_not_unauthorized_without_a_token()
+    public async Task Budget_by_id_without_token_should_return_unauthorized()
     {
         using var client = factory.CreateClient();
 
-        // Unknown id on purpose: the point here is only to confirm the route does not require
-        // authentication (401 would mean BudgetsController regained an [Authorize] attribute).
+        // Unknown id on purpose: authentication must be checked before the lookup, so the answer
+        // is 401 and not 404 (404 would mean BudgetsController lost its [Authorize] attribute).
         var response = await client.GetAsync($"/api/v1/budgets/{Guid.NewGuid()}");
-        Log("GET /api/v1/budgets/{id} (no Authorization header) - intentionally anonymous", response);
+        Log("GET /api/v1/budgets/{id} (no Authorization header)", response);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.NotEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     // Item 2 - POST /api/v1/notifications/email without a token.

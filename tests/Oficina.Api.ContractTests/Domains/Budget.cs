@@ -25,8 +25,8 @@ namespace Oficina.Api.ContractTests.Domains;
 // BudgetsController only exposes GET (list) and GET /{id} - there is no HTTP endpoint to open a
 // budget. Unlike the other files in Domains/, the scenario here is prepared by inserting directly
 // into the test host's AppDbContext, and reading is tested via HTTP.
-// BudgetsController also has no [Authorize] today - the calls below deliberately send no token,
-// reflecting the controller's actual behavior.
+// BudgetsController requires [Authorize] (ARCH-25), so every read authenticates first; the
+// anonymous 401 case is covered in Contracts/AnonymousEndpointsTests.
 public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper output) : IClassFixture<OficinaApiFactory>
 {
     private static int _documentCounter;
@@ -34,12 +34,13 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
     private readonly HttpClient _client = factory.CreateClient();
 
     [Fact]
-    public async Task List_should_return_registered_budgets_without_authentication()
+    public async Task List_should_return_registered_budgets()
     {
+        await AuthenticateAsync();
         var (budgetId, _) = await SeedBudgetAsync();
 
         var response = await _client.GetAsync("/api/v1/budgets?page=1&pageSize=20");
-        Log("List budgets (no authentication token)", response);
+        Log("List budgets", response);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var budgets = (await response.Content.ReadFromJsonAsync<PagedResponse<BudgetResponse>>())!;
 
@@ -49,6 +50,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
     [Fact]
     public async Task GetById_should_return_budget_with_calculated_total_value()
     {
+        await AuthenticateAsync();
         var (budgetId, expectedTotal) = await SeedBudgetAsync();
 
         var response = await _client.GetAsync($"/api/v1/budgets/{budgetId}");
@@ -64,6 +66,8 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
     [Fact]
     public async Task GetById_should_return_not_found_for_unknown_budget()
     {
+        await AuthenticateAsync();
+
         var response = await _client.GetAsync($"/api/v1/budgets/{Guid.NewGuid()}");
         Log("Get unknown budget", response);
 
