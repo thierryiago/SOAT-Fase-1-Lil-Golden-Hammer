@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.Application.Budgets;
+using Oficina.Application.Budgets.UseCases.Queries;
 using Oficina.Application.Common;
 using System.Diagnostics.CodeAnalysis;
 
@@ -12,11 +13,13 @@ namespace Oficina.Api.Controllers;
 [ExcludeFromCodeCoverage]
 public sealed class BudgetsController : ControllerBase
 {
-    private readonly BudgetService _budgets;
+    private readonly ListBudgetsUseCase _listBudgets;
+    private readonly GetBudgetByIdUseCase _getBudgetById;
 
-    public BudgetsController(BudgetService budgets)
+    public BudgetsController(ListBudgetsUseCase listBudgets, GetBudgetByIdUseCase getBudgetById)
     {
-        _budgets = budgets;
+        _listBudgets = listBudgets;
+        _getBudgetById = getBudgetById;
     }
 
     [HttpGet(Name = "ListBudgets")]
@@ -25,7 +28,7 @@ public sealed class BudgetsController : ControllerBase
         [FromQuery] PageRequest request,
         CancellationToken cancellationToken)
     {
-        var budgets = await _budgets.ListAsync(request, cancellationToken);
+        var budgets = await _listBudgets.ListAsync(request, cancellationToken);
         return Ok(budgets);
     }
 
@@ -34,7 +37,7 @@ public sealed class BudgetsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var budget = await _budgets.GetByIdAsync(id, cancellationToken);
+        var budget = await _getBudgetById.GetByIdAsync(id, cancellationToken);
         return budget is null ? NotFound() : Ok(budget);
     }
 }
