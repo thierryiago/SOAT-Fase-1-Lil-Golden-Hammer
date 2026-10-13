@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Oficina.Application;
-using Oficina.Application.Budgets;
+using Oficina.Application.Budgets.UseCases;
+using Oficina.Application.Budgets.UseCases.Queries;
 using Oficina.Application.Customers.UseCases;
 using Oficina.Application.Customers.UseCases.Queries;
 using Oficina.Application.Mechanics.UseCases;
@@ -87,7 +88,11 @@ public sealed class DependencyInjectionTests
             typeof(ListServiceOrderHistoryUseCase),
             typeof(GetServiceOrderHistoryByServiceOrderUseCase),
             typeof(BudgetFactory),
-            typeof(BudgetService),
+            typeof(ListBudgetsUseCase),
+            typeof(GetBudgetByIdUseCase),
+            typeof(OpenBudgetFromServiceOrderUseCase),
+            typeof(SetBudgetApprovalByServiceOrderUseCase),
+            typeof(SetBudgetApprovalByBudgetIdUseCase),
         ];
 
         foreach (var serviceType in expectedServices)

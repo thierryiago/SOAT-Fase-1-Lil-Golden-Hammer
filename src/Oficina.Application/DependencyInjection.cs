@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
-using Oficina.Application.Budgets;
+using Oficina.Application.Budgets.UseCases;
+using Oficina.Application.Budgets.UseCases.Queries;
 using Oficina.Application.Notifications;
 using Oficina.Application.Customers.UseCases;
 using Oficina.Application.Customers.UseCases.Queries;
@@ -81,8 +82,11 @@ public static class DependencyInjection
         services.AddScoped<ListServiceOrderHistoryUseCase>();
         services.AddScoped<GetServiceOrderHistoryByServiceOrderUseCase>();
         services.AddScoped<BudgetFactory>();
-        services.AddScoped<BudgetService>();
-        services.AddScoped<IBudgetService>(provider => provider.GetRequiredService<BudgetService>());
+        services.AddScoped<ListBudgetsUseCase>();
+        services.AddScoped<GetBudgetByIdUseCase>();
+        services.AddScoped<OpenBudgetFromServiceOrderUseCase>();
+        services.AddScoped<SetBudgetApprovalByServiceOrderUseCase>();
+        services.AddScoped<SetBudgetApprovalByBudgetIdUseCase>();
         return services;
     }
 }

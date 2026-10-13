@@ -1,5 +1,5 @@
 using Oficina.Application.Notifications;
-using Oficina.Application.Budgets;
+using Oficina.Application.Budgets.UseCases;
 using Oficina.Application.ServiceOrderHistories;
 using Oficina.Domain.ServiceOrders;
 using Oficina.Domain.ServiceOrderHistories;
@@ -9,12 +9,12 @@ namespace Oficina.Application.ServiceOrders.UseCases;
 public sealed class ApproveServiceOrderUseCase(
     IServiceOrderRepository serviceOrders,
     IServiceOrderHistoryRepository history,
-    IBudgetService budgets,
+    SetBudgetApprovalByServiceOrderUseCase setBudgetApproval,
     ServiceOrderStatusNotifier notifier)
 {
     private readonly IServiceOrderRepository _serviceOrderRepository = serviceOrders;
     private readonly IServiceOrderHistoryRepository _history = history;
-    private readonly IBudgetService _budgets = budgets;
+    private readonly SetBudgetApprovalByServiceOrderUseCase _setBudgetApproval = setBudgetApproval;
 
     public async Task<ServiceOrderDetailResponse> ExecuteAsync(Guid serviceOrderId, CancellationToken cancellationToken)
     {
@@ -29,7 +29,7 @@ public sealed class ApproveServiceOrderUseCase(
             newWorkshopServices: Array.Empty<ServiceOrderWorkshop>(),
             cancellationToken);
         await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
-        await _budgets.SetApprovalByServiceOrderAsync(serviceOrder.Id, true, cancellationToken);
+        await _setBudgetApproval.SetApprovalByServiceOrderAsync(serviceOrder.Id, true, cancellationToken);
 
         await notifier.NotifyAsync(serviceOrder, previousStatus, cancellationToken);
         return ServiceOrderResponseMapper.MapDetail(serviceOrder);

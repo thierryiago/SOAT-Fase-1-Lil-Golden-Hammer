@@ -1,4 +1,5 @@
 using Oficina.Application.Budgets;
+using Oficina.Application.Budgets.UseCases;
 using Oficina.Application.Customers;
 using Oficina.Application.Notifications;
 using Oficina.Application.ServiceOrderHistories;
@@ -184,8 +185,18 @@ public sealed partial class ServiceOrderContractTests
         serviceOrder.UpdateStatus();
         await orders.AddAsync(serviceOrder, CancellationToken.None);
 
+        var budgets = new FakeBudgetRepository();
+        var budgetId = Guid.NewGuid();
+        var budget = Budget.Open(
+            budgetId,
+            customer.Id,
+            serviceOrder.Id,
+            Array.Empty<BudgetParts>(),
+            new[] { BudgetWorkshopServices.Create(
+                budgetId, workshopService.Id, workshopService.Name, workshopService.UnitPrice) });
+        await budgets.AddAsync(budget, CancellationToken.None);
         var cancelServiceOrder = new CancelServiceOrderUseCase(
-            orders, new FakeServiceOrderHistoryRepository(), new FakeBudgetService(), stocks,
+            orders, new FakeServiceOrderHistoryRepository(), new SetBudgetApprovalByServiceOrderUseCase(budgets), stocks,
             CreateNotifier(customers, new FakeVehicleRepository(), new FakeEmailSender()));
 
         var response = await cancelServiceOrder.ExecuteAsync(serviceOrder.Id, CancellationToken.None);
@@ -401,7 +412,7 @@ public sealed partial class ServiceOrderContractTests
             context.ServiceOrderId,
             CancellationToken.None);
 
-        await context.BudgetService.SetApprovalByBudgetIdAsync(budget!.Id, true, CancellationToken.None);
+        await context.SetBudgetApprovalByBudgetId.SetApprovalByBudgetIdAsync(budget!.Id, true, CancellationToken.None);
         var response = await context.ApproveServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
         var decidedBudget = await context.Budgets.GetByServiceOrderIdAsync(
             context.ServiceOrderId,
@@ -646,7 +657,7 @@ public sealed partial class ServiceOrderContractTests
             context.ServiceOrderId,
             CancellationToken.None);
 
-        await context.BudgetService.SetApprovalByBudgetIdAsync(budget!.Id, false, CancellationToken.None);
+        await context.SetBudgetApprovalByBudgetId.SetApprovalByBudgetIdAsync(budget!.Id, false, CancellationToken.None);
         var response = await context.CancelServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
         var decidedBudget = await context.Budgets.GetByServiceOrderIdAsync(
             context.ServiceOrderId,
@@ -816,7 +827,7 @@ public sealed partial class ServiceOrderContractTests
         GetServiceOrderByIdUseCase GetServiceOrderById,
         ListSchedulesUseCase ListSchedules,
         ListSchedulesByDateUseCase ListSchedulesByDate,
-        BudgetService BudgetService,
+        SetBudgetApprovalByBudgetIdUseCase SetBudgetApprovalByBudgetId,
         FakeStockRepository Stocks,
         FakeServiceOrderHistoryRepository History,
         FakeServiceOrderRepository Orders,
@@ -855,10 +866,12 @@ public sealed partial class ServiceOrderContractTests
         var workshopService = WorkshopService.Create("Troca de oleo", "Descricao", 100m, 30);
         await workshopServices.AddAsync(workshopService, CancellationToken.None);
 
-        var budgetService = new BudgetService(budgets, orders, parts, workshopServices, new BudgetFactory());
+        var openBudget = new OpenBudgetFromServiceOrderUseCase(budgets, orders, parts, workshopServices, new BudgetFactory());
+        var setBudgetApprovalByServiceOrder = new SetBudgetApprovalByServiceOrderUseCase(budgets);
+        var setBudgetApprovalByBudgetId = new SetBudgetApprovalByBudgetIdUseCase(budgets);
         var notifier = new ServiceOrderStatusNotifier(customers, vehicles, CreateNotificationEmailSender(emailSender), logger);
-        var approveServiceOrder = new ApproveServiceOrderUseCase(orders, history, budgetService, notifier);
-        var cancelServiceOrder = new CancelServiceOrderUseCase(orders, history, budgetService, stocks, notifier);
+        var approveServiceOrder = new ApproveServiceOrderUseCase(orders, history, setBudgetApprovalByServiceOrder, notifier);
+        var cancelServiceOrder = new CancelServiceOrderUseCase(orders, history, setBudgetApprovalByServiceOrder, stocks, notifier);
         var finalizeServiceOrder = new FinalizeServiceOrderUseCase(orders, history, notifier);
         var deliverServiceOrder = new DeliverServiceOrderUseCase(orders, history, notifier);
         var openServiceOrder = new OpenServiceOrderUseCase(orders, customers, vehicles, notifier);
@@ -868,7 +881,7 @@ public sealed partial class ServiceOrderContractTests
             workshopServices,
             stocks,
             history,
-            budgetService,
+            openBudget,
             notifier);
         var getServiceOrderById = new GetServiceOrderByIdUseCase(orders);
         var listSchedules = new ListSchedulesUseCase(orders);
@@ -886,7 +899,7 @@ public sealed partial class ServiceOrderContractTests
             getServiceOrderById,
             listSchedules,
             listSchedulesByDate,
-            budgetService,
+            setBudgetApprovalByBudgetId,
             stocks,
             history,
             orders,
@@ -982,21 +995,6 @@ public sealed partial class ServiceOrderContractTests
         public Task<StockPart?> GetByPartIdAsync(Guid partId, CancellationToken cancellationToken) => Task.FromResult(_items.Values.FirstOrDefault(stock => stock.PartId == partId));
         public Task AddAsync(StockPart stockPart, CancellationToken cancellationToken) { _items[stockPart.Id] = stockPart; return Task.CompletedTask; }
         public Task UpdateAsync(StockPart stockPart, CancellationToken cancellationToken) { _items[stockPart.Id] = stockPart; return Task.CompletedTask; }
-    }
-
-    private sealed class FakeBudgetService : IBudgetService
-    {
-        public Task<BudgetResponse> OpenFromServiceOrderAsync(
-            Guid serviceOrderId,
-            CancellationToken cancellationToken) =>
-            throw new InvalidOperationException("Budget creation was not expected in this test.");
-
-        public Task<Budget> SetApprovalByBudgetIdAsync(Guid budgetId, bool isApproved, CancellationToken cancellationToken) => throw new InvalidOperationException("Budget decision was not expected in this test.");
-
-        public Task SetApprovalByServiceOrderAsync(
-            Guid serviceOrderId,
-            bool isApproved,
-            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private static ServiceOrderStatusNotifier CreateNotifier(ICustomerRepository customers, IVehicleRepository vehicles, IEmailTransport transport) =>

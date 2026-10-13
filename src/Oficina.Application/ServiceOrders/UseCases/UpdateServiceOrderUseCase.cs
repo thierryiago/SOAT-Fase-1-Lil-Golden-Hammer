@@ -1,4 +1,5 @@
 using Oficina.Application.Budgets;
+using Oficina.Application.Budgets.UseCases;
 using Oficina.Application.Notifications;
 using Oficina.Application.ServiceOrderHistories;
 using Oficina.Application.Parts;
@@ -17,7 +18,7 @@ public sealed class UpdateServiceOrderUseCase(
     IWorkshopServiceRepository workshopServices,
     IStockRepository stocks,
     IServiceOrderHistoryRepository history,
-    IBudgetService budgets,
+    OpenBudgetFromServiceOrderUseCase openBudget,
     ServiceOrderStatusNotifier notifier)
 {
     private readonly IServiceOrderRepository _serviceOrderRepository = serviceOrders;
@@ -25,7 +26,7 @@ public sealed class UpdateServiceOrderUseCase(
     private readonly IWorkshopServiceRepository _workshopServices = workshopServices;
     private readonly IStockRepository _stocks = stocks;
     private readonly IServiceOrderHistoryRepository _history = history;
-    private readonly IBudgetService _budgets = budgets;
+    private readonly OpenBudgetFromServiceOrderUseCase _openBudget = openBudget;
 
     public async Task<ServiceOrderDetailResponse> ExecuteAsync(
         UpdateServiceOrderRequest request,
@@ -87,7 +88,7 @@ public sealed class UpdateServiceOrderUseCase(
         if (previousStatus != ServiceOrderStatus.AwaitingApproval &&
             serviceOrder.Status == ServiceOrderStatus.AwaitingApproval)
         {
-            budget = await _budgets.OpenFromServiceOrderAsync(serviceOrder.Id, cancellationToken);
+            budget = await _openBudget.OpenFromServiceOrderAsync(serviceOrder.Id, cancellationToken);
         }
         await notifier.NotifyAsync(serviceOrder, previousStatus, cancellationToken, budget);
         return ServiceOrderResponseMapper.MapDetail(serviceOrder);

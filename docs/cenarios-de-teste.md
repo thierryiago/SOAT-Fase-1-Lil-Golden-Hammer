@@ -170,10 +170,14 @@ Convenções: **OK** = fluxo válido; **Erro** = valida rejeição/exceção; **
 - **Erro** — `FindByServiceOrderAsync`/`CreateAsync` rejeitam id de ordem de serviço vazio.
 - **OK** — `CreateAsync` persiste uma entrada de histórico.
 
-### `BudgetService` — `BudgetServiceTests.cs`
-- **OK** — `ListAsync` retorna orçamentos registrados; `GetByIdAsync` retorna `null` quando não existe.
-- **Erro** — `OpenFromServiceOrderAsync` lança quando a ordem de serviço não existe, quando não tem nenhum serviço de oficina, ou quando uma peça referenciada não existe mais no catálogo.
-- **OK** — `OpenFromServiceOrderAsync` abre orçamento e calcula `TotalValue` corretamente (regressão do bug de `PartId`/`WorkshopServiceId` trocados por `Id` da linha de junção — corrigido em 2026-08-25).
+### Budgets — testes dedicados por Use Case
+
+- **Consultas** — `ListBudgetsUseCaseTests` cobre lista vazia, ordenação decrescente por criação, paginação e parâmetros inválidos. `GetBudgetByIdUseCaseTests` cobre ausência e mapeamento completo dos snapshots, mesmo após alterações no catálogo.
+- **Abertura** — `OpenBudgetFromServiceOrderUseCaseTests` cobre OS ausente, composição inválida, referências ausentes sem persistência, total calculado e preservação das versões anteriores. Mantém a regressão de uso correto de `PartId`/`WorkshopServiceId`.
+- **Decisão por OS** — `SetBudgetApprovalByServiceOrderUseCaseTests` cobre aprovação, rejeição, orçamento ausente e preservação de decisão anterior sem nova escrita.
+- **Decisão por orçamento** — `SetBudgetApprovalByBudgetIdUseCaseTests` cobre aprovação, rejeição, orçamento ausente, retorno em DTO e erros de decisão repetida sem nova escrita.
+- **Cancelamento** — todos os cinco Use Cases verificam encaminhamento do `CancellationToken` às dependências.
+- **DI e integração** — registros `Scoped` e composição dos novos Use Cases nos testes de Service Orders; contratos HTTP existentes preservados.
 
 ### `MetricsService` — `MetricsServiceTests.cs`
 - **OK** — `GetWorkshopServiceExecutionTimesAsync` consolida serviços repetidos numa mesma ordem, distribui a duração da ordem proporcionalmente ao tempo estimado de cada serviço, calcula a média de execuções alocadas para o mesmo serviço em ordens diferentes, e mantém no resultado serviços sem nenhuma execução válida (com tempo médio nulo).
@@ -320,7 +324,7 @@ Sobem a aplicação inteira via `WebApplicationFactory<Program>` (`OficinaApiFac
   - **OK** — `GET /api/v1/budgets` lista um orçamento recém-inserido.
   - **OK** — `GET /api/v1/budgets/{id}` retorna o orçamento com `TotalValue` calculado corretamente (2 unidades de peça a R$50 + 1 serviço de oficina a R$200 = R$300).
   - **Borda** — `GET /api/v1/budgets/{id}` com id inexistente retorna 404.
-  - **OK (corrigido em 2026-08-27 — antes era teste vermelho de propósito)** — **`Service_order_should_open_a_budget_when_it_reaches_awaiting_approval`**: abre OS via HTTP, anexa 2 serviços de oficina de R$400 cada, leva a OS até `AwaitingApproval` (200 OK, status correto) e confirma em `GET /api/v1/budgets` um orçamento vinculado a essa OS com `TotalValue = 800`. **Passa hoje** (reverificado em 2026-08-27, `dotnet test --filter Service_order_should_open_a_budget_when_it_reaches_awaiting_approval`): `UpdateServiceOrderUseCase.ExecuteAsync` (`src/Oficina.Application/ServiceOrders/UseCases/UpdateServiceOrderUseCase.cs`) chama `IBudgetService.OpenFromServiceOrderAsync` automaticamente na primeira vez que a OS atinge `AwaitingApproval`, e dispara o e-mail de notificação ao cliente (`NotificationService.SendBudgetAwaitingApprovalAsync`).
+  - **OK (corrigido em 2026-08-27 — antes era teste vermelho de propósito)** — **`Service_order_should_open_a_budget_when_it_reaches_awaiting_approval`**: abre OS via HTTP, anexa 2 serviços de oficina de R$400 cada, leva a OS até `AwaitingApproval` (200 OK, status correto) e confirma em `GET /api/v1/budgets` um orçamento vinculado a essa OS com `TotalValue = 800`. **Passa hoje** (reverificado em 2026-08-27, `dotnet test --filter Service_order_should_open_a_budget_when_it_reaches_awaiting_approval`): `UpdateServiceOrderUseCase.ExecuteAsync` (`src/Oficina.Application/ServiceOrders/UseCases/UpdateServiceOrderUseCase.cs`) chama `OpenBudgetFromServiceOrderUseCase.OpenFromServiceOrderAsync` automaticamente na primeira vez que a OS atinge `AwaitingApproval`, e dispara o e-mail de notificação ao cliente (`NotificationService.SendBudgetAwaitingApprovalAsync`).
   - **OK** (2026-08-27, item 18) — **`Service_order_should_actually_dispatch_the_budget_email_when_it_reaches_awaiting_approval`**: mesmo fluxo, mas verificando o e-mail de verdade — `OficinaApiFactory.FakeNotificationEmailSender` (registrado no lugar do sender SMTP real) agora captura cada e-mail "enviado" em uma lista estática consultável pelos testes; o teste confirma que um e-mail com assunto contendo "Budget Awaiting to Approval" e corpo contendo o valor total ("500.00") foi realmente despachado para o e-mail do cliente — não só que `NotificationService` foi chamado corretamente com fakes (já testado na Application).
 
 - **`Domains/ServiceOrderHistory.cs` (`ServiceOrderHistoryTests`)**: confirma que o histórico é gravado corretamente via HTTP ao longo do ciclo de vida completo.
