@@ -2,7 +2,7 @@
 # Ordem de subida: db -> migrate -> api -> seed.
 
 x-database-connection: &database-connection
-  ConnectionStrings__Database: Host=db;Port=5432;Database=${POSTGRES_DB:-oficina};Username=${POSTGRES_USER:-oficina};Password=${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+  ConnectionStrings__Database: Host=db;Port=5432;Database=${POSTGRES_DB:-oficina};Username=${POSTGRES_USER:-oficina};Password=${POSTGRES_PASSWORD:?}
 
 services:
   mailpit:
@@ -16,7 +16,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-oficina}
       POSTGRES_USER: ${POSTGRES_USER:-oficina}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
     ports:
       - "5432:5432"
     volumes:
@@ -55,7 +55,7 @@ services:
     environment:
       <<: *database-connection
       ASPNETCORE_ENVIRONMENT: Development
-      Jwt__SigningKey: ${Jwt__SigningKey:?defina Jwt__SigningKey no .env}
+      Jwt__SigningKey: ${Jwt__SigningKey:?}
       Smtp__Host: mailpit
       Smtp__Port: 1025
       Smtp__From: ${Smtp__From:-noreply@oficina.local}
@@ -75,7 +75,7 @@ services:
       api:
         condition: service_healthy
     environment:
-      PGPASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
       PGUSER: ${POSTGRES_USER:-oficina}
       PGDATABASE: ${POSTGRES_DB:-oficina}
     volumes:
