@@ -158,18 +158,22 @@ Exemplo de `appsettings.json`:
 }
 ```
 
-Exemplo de `.env`:
+Crie o `.env` a partir do exemplo e ajuste os valores:
 
-```env
-ConnectionStrings__Database=Host=localhost;Port=5432;Database=oficina;Username=oficina;Password=sua_senha
-Jwt__SigningKey=sua_chave_secreta
-Smtp__Host=localhost
-Smtp__Port=1025
-Smtp__From=noreply@oficina.local
-Smtp__EnableSsl=false
+```bash
+cp .env.example .env
 ```
 
-> Importante: nunca versionar segredos reais em Git.
+O mesmo `.env` é usado pelo Docker Compose (interpolação do `docker-compose.yml`) e pelo `dotnet run` (a API carrega o `.env` da raiz). As principais variáveis:
+
+| Variável | Uso |
+|---|---|
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Banco do compose; o compose monta a connection string dos containers com `Host=db` |
+| `ConnectionStrings__Database` | Connection string do `dotnet run` (fora do container, `Host=localhost`) |
+| `Jwt__SigningKey` | Chave de assinatura do JWT (mínimo 32 bytes) |
+| `Smtp__*` | SMTP; por padrão o Mailpit local |
+
+> Importante: nunca versionar segredos reais em Git. O `.env` é ignorado pelo `.gitignore`.
 
 ### Passo 3: inicialize os serviços com Docker
 
@@ -179,7 +183,16 @@ Na raiz do projeto:
 docker compose up --build -d
 ```
 
-Isso sobe a API, PostgreSQL e Mailpit.
+Os serviços sobem nesta ordem:
+
+1. `db` (PostgreSQL) e `mailpit`;
+2. `migrate`, que aplica as migrations e encerra (ver [Migrations](#migrations));
+3. `api`, que só inicia se o `migrate` terminar com sucesso;
+4. `seed`, que carrega os dados de exemplo depois que a API fica saudável.
+
+Sem o `.env`, o `docker compose up` falha informando a variável obrigatória que falta.
+
+> Se você já tinha o volume do banco criado com a senha antiga (`oficina_dev_password`), o PostgreSQL mantém essa senha. Use-a em `POSTGRES_PASSWORD` ou recrie o volume com `docker compose down -v` (apaga os dados locais).
 
 ### Passo 4: verifique se a API subiu
 
@@ -224,7 +237,17 @@ dotnet run --project src/Oficina.Api/Oficina.Api.csproj
 
 Antes disso, confirme que o PostgreSQL está acessível e que os dados de conexão estão corretos.
 
-A aplicação também aplica as migrations automaticamente ao iniciar, fora do ambiente de testes.
+A API **não** aplica migrations ao iniciar. Antes de rodá-la, atualize o banco de uma das formas:
+
+```bash
+# banco e migrations pelo Docker Compose
+docker compose up -d db migrate
+
+# ou, com um PostgreSQL próprio
+dotnet ef database update \
+  --project src/Oficina.Infrastructure \
+  --startup-project src/Oficina.Api
+```
 
 ---
 
@@ -556,6 +579,28 @@ dotnet ef database update \
 ```
 
 > Importante: não edite `AppDbContextModelSnapshot.cs` manualmente; sempre gere a migration correta.
+
+### Imagem de migração (bundle)
+
+A API não migra o banco ao iniciar, para que várias réplicas não tentem migrar ao mesmo tempo. As migrations são aplicadas por uma imagem própria, gerada pelo target `migrations` do `Dockerfile` com `dotnet ef migrations bundle`.
+
+| Item | Valor |
+|---|---|
+| Build | `docker build --target migrations -t oficina-migrations:dev .` |
+| Variável obrigatória | `ConnectionStrings__Database` |
+| Comportamento | Aplica só as migrations pendentes e encerra; pode ser executada de novo sem efeito |
+| Exit code | `0` em sucesso; diferente de `0` em falha ou sem a variável |
+| Usuário | Não-root |
+
+O `dotnet ef migrations bundle` não acessa o banco: ele só gera o executável `efbundle` durante o build. As migrations são aplicadas quando o container roda:
+
+```bash
+docker run --rm \
+  -e ConnectionStrings__Database="Host=<host>;Port=5432;Database=oficina;Username=<usuario>;Password=<senha>" \
+  oficina-migrations:dev
+```
+
+No Docker Compose, essa imagem é o serviço `migrate`. No Kubernetes, ela será executada por um Job antes da atualização da API ([#120](https://github.com/thierryiago/SOAT-Fase-1-Lil-Golden-Hammer/issues/120)).
 
 ---
 
