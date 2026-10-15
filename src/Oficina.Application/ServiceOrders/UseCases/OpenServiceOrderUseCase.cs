@@ -1,3 +1,4 @@
+using Oficina.Application.Notifications;
 using Oficina.Application.Customers;
 using Oficina.Application.Vehicles;
 using Oficina.Domain.ServiceOrders;
@@ -7,7 +8,8 @@ namespace Oficina.Application.ServiceOrders.UseCases;
 public sealed class OpenServiceOrderUseCase(
     IServiceOrderRepository serviceOrders,
     ICustomerRepository customers,
-    IVehicleRepository vehicles)
+    IVehicleRepository vehicles,
+    ServiceOrderStatusNotifier notifier)
 {
     private readonly IServiceOrderRepository _serviceOrderRepository = serviceOrders;
     private readonly ICustomerRepository _customerRepository = customers;
@@ -27,6 +29,7 @@ public sealed class OpenServiceOrderUseCase(
 
         var serviceOrder = ServiceOrder.Open(request.CustomerId, request.VehicleId, request.Description);
         await _serviceOrderRepository.AddAsync(serviceOrder, cancellationToken);
+        await notifier.NotifyAsync(serviceOrder, null, cancellationToken);
         return ServiceOrderResponseMapper.MapDetail(serviceOrder);
     }
 }

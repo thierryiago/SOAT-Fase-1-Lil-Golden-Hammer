@@ -1,3 +1,4 @@
+using Oficina.Application.Notifications;
 using Oficina.Application.Budgets.UseCases;
 using Oficina.Application.ServiceOrderHistories;
 using Oficina.Application.Stocks;
@@ -10,7 +11,8 @@ public sealed class CancelServiceOrderUseCase(
     IServiceOrderRepository serviceOrders,
     IServiceOrderHistoryRepository history,
     SetBudgetApprovalByServiceOrderUseCase setBudgetApproval,
-    IStockRepository stocks)
+    IStockRepository stocks,
+    ServiceOrderStatusNotifier notifier)
 {
     private readonly IServiceOrderRepository _serviceOrderRepository = serviceOrders;
     private readonly IServiceOrderHistoryRepository _history = history;
@@ -34,6 +36,7 @@ public sealed class CancelServiceOrderUseCase(
         await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
         await _setBudgetApproval.SetApprovalByServiceOrderAsync(serviceOrder.Id, false, cancellationToken);
 
+        await notifier.NotifyAsync(serviceOrder, previousStatus, cancellationToken);
         return ServiceOrderResponseMapper.MapDetail(serviceOrder);
     }
 

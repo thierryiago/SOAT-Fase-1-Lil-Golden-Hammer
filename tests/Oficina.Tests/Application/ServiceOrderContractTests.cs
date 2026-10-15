@@ -22,7 +22,7 @@ using Oficina.Infrastructure.Notifications;
 
 namespace Oficina.Tests.Application;
 
-public sealed class ServiceOrderContractTests
+public sealed partial class ServiceOrderContractTests
 {
     [Fact]
     public async Task OpenAsync_should_return_detail_dto()
@@ -196,8 +196,8 @@ public sealed class ServiceOrderContractTests
                 budgetId, workshopService.Id, workshopService.Name, workshopService.UnitPrice) });
         await budgets.AddAsync(budget, CancellationToken.None);
         var cancelServiceOrder = new CancelServiceOrderUseCase(
-            orders, new FakeServiceOrderHistoryRepository(),
-            new SetBudgetApprovalByServiceOrderUseCase(budgets), stocks);
+            orders, new FakeServiceOrderHistoryRepository(), new SetBudgetApprovalByServiceOrderUseCase(budgets), stocks,
+            CreateNotifier(customers, new FakeVehicleRepository(), new FakeEmailSender()));
 
         var response = await cancelServiceOrder.ExecuteAsync(serviceOrder.Id, CancellationToken.None);
 
@@ -382,10 +382,10 @@ public sealed class ServiceOrderContractTests
         Assert.Equal(100m, budgetService.UnitPrice);
         Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
         Assert.Equal("john@email.com", context.EmailSender.Recipient);
-        Assert.Equal("John Customer - Budget Awaiting to Approval", context.EmailSender.Subject);
-        Assert.Contains($"Budget ID:</strong> {budget.Id}", context.EmailSender.Body);
-        Assert.Contains("Total Value:</strong> 120.00", context.EmailSender.Body);
-        Assert.Equal(1, context.EmailSender.SendCount);
+        Assert.Equal("John Customer - Orçamento aguardando aprovação", context.EmailSender.Subject);
+        Assert.Contains($"Orçamento ID:</strong> {budget.Id}", context.EmailSender.Body);
+        Assert.Contains("Valor total:</strong> 120.00", context.EmailSender.Body);
+        Assert.Equal(4, context.EmailSender.SendCount);
     }
 
     [Fact]
@@ -463,9 +463,9 @@ public sealed class ServiceOrderContractTests
         Assert.Equal(3, Assert.Single(latestBudget.Parts).Quantity);
         Assert.Equal(7, stock!.Quantity);
         Assert.Equal(ServiceOrderStatus.AwaitingApproval.ToString(), history.Last().StatusName);
-        Assert.Equal(2, context.EmailSender.SendCount);
-        Assert.Contains($"Budget ID:</strong> {latestBudget.Id}", context.EmailSender.Body);
-        Assert.Contains("Total Value:</strong> 130.00", context.EmailSender.Body);
+        Assert.Equal(6, context.EmailSender.SendCount);
+        Assert.Contains($"Orçamento ID:</strong> {latestBudget.Id}", context.EmailSender.Body);
+        Assert.Contains("Valor total:</strong> 130.00", context.EmailSender.Body);
     }
 
     [Fact]
@@ -543,7 +543,7 @@ public sealed class ServiceOrderContractTests
             CancellationToken.None);
         Assert.Equal(ServiceOrderStatus.InExecution, response!.Status);
         Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
-        Assert.Equal(1, context.EmailSender.SendCount);
+        Assert.Equal(5, context.EmailSender.SendCount);
     }
 
     [Fact]
@@ -573,7 +573,7 @@ public sealed class ServiceOrderContractTests
 
         Assert.Equal(ServiceOrderStatus.InExecution, response.Status);
         Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
-        Assert.Equal(1, context.EmailSender.SendCount);
+        Assert.Equal(5, context.EmailSender.SendCount);
     }
 
     [Fact]
@@ -690,14 +690,14 @@ public sealed class ServiceOrderContractTests
 
         Assert.Equal(ServiceOrderStatus.Finalized, response.Status);
         Assert.Equal("john@email.com", context.EmailSender.Recipient);
-        Assert.Equal("Vehicle ready for pickup", context.EmailSender.Subject);
-        Assert.Contains("Hello, John Customer!", context.EmailSender.Body);
-        Assert.Contains("Your vehicle is ready to be picked up at the workshop.", context.EmailSender.Body);
-        Assert.Contains("- Plate: ABC-1234", context.EmailSender.Body);
-        Assert.Contains("- Brand: Fiat", context.EmailSender.Body);
-        Assert.Contains("- Model: Uno", context.EmailSender.Body);
-        Assert.Contains("- Year: 2020", context.EmailSender.Body);
-        Assert.Equal(2, context.EmailSender.SendCount);
+        Assert.Equal("Veículo pronto para retirada", context.EmailSender.Subject);
+        Assert.Contains("Olá, John Customer!", context.EmailSender.Body);
+        Assert.Contains("Seu veículo está pronto para retirada na oficina.", context.EmailSender.Body);
+        Assert.Contains("- Placa: ABC-1234", context.EmailSender.Body);
+        Assert.Contains("- Marca: Fiat", context.EmailSender.Body);
+        Assert.Contains("- Modelo: Uno", context.EmailSender.Body);
+        Assert.Contains("- Ano: 2020", context.EmailSender.Body);
+        Assert.Equal(6, context.EmailSender.SendCount);
     }
 
     [Fact]
@@ -787,11 +787,10 @@ public sealed class ServiceOrderContractTests
     }
 
     [Theory]
-    [InlineData(true, "Customer was not found.")]
-    [InlineData(false, "Vehicle was not found.")]
+    [InlineData(true)]
+    [InlineData(false)]
     public async Task FinalizeAsync_should_preserve_transition_and_history_when_notification_recipient_is_missing(
-        bool customerMissing,
-        string expectedMessage)
+        bool customerMissing)
     {
         var context = await CreateOpenedOrderAsync();
         await AdvanceToAwaitingApprovalAsync(context);
@@ -801,14 +800,10 @@ public sealed class ServiceOrderContractTests
         var finalizeServiceOrder = new FinalizeServiceOrderUseCase(
             context.Orders,
             context.History,
-            customerMissing ? new FakeCustomerRepository() : context.Customers,
-            new FakeVehicleRepository(),
-            CreateNotificationEmailSender(context.EmailSender));
+            CreateNotifier(customerMissing ? new FakeCustomerRepository() : context.Customers,
+                new FakeVehicleRepository(), context.EmailSender));
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            finalizeServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None));
-
-        Assert.Equal(expectedMessage, exception.Message);
+        await finalizeServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
         var order = await context.Orders.GetByIdAsync(context.ServiceOrderId, CancellationToken.None);
         Assert.Equal(ServiceOrderStatus.Finalized, order!.Status);
         var historyAfter = await context.History.FindByServiceOrderAsync(context.ServiceOrderId, CancellationToken.None);
@@ -821,7 +816,7 @@ public sealed class ServiceOrderContractTests
         ICustomerRepository customers,
         IVehicleRepository vehicles,
         IServiceOrderRepository orders) =>
-        new(orders, customers, vehicles);
+        new(orders, customers, vehicles, CreateNotifier(customers, vehicles, new FakeEmailSender()));
 
     private sealed record ServiceOrderTestContext(
         ApproveServiceOrderUseCase ApproveServiceOrder,
@@ -839,12 +834,14 @@ public sealed class ServiceOrderContractTests
         FakeCustomerRepository Customers,
         FakeBudgetRepository Budgets,
         FakeEmailSender EmailSender,
+        FakeVehicleRepository Vehicles,
+        CapturingNotificationLogger Logger,
         FakeWorkshopServiceRepository WorkshopServices,
         Guid ServiceOrderId,
         Guid PartId,
         Guid WorkshopServiceId);
 
-    private static async Task<ServiceOrderTestContext> CreateOpenedOrderAsync(int initialStock = 10)
+    private static async Task<ServiceOrderTestContext> CreateOpenedOrderAsync(int initialStock = 10, Exception? emailFailure = null)
     {
         var customers = new FakeCustomerRepository();
         var vehicles = new FakeVehicleRepository();
@@ -854,7 +851,8 @@ public sealed class ServiceOrderContractTests
         var history = new FakeServiceOrderHistoryRepository();
         var orders = new FakeServiceOrderRepository();
         var budgets = new FakeBudgetRepository();
-        var emailSender = new FakeEmailSender();
+        var emailSender = new FakeEmailSender { Failure = emailFailure };
+        var logger = new CapturingNotificationLogger();
 
         var customer = Customer.Create("John Customer", "john@email.com", "11999999999", "52998224725");
         await customers.AddAsync(customer, CancellationToken.None);
@@ -871,12 +869,12 @@ public sealed class ServiceOrderContractTests
         var openBudget = new OpenBudgetFromServiceOrderUseCase(budgets, orders, parts, workshopServices, new BudgetFactory());
         var setBudgetApprovalByServiceOrder = new SetBudgetApprovalByServiceOrderUseCase(budgets);
         var setBudgetApprovalByBudgetId = new SetBudgetApprovalByBudgetIdUseCase(budgets);
-        var notificationEmailSender = CreateNotificationEmailSender(emailSender);
-        var approveServiceOrder = new ApproveServiceOrderUseCase(orders, history, setBudgetApprovalByServiceOrder);
-        var cancelServiceOrder = new CancelServiceOrderUseCase(orders, history, setBudgetApprovalByServiceOrder, stocks);
-        var finalizeServiceOrder = new FinalizeServiceOrderUseCase(orders, history, customers, vehicles, notificationEmailSender);
-        var deliverServiceOrder = new DeliverServiceOrderUseCase(orders, history);
-        var openServiceOrder = new OpenServiceOrderUseCase(orders, customers, vehicles);
+        var notifier = new ServiceOrderStatusNotifier(customers, vehicles, CreateNotificationEmailSender(emailSender), logger);
+        var approveServiceOrder = new ApproveServiceOrderUseCase(orders, history, setBudgetApprovalByServiceOrder, notifier);
+        var cancelServiceOrder = new CancelServiceOrderUseCase(orders, history, setBudgetApprovalByServiceOrder, stocks, notifier);
+        var finalizeServiceOrder = new FinalizeServiceOrderUseCase(orders, history, notifier);
+        var deliverServiceOrder = new DeliverServiceOrderUseCase(orders, history, notifier);
+        var openServiceOrder = new OpenServiceOrderUseCase(orders, customers, vehicles, notifier);
         var updateServiceOrder = new UpdateServiceOrderUseCase(
             orders,
             parts,
@@ -884,8 +882,7 @@ public sealed class ServiceOrderContractTests
             stocks,
             history,
             openBudget,
-            customers,
-            notificationEmailSender);
+            notifier);
         var getServiceOrderById = new GetServiceOrderByIdUseCase(orders);
         var listSchedules = new ListSchedulesUseCase(orders);
         var listSchedulesByDate = new ListSchedulesByDateUseCase(orders);
@@ -909,6 +906,8 @@ public sealed class ServiceOrderContractTests
             customers,
             budgets,
             emailSender,
+            vehicles,
+            logger,
             workshopServices,
             opened.Id,
             part.Id,
@@ -954,6 +953,7 @@ public sealed class ServiceOrderContractTests
     private sealed class FakeServiceOrderRepository : IServiceOrderRepository
     {
         private readonly Dictionary<Guid, ServiceOrder> _items = new();
+        public Exception? PersistenceFailure { get; set; }
         public Task<List<ServiceOrder>> ListAsync(CancellationToken cancellationToken) => Task.FromResult(_items.Values.ToList());
         public Task<List<ServiceOrder>> ListSchedulesAsync(CancellationToken cancellationToken) => Task.FromResult(_items.Values.ToList());
         public Task<List<ServiceOrder>> ListSchedulesByDateAsync(DateTimeOffset date, CancellationToken cancellationToken) =>
@@ -961,8 +961,8 @@ public sealed class ServiceOrderContractTests
         public Task<List<ServiceOrder>> ListByCustomerAsync(Guid customerId, CancellationToken cancellationToken) =>
             Task.FromResult(_items.Values.Where(item => item.CustomerId == customerId).ToList());
         public Task<ServiceOrder?> GetByIdAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(_items.GetValueOrDefault(id));
-        public Task AddAsync(ServiceOrder serviceOrder, CancellationToken cancellationToken) { _items[serviceOrder.Id] = serviceOrder; return Task.CompletedTask; }
-        public Task UpdateAsync(ServiceOrder serviceOrder, IReadOnlyCollection<ServiceOrderPart> newParts, IReadOnlyCollection<ServiceOrderWorkshop> newWorkshopServices, CancellationToken cancellationToken) { _items[serviceOrder.Id] = serviceOrder; return Task.CompletedTask; }
+        public Task AddAsync(ServiceOrder serviceOrder, CancellationToken cancellationToken) { if (PersistenceFailure is not null) throw PersistenceFailure; _items[serviceOrder.Id] = serviceOrder; return Task.CompletedTask; }
+        public Task UpdateAsync(ServiceOrder serviceOrder, IReadOnlyCollection<ServiceOrderPart> newParts, IReadOnlyCollection<ServiceOrderWorkshop> newWorkshopServices, CancellationToken cancellationToken) { if (PersistenceFailure is not null) throw PersistenceFailure; _items[serviceOrder.Id] = serviceOrder; return Task.CompletedTask; }
     }
 
     private sealed class FakePartRepository : IPartRepository
@@ -997,18 +997,26 @@ public sealed class ServiceOrderContractTests
         public Task UpdateAsync(StockPart stockPart, CancellationToken cancellationToken) { _items[stockPart.Id] = stockPart; return Task.CompletedTask; }
     }
 
+    private static ServiceOrderStatusNotifier CreateNotifier(ICustomerRepository customers, IVehicleRepository vehicles, IEmailTransport transport) =>
+        new(customers, vehicles, CreateNotificationEmailSender(transport),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ServiceOrderStatusNotifier>.Instance);
+
     private static NotificationEmailSender CreateNotificationEmailSender(IEmailTransport emailTransport) =>
         new(
             new SendEmailNotification(emailTransport),
             new SendBudgetAwaitingApproval(emailTransport),
-            new SendVehicleReadyForPickup(emailTransport));
+            new SendVehicleReadyForPickup(emailTransport),
+            new SendServiceOrderStatus(emailTransport));
 
     private sealed class FakeEmailSender : IEmailTransport
     {
+        public List<(string Recipient, string Subject, string Body, bool IsHtml)> Messages { get; } = [];
+        public Exception? Failure { get; set; }
         public string? Recipient { get; private set; }
         public string? Subject { get; private set; }
         public string? Body { get; private set; }
         public int SendCount { get; private set; }
+        public CancellationToken LastToken { get; private set; }
 
         public Task SendAsync(
             string recipient,
@@ -1017,6 +1025,10 @@ public sealed class ServiceOrderContractTests
             bool isHtml,
             CancellationToken cancellationToken)
         {
+            LastToken = cancellationToken;
+            cancellationToken.ThrowIfCancellationRequested();
+            if (Failure is not null) throw Failure;
+            Messages.Add((recipient, subject, body, isHtml));
             Recipient = recipient;
             Subject = subject;
             Body = body;
@@ -1028,6 +1040,7 @@ public sealed class ServiceOrderContractTests
     private sealed class FakeBudgetRepository : IBudgetRepository
     {
         private readonly Dictionary<Guid, Budget> _items = [];
+        public Exception? PersistenceFailure { get; set; }
 
         public Task<List<Budget>> ListAsync(CancellationToken cancellationToken) =>
             Task.FromResult(_items.Values.ToList());
@@ -1046,6 +1059,7 @@ public sealed class ServiceOrderContractTests
 
         public Task AddAsync(Budget budget, CancellationToken cancellationToken)
         {
+            if (PersistenceFailure is not null) throw PersistenceFailure;
             _items.Add(budget.Id, budget);
             return Task.CompletedTask;
         }
@@ -1060,9 +1074,10 @@ public sealed class ServiceOrderContractTests
     private sealed class FakeServiceOrderHistoryRepository : IServiceOrderHistoryRepository
     {
         private readonly List<ServiceOrderHistory> _items = [];
+        public Exception? PersistenceFailure { get; set; }
         public Task<List<ServiceOrderHistory>> ListAsync(CancellationToken cancellationToken) => Task.FromResult(_items.ToList());
         public Task<List<ServiceOrderHistory>> FindByServiceOrderAsync(Guid serviceOrderId, CancellationToken cancellationToken) =>
             Task.FromResult(_items.Where(item => item.OrderServiceId == serviceOrderId).ToList());
-        public Task AddAsync(ServiceOrderHistory history, CancellationToken cancellationToken) { _items.Add(history); return Task.CompletedTask; }
+        public Task AddAsync(ServiceOrderHistory history, CancellationToken cancellationToken) { if (PersistenceFailure is not null) throw PersistenceFailure; _items.Add(history); return Task.CompletedTask; }
     }
 }

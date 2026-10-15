@@ -250,7 +250,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         awaitingApprovalResponse.EnsureSuccessStatusCode();
 
         var sentEmail = OficinaApiFactory.FakeEmailTransport.SentEmails
-            .SingleOrDefault(email => email.Recipient == customerEmail);
+            .SingleOrDefault(email => email.Recipient == customerEmail && email.Subject.Contains("Orçamento aguardando aprovação"));
         Log(
             sentEmail is null
                 ? "No budget e-mail captured for this customer"
@@ -258,7 +258,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
             awaitingApprovalResponse);
 
         Assert.NotNull(sentEmail);
-        Assert.Contains("Budget Awaiting to Approval", sentEmail!.Subject);
+        Assert.Contains("Orçamento aguardando aprovação", sentEmail!.Subject);
         Assert.Contains("500.00", sentEmail.Body);
     }
 
@@ -285,6 +285,8 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         orderResponse.EnsureSuccessStatusCode();
         var order = (await orderResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
         Assert.Equal(ServiceOrderStatus.InExecution, order.Status);
+        Assert.Single(OficinaApiFactory.FakeEmailTransport.SentEmails, email =>
+            email.Body.Contains(serviceOrder.Id.ToString()) && email.Body.Contains("Status atual: Em execução"));
 
         var secondClickResponse = await _client.GetAsync($"/api/v1/notifications/approveBudget?budgetId={budgetId}");
         Log("Approve the same budget a second time (simulated double click)", secondClickResponse);
@@ -310,6 +312,8 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         orderResponse.EnsureSuccessStatusCode();
         var order = (await orderResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
         Assert.Equal(ServiceOrderStatus.Rejected, order.Status);
+        Assert.Single(OficinaApiFactory.FakeEmailTransport.SentEmails, email =>
+            email.Body.Contains(serviceOrder.Id.ToString()) && email.Body.Contains("Status atual: Rejeitada"));
     }
 
     private async Task<(ServiceOrderDetailResponse Order, Guid BudgetId)> CreateOrderAwaitingApprovalWithBudgetEmailAsync(
@@ -385,7 +389,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         Assert.Equal(ServiceOrderStatus.AwaitingApproval, updatedOrder.Status);
 
         var sentEmail = OficinaApiFactory.FakeEmailTransport.SentEmails
-            .SingleOrDefault(email => email.Recipient == customerEmail);
+            .SingleOrDefault(email => email.Recipient == customerEmail && email.Subject.Contains("Orçamento aguardando aprovação"));
         Assert.NotNull(sentEmail);
         var budgetIdMatch = Regex.Match(sentEmail!.Body, @"approveBudget\?budgetId=([0-9a-fA-F-]{36})");
         Assert.True(budgetIdMatch.Success);

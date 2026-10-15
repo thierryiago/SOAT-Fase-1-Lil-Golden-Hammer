@@ -605,6 +605,18 @@ Content-Type: application/json
 
 Depois disso, abra o Mailpit e confirme a mensagem capturada.
 
+### Notificações automáticas da ordem de serviço
+
+A abertura da OS e cada mudança efetiva de status enviam um e-mail em português ao cliente, com identificação da OS, veículo, acontecimento e status atual. Atualizações sem mudança de status não enviam mensagem.
+
+Em **Aguardando aprovação**, o próprio e-mail de orçamento contém a atualização e os links de decisão. Em **Finalizada**, a mensagem de veículo pronto informa a conclusão. Não há e-mail adicional nesses eventos. Alterações de composição durante a execução geram uma nova versão de orçamento e uma nova mensagem solicitando aprovação.
+
+Falhas na preparação ou no SMTP são registradas em log, sem desfazer a operação nem retornar erro HTTP por causa do e-mail. O envio ocorre após a persistência e não possui fila ou tentativas automáticas.
+
+Para verificar localmente, use `docker compose up --build -d` e execute o fluxo de OS em `oficina.http` com um cliente fictício. No Mailpit (`http://localhost:8025`), filtre pelo destinatário: o caminho Criada → Recebida → Em diagnóstico → Aguardando aprovação → Em execução → Finalizada → Entregue deve produzir **sete mensagens**. O caminho que termina em Rejeitada produz **cinco**. Cada retorno para aprovação e nova aprovação acrescenta duas mensagens. Confira os textos, a identificação da OS e a presença de apenas um orçamento por entrada em Aguardando aprovação.
+
+Os links de decisão existentes apontam para `https://localhost:5001`; ao validar pela API do Docker em `http://localhost:8080`, use a mesma rota e `budgetId` nessa base, conforme os exemplos HTTP.
+
 ---
 
 ## 📄 Arquivo de chamadas HTTP

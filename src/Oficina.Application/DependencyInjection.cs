@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Oficina.Application.Budgets.UseCases;
 using Oficina.Application.Budgets.UseCases.Queries;
+using Oficina.Application.Notifications;
 using Oficina.Application.Customers.UseCases;
 using Oficina.Application.Customers.UseCases.Queries;
 using Oficina.Application.Mechanics.UseCases;
@@ -28,6 +29,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.AddScoped<ServiceOrderStatusNotifier>();
         services.AddScoped<CreateCustomerUseCase>();
         services.AddScoped<UpdateCustomerUseCase>();
         services.AddScoped<DeleteCustomerUseCase>();

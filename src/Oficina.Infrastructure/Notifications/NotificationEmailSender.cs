@@ -6,11 +6,15 @@ namespace Oficina.Infrastructure.Notifications;
 public sealed class NotificationEmailSender(
     SendEmailNotification sendEmailNotification,
     SendBudgetAwaitingApproval sendBudgetAwaitingApproval,
-    SendVehicleReadyForPickup sendVehicleReadyForPickup) : INotificationEmailSender
+    SendVehicleReadyForPickup sendVehicleReadyForPickup,
+    SendServiceOrderStatus sendServiceOrderStatus) : INotificationEmailSender
 {
     private readonly SendEmailNotification _sendEmailNotification = sendEmailNotification;
     private readonly SendBudgetAwaitingApproval _sendBudgetAwaitingApproval = sendBudgetAwaitingApproval;
     private readonly SendVehicleReadyForPickup _sendVehicleReadyForPickup = sendVehicleReadyForPickup;
+
+    public Task SendServiceOrderStatusAsync(ServiceOrderStatusEmail context, CancellationToken cancellationToken) =>
+        sendServiceOrderStatus.SendAsync(context, cancellationToken);
 
     public Task SendEmailAsync(SendEmailNotificationRequest request, CancellationToken cancellationToken) =>
         _sendEmailNotification.SendEmailAsync(request, cancellationToken);
@@ -19,8 +23,8 @@ public sealed class NotificationEmailSender(
         string customerName,
         string customerEmail,
         BudgetResponse budget,
-        CancellationToken cancellationToken) =>
-        _sendBudgetAwaitingApproval.SendBudgetAwaitingApprovalAsync(customerName, customerEmail, budget, cancellationToken);
+        CancellationToken cancellationToken, ServiceOrderStatusEmail? context = null) =>
+        _sendBudgetAwaitingApproval.SendBudgetAwaitingApprovalAsync(customerName, customerEmail, budget, cancellationToken, context);
 
     public Task SendVehicleReadyForPickupAsync(
         string customerName,
@@ -29,7 +33,7 @@ public sealed class NotificationEmailSender(
         string vehicleBrand,
         string vehicleModel,
         int vehicleYear,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken, ServiceOrderStatusEmail? context = null) =>
         _sendVehicleReadyForPickup.SendVehicleReadyForPickupAsync(
             customerName,
             customerEmail,
@@ -37,5 +41,5 @@ public sealed class NotificationEmailSender(
             vehicleBrand,
             vehicleModel,
             vehicleYear,
-            cancellationToken);
+            cancellationToken, context);
 }

@@ -4,13 +4,15 @@ namespace Oficina.Application.Notifications;
 
 public interface INotificationEmailSender
 {
+    Task SendServiceOrderStatusAsync(ServiceOrderStatusEmail context, CancellationToken cancellationToken);
+
     Task SendEmailAsync(SendEmailNotificationRequest request, CancellationToken cancellationToken);
 
     Task SendBudgetAwaitingApprovalAsync(
         string customerName,
         string customerEmail,
         BudgetResponse budget,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken, ServiceOrderStatusEmail? context = null);
 
     Task SendVehicleReadyForPickupAsync(
         string customerName,
@@ -19,5 +21,5 @@ public interface INotificationEmailSender
         string vehicleBrand,
         string vehicleModel,
         int vehicleYear,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken, ServiceOrderStatusEmail? context = null);
 }

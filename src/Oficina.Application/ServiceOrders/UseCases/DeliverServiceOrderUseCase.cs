@@ -1,3 +1,4 @@
+using Oficina.Application.Notifications;
 using Oficina.Application.ServiceOrderHistories;
 using Oficina.Domain.ServiceOrders;
 using Oficina.Domain.ServiceOrderHistories;
@@ -6,7 +7,8 @@ namespace Oficina.Application.ServiceOrders.UseCases;
 
 public sealed class DeliverServiceOrderUseCase(
     IServiceOrderRepository serviceOrders,
-    IServiceOrderHistoryRepository history)
+    IServiceOrderHistoryRepository history,
+    ServiceOrderStatusNotifier notifier)
 {
     private readonly IServiceOrderRepository _serviceOrderRepository = serviceOrders;
     private readonly IServiceOrderHistoryRepository _history = history;
@@ -35,6 +37,7 @@ public sealed class DeliverServiceOrderUseCase(
             cancellationToken);
         await RecordHistoryAsync(serviceOrder, previousStatus, cancellationToken);
 
+        await notifier.NotifyAsync(serviceOrder, previousStatus, cancellationToken);
         return ServiceOrderResponseMapper.MapDetail(serviceOrder);
     }
 

@@ -24,6 +24,20 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
     private readonly HttpClient _client = factory.CreateClient();
 
     [Fact]
+    public async Task Every_http_status_event_should_send_exactly_one_email()
+    {
+        var context = await ReachDeliveredAsync();
+        var emails = OficinaApiFactory.FakeEmailTransport.SentEmails
+            .Where(email => email.Body.Contains(context.Order.Id.ToString())).ToArray();
+        Assert.Equal(7, emails.Length);
+        string[] statuses = ["Criada", "Recebida", "Em diagnóstico", "Aguardando aprovação", "Em execução", "Finalizada", "Entregue"];
+        for (var index = 0; index < statuses.Length; index++)
+            Assert.Contains($"Status atual: {statuses[index]}", WebUtility.HtmlDecode(emails[index].Body));
+        Assert.Single(emails, email => email.Subject.Contains("Orçamento aguardando aprovação"));
+        Assert.Single(emails, email => email.Subject == "Veículo pronto para retirada");
+    }
+
+    [Fact]
     public async Task Service_order_should_return_200_or_201_and_walk_through_every_status_via_http()
     {
         var tokenResponse = await _client.PostAsync("/api/v1/auth/token", content: null);

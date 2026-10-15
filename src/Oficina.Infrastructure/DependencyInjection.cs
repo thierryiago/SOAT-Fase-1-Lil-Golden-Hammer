@@ -40,6 +40,7 @@ public static class DependencyInjection
         services.AddScoped<IBudgetRepository, BudgetRepository>();
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
         services.AddScoped<IEmailTransport, SmtpEmailTransport>();
+        services.AddScoped<SendServiceOrderStatus>();
         services.AddScoped<SendEmailNotification>();
         services.AddScoped<SendBudgetAwaitingApproval>();
         services.AddScoped<SendVehicleReadyForPickup>();
