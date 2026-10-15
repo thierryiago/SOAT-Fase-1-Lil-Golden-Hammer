@@ -1,3 +1,9 @@
+# Configurações e segredos vêm do .env (cp .env.example .env).
+# Ordem de subida: db -> migrate -> api -> seed.
+
+x-database-connection: &database-connection
+  ConnectionStrings__Database: Host=db;Port=5432;Database=${POSTGRES_DB:-oficina};Username=${POSTGRES_USER:-oficina};Password=${POSTGRES_PASSWORD:?}
+
 services:
   mailpit:
     image: axllent/mailpit:v1.27
@@ -8,18 +14,32 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: oficina
-      POSTGRES_USER: oficina
-      POSTGRES_PASSWORD: oficina_dev_password
+      POSTGRES_DB: ${POSTGRES_DB:-oficina}
+      POSTGRES_USER: ${POSTGRES_USER:-oficina}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
     ports:
       - "5432:5432"
     volumes:
       - oficina-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U oficina -d oficina"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrations
+    image: oficina-migrations:dev
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: *database-connection
+    restart: "no"
+
   api:
     build:
       context: .
@@ -28,14 +48,17 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       mailpit:
         condition: service_started
     environment:
+      <<: *database-connection
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Database: Host=db;Port=5432;Database=oficina;Username=oficina;Password=oficina_dev_password
+      Jwt__SigningKey: ${Jwt__SigningKey:?}
       Smtp__Host: mailpit
       Smtp__Port: 1025
-      Smtp__From: noreply@oficina.local
+      Smtp__From: ${Smtp__From:-noreply@oficina.local}
       Smtp__EnableSsl: "false"
     ports:
       - "8080:8080"
@@ -52,10 +75,12 @@ services:
       api:
         condition: service_healthy
     environment:
-      PGPASSWORD: oficina_dev_password
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+      PGUSER: ${POSTGRES_USER:-oficina}
+      PGDATABASE: ${POSTGRES_DB:-oficina}
     volumes:
       - ./seed-data.sql:/seed-data.sql:ro
-    entrypoint: ["psql", "-h", "db", "-U", "oficina", "-d", "oficina", "-v", "ON_ERROR_STOP=1", "-f", "/seed-data.sql"]
+    entrypoint: ["psql", "-h", "db", "-v", "ON_ERROR_STOP=1", "-f", "/seed-data.sql"]
 
 volumes:
   oficina-db-data:

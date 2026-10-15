@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -12,7 +11,6 @@ using Oficina.Application;
 using Oficina.Application.Common;
 using Oficina.Domain.Stocks;
 using Oficina.Infrastructure;
-using Oficina.Infrastructure.Persistence;
 using System.Text;
 
 DotEnvLoader.LoadFromProjectRoot();
@@ -109,22 +107,6 @@ app.UseAuthorization();
 app.MapHealthChecks("/health", new HealthCheckOptions { AllowCachingResponses = false });
 app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 app.MapControllers();
-
-if (!app.Environment.IsEnvironment("Testing"))
-{
-    using var scope = app.Services.CreateScope();
-    var services = scope.ServiceProvider;
-    try
-    {
-        var context = services.GetRequiredService<AppDbContext>();
-        await context.Database.MigrateAsync();
-    }
-    catch (Exception ex)
-    {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while migrating the database.");
-    }
-}
 
 await app.RunAsync();
 
