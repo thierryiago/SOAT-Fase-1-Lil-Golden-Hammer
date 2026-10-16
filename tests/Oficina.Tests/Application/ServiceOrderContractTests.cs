@@ -955,6 +955,8 @@ public sealed partial class ServiceOrderContractTests
         private readonly Dictionary<Guid, ServiceOrder> _items = new();
         public Exception? PersistenceFailure { get; set; }
         public Task<List<ServiceOrder>> ListAsync(CancellationToken cancellationToken) => Task.FromResult(_items.Values.ToList());
+        public Task<List<ServiceOrder>> ListByStatusAsync(CancellationToken cancellationToken) => ListAsync(cancellationToken);
+
         public Task<List<ServiceOrder>> ListSchedulesAsync(CancellationToken cancellationToken) => Task.FromResult(_items.Values.ToList());
         public Task<List<ServiceOrder>> ListSchedulesByDateAsync(DateTimeOffset date, CancellationToken cancellationToken) =>
             Task.FromResult(_items.Values.Where(item => item.ScheduledAt.Date == date.Date).ToList());

@@ -11,6 +11,32 @@ namespace Oficina.Tests.Application;
 public sealed class ServiceOrderQueryUseCasesTests
 {
     [Fact]
+    public async Task ListServiceOrdersByStatus_should_preserve_repository_order_map_summaries_and_propagate_cancellation()
+    {
+        var repository = new FakeServiceOrderRepository();
+        var first = ServiceOrder.Open(Guid.NewGuid(), Guid.NewGuid(), "First returned");
+        var second = ServiceOrder.Open(Guid.NewGuid(), Guid.NewGuid(), "Second returned");
+        await repository.AddAsync(first, CancellationToken.None);
+        await repository.AddAsync(second, CancellationToken.None);
+        using var cancellation = new CancellationTokenSource();
+        var useCase = new ListServiceOrdersByStatusUseCase(repository);
+
+        var result = await useCase.ExecuteAsync(cancellation.Token);
+
+        Assert.Equal(new[] { first.Id, second.Id }, result.Select(order => order.Id));
+        var response = result.First();
+        Assert.Equal(first.CustomerId, response.CustomerId);
+        Assert.Equal(first.VehicleId, response.VehicleId);
+        Assert.Equal(first.MechanicId, response.MechanicId);
+        Assert.Equal(first.Description, response.Description);
+        Assert.Equal(first.Status, response.Status);
+        Assert.Equal(first.CreatedAt, response.CreatedAt);
+        Assert.Equal(first.TotalParts, response.TotalParts);
+        Assert.Equal(cancellation.Token, repository.ListByStatusCancellationToken);
+        Assert.Equal(0, repository.ListCalls);
+    }
+
+    [Fact]
     public async Task ListServiceOrders_should_return_summary_dtos_and_propagate_cancellation()
     {
         var orders = new FakeServiceOrderRepository();
@@ -235,6 +261,8 @@ public sealed class ServiceOrderQueryUseCasesTests
         private readonly Dictionary<Guid, ServiceOrder> _items = [];
 
         public CancellationToken ListCancellationToken { get; private set; }
+        public CancellationToken ListByStatusCancellationToken { get; private set; }
+        public int ListCalls { get; private set; }
         public CancellationToken GetByIdCancellationToken { get; private set; }
         public CancellationToken ListSchedulesCancellationToken { get; private set; }
         public CancellationToken ListSchedulesByDateCancellationToken { get; private set; }
@@ -243,6 +271,13 @@ public sealed class ServiceOrderQueryUseCasesTests
         public Task<List<ServiceOrder>> ListAsync(CancellationToken cancellationToken)
         {
             ListCancellationToken = cancellationToken;
+            ListCalls++;
+            return Task.FromResult(_items.Values.ToList());
+        }
+
+        public Task<List<ServiceOrder>> ListByStatusAsync(CancellationToken cancellationToken)
+        {
+            ListByStatusCancellationToken = cancellationToken;
             return Task.FromResult(_items.Values.ToList());
         }
 

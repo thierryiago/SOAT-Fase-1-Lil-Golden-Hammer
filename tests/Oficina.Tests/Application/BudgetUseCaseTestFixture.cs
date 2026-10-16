@@ -147,6 +147,8 @@ internal static class BudgetUseCaseTestFixture
             return Task.CompletedTask;
         }
 
+        public Task<List<ServiceOrder>> ListByStatusAsync(CancellationToken cancellationToken) => ListAsync(cancellationToken);
+
         public Task<List<ServiceOrder>> ListSchedulesAsync(CancellationToken cancellationToken) =>
             Task.FromResult(_serviceOrders.Values.ToList());
 

@@ -18,6 +18,7 @@ public sealed class ServiceOrdersController : ControllerBase
     private readonly FinalizeServiceOrderUseCase _finalizeServiceOrder;
     private readonly DeliverServiceOrderUseCase _deliverServiceOrder;
     private readonly ListServiceOrdersUseCase _listServiceOrders;
+    private readonly ListServiceOrdersByStatusUseCase _listServiceOrdersByStatus;
     private readonly GetServiceOrderByIdUseCase _getServiceOrderById;
     private readonly TrackServiceOrderUseCase _trackServiceOrder;
     private readonly TrackServiceOrdersByDocumentUseCase _trackServiceOrdersByDocument;
@@ -32,6 +33,7 @@ public sealed class ServiceOrdersController : ControllerBase
         OpenServiceOrderUseCase openServiceOrder,
         UpdateServiceOrderUseCase updateServiceOrder,
         ListServiceOrdersUseCase listServiceOrders,
+        ListServiceOrdersByStatusUseCase listServiceOrdersByStatus,
         GetServiceOrderByIdUseCase getServiceOrderById,
         TrackServiceOrderUseCase trackServiceOrder,
         TrackServiceOrdersByDocumentUseCase trackServiceOrdersByDocument)
@@ -43,6 +45,7 @@ public sealed class ServiceOrdersController : ControllerBase
         _openServiceOrder = openServiceOrder;
         _updateServiceOrder = updateServiceOrder;
         _listServiceOrders = listServiceOrders;
+        _listServiceOrdersByStatus = listServiceOrdersByStatus;
         _getServiceOrderById = getServiceOrderById;
         _trackServiceOrder = trackServiceOrder;
         _trackServiceOrdersByDocument = trackServiceOrdersByDocument;
@@ -53,6 +56,23 @@ public sealed class ServiceOrdersController : ControllerBase
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
         var serviceOrders = await _listServiceOrders.ExecuteAsync(cancellationToken);
+        return Ok(serviceOrders);
+    }
+
+    /// <summary>
+    /// Lista OS em execução, aguardando aprovação, em diagnóstico e recebidas, nessa prioridade.
+    /// </summary>
+    /// <remarks>
+    /// Em cada status, ordena por criação crescente e ID como desempate.
+    /// Created, Rejected, Finalized, Delivered e status nulo ficam fora desta consulta;
+    /// os registros e históricos são preservados.
+    /// </remarks>
+    [HttpGet("status", Name = "ListServiceOrdersByStatus")]
+    [ProducesResponseType(typeof(IReadOnlyCollection<ServiceOrderListItemResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ListByStatus(CancellationToken cancellationToken)
+    {
+        var serviceOrders = await _listServiceOrdersByStatus.ExecuteAsync(cancellationToken);
         return Ok(serviceOrders);
     }
 

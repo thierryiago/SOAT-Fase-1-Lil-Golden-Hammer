@@ -5,6 +5,7 @@ namespace Oficina.Application.ServiceOrders;
 public interface IServiceOrderRepository
 {
     Task<List<ServiceOrder>> ListAsync(CancellationToken cancellationToken);
+    Task<List<ServiceOrder>> ListByStatusAsync(CancellationToken cancellationToken);
     Task<ServiceOrder?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
     Task AddAsync(ServiceOrder serviceOrder, CancellationToken cancellationToken);
     Task UpdateAsync(

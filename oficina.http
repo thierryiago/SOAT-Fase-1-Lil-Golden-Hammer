@@ -326,6 +326,12 @@ Content-Type: application/json
 GET {{baseUrl}}/api/v1/service-orders
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
+### Service orders - List by status priority (oldest first within each status)
+# InExecution > AwaitingApproval > InDiagnosis > Received; ID breaks ties.
+# Created, Rejected, Finalized, Delivered and null statuses are excluded from this query only.
+GET {{baseUrl}}/api/v1/service-orders/status
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
 ### Service orders 6/6 - Get the weighted service order by ID
 GET {{baseUrl}}/api/v1/service-orders/{{openWeightedServiceOrder.response.body.$.id}}
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
