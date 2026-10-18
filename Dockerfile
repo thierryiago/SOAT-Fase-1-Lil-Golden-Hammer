@@ -43,7 +43,7 @@ ENTRYPOINT ["/bin/sh", "-c", "if [ -z \"$ConnectionStrings__Database\" ]; then e
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
-ENV ASPNETCORE_URLS=http://+:8080
+ENV ASPNETCORE_URLS=http://+:8080 \n    HttpsRedirection__Enabled=false
 EXPOSE 8080
 
 RUN apt-get update \

@@ -107,7 +107,11 @@ app.UseSwaggerUI(options =>
     options.SwaggerEndpoint("/swagger/v1/swagger.json", "Oficina API v1");
 });
 
-app.UseHttpsRedirection();
+// Desligado no container/K8s (HttpsRedirection__Enabled=false): o TLS termina no proxy/ingress.
+if (app.Configuration.GetValue("HttpsRedirection:Enabled", true))
+{
+    app.UseHttpsRedirection();
+}
 app.UseAuthentication();
 app.UseAuthorization();
 // /health e /health/live nao consultam dependencias; somente /health/ready verifica o Postgres.
