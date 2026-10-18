@@ -335,6 +335,8 @@ A maior parte da API exige JWT, incluindo:
 
 ### Ordens de serviço
 
+As respostas dos endpoints de ordens de serviço apresentam `status` pelo nome do enum (por exemplo, `"AwaitingApproval"`), ou `null` quando não houver status.
+
 - `GET /api/v1/service-orders`
 - `GET /api/v1/service-orders/status` — lista autenticada por prioridade: `InExecution` > `AwaitingApproval` > `InDiagnosis` > `Received`. Dentro de cada status, retorna as OS mais antigas por `CreatedAt`, com desempate por `Id`. Exclui `Created`, `Rejected`, `Finalized`, `Delivered` e status nulo apenas desta consulta, preservando registros e históricos. Retorna `200` com uma lista (vazia quando não houver OS elegíveis) ou `401` sem autenticação. A listagem geral continua disponível sem esse filtro.
 - `GET /api/v1/service-orders/{id}`

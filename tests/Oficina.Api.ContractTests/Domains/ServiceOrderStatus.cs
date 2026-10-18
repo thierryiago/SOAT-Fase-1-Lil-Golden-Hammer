@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Oficina.Api.Authentication;
 using Oficina.Api.ContractTests.Infrastructure;
@@ -48,11 +49,15 @@ public sealed class ServiceOrderStatusTests
         var response = await client.GetAsync("/api/v1/service-orders/status");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using (var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync()))
+        {
+            Assert.All(payload.RootElement.EnumerateArray(), order =>
+                Assert.Equal(JsonValueKind.String, order.GetProperty("status").ValueKind));
+        }
         var orders = await response.Content.ReadFromJsonAsync<ServiceOrderListItemResponse[]>();
         Assert.NotNull(orders);
         Assert.Equal(expectedIds, orders.Select(order => order.Id));
-        Assert.Equal(new ServiceOrderStatus?[] { ServiceOrderStatus.InExecution, ServiceOrderStatus.InExecution,
-            ServiceOrderStatus.AwaitingApproval, ServiceOrderStatus.InDiagnosis, ServiceOrderStatus.Received },
+        Assert.Equal(new[] { "InExecution", "InExecution", "AwaitingApproval", "InDiagnosis", "Received" },
             orders.Select(order => order.Status));
         Assert.Equal(oldest, orders[0].CreatedAt);
         Assert.Equal("Newer execution", orders[1].Description);

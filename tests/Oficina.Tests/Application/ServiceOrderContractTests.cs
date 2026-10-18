@@ -201,7 +201,7 @@ public sealed partial class ServiceOrderContractTests
 
         var response = await cancelServiceOrder.ExecuteAsync(serviceOrder.Id, CancellationToken.None);
 
-        Assert.Equal(ServiceOrderStatus.Rejected, response.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Rejected), response.Status);
         Assert.Null(await stocks.GetByPartIdAsync(orphanPartId, CancellationToken.None));
     }
 
@@ -368,7 +368,7 @@ public sealed partial class ServiceOrderContractTests
         var budget = await context.Budgets.GetByServiceOrderIdAsync(
             context.ServiceOrderId,
             CancellationToken.None);
-        Assert.Equal(ServiceOrderStatus.AwaitingApproval, response.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.AwaitingApproval), response.Status);
         Assert.NotNull(budget);
         Assert.Equal(120m, budget!.TotalValue);
         var budgetPart = Assert.Single(budget.Parts);
@@ -399,7 +399,7 @@ public sealed partial class ServiceOrderContractTests
             context.ServiceOrderId,
             CancellationToken.None);
 
-        Assert.Equal(ServiceOrderStatus.InExecution, response.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.InExecution), response.Status);
         Assert.True(budget!.IsApproved);
     }
 
@@ -418,7 +418,7 @@ public sealed partial class ServiceOrderContractTests
             context.ServiceOrderId,
             CancellationToken.None);
 
-        Assert.Equal(ServiceOrderStatus.InExecution, response.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.InExecution), response.Status);
         Assert.True(decidedBudget!.IsApproved);
     }
 
@@ -455,7 +455,7 @@ public sealed partial class ServiceOrderContractTests
             context.ServiceOrderId,
             CancellationToken.None);
 
-        Assert.Equal(ServiceOrderStatus.AwaitingApproval, response.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.AwaitingApproval), response.Status);
         Assert.Equal(2, budgets.Count);
         Assert.True(firstBudget.IsApproved);
         Assert.Null(latestBudget!.IsApproved);
@@ -495,7 +495,7 @@ public sealed partial class ServiceOrderContractTests
         var budget = await context.Budgets.GetByServiceOrderIdAsync(
             context.ServiceOrderId,
             CancellationToken.None);
-        Assert.Equal(ServiceOrderStatus.AwaitingApproval, response.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.AwaitingApproval), response.Status);
         Assert.Empty(response.Parts);
         Assert.Equal(10, stock!.Quantity);
         Assert.Empty(budget!.Parts);
@@ -519,7 +519,7 @@ public sealed partial class ServiceOrderContractTests
         var budget = await context.Budgets.GetByServiceOrderIdAsync(
             context.ServiceOrderId,
             CancellationToken.None);
-        Assert.Equal(ServiceOrderStatus.AwaitingApproval, response.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.AwaitingApproval), response.Status);
         Assert.Equal(replacement.Id, Assert.Single(response.WorkshopServices).WorkshopServiceId);
         Assert.Equal(replacement.Id, Assert.Single(budget!.WorkshopServices).WorkshopServiceId);
         Assert.Equal(2, (await context.Budgets.ListAsync(CancellationToken.None)).Count);
@@ -541,7 +541,7 @@ public sealed partial class ServiceOrderContractTests
         var response = await context.GetServiceOrderById.ExecuteAsync(
             context.ServiceOrderId,
             CancellationToken.None);
-        Assert.Equal(ServiceOrderStatus.InExecution, response!.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.InExecution), response!.Status);
         Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
         Assert.Equal(5, context.EmailSender.SendCount);
     }
@@ -571,7 +571,7 @@ public sealed partial class ServiceOrderContractTests
                 WorkshopServiceIds: [context.WorkshopServiceId]),
             CancellationToken.None);
 
-        Assert.Equal(ServiceOrderStatus.InExecution, response.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.InExecution), response.Status);
         Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
         Assert.Equal(5, context.EmailSender.SendCount);
     }
@@ -603,7 +603,7 @@ public sealed partial class ServiceOrderContractTests
             context.ServiceOrderId,
             CancellationToken.None);
         var stock = await context.Stocks.GetByPartIdAsync(context.PartId, CancellationToken.None);
-        Assert.Equal(ServiceOrderStatus.InExecution, response!.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.InExecution), response!.Status);
         Assert.Equal(2, Assert.Single(response.Parts).QuantityUsed);
         Assert.Equal(1, stock!.Quantity);
         Assert.Single(await context.Budgets.ListAsync(CancellationToken.None));
@@ -637,7 +637,7 @@ public sealed partial class ServiceOrderContractTests
         var budget = await context.Budgets.GetByServiceOrderIdAsync(
             context.ServiceOrderId,
             CancellationToken.None);
-        Assert.Equal(ServiceOrderStatus.Rejected, response.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Rejected), response.Status);
         Assert.Equal(10, stock!.Quantity);
         Assert.False(budget!.IsApproved);
     }
@@ -664,7 +664,7 @@ public sealed partial class ServiceOrderContractTests
             CancellationToken.None);
         var stock = await context.Stocks.GetByPartIdAsync(context.PartId, CancellationToken.None);
 
-        Assert.Equal(ServiceOrderStatus.Rejected, response.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Rejected), response.Status);
         Assert.False(decidedBudget!.IsApproved);
         Assert.Equal(10, stock!.Quantity);
     }
@@ -688,7 +688,7 @@ public sealed partial class ServiceOrderContractTests
 
         var response = await context.FinalizeServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
 
-        Assert.Equal(ServiceOrderStatus.Finalized, response.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Finalized), response.Status);
         Assert.Equal("john@email.com", context.EmailSender.Recipient);
         Assert.Equal("Veículo pronto para retirada", context.EmailSender.Subject);
         Assert.Contains("Olá, John Customer!", context.EmailSender.Body);
@@ -721,7 +721,7 @@ public sealed partial class ServiceOrderContractTests
 
         var response = await context.DeliverServiceOrder.ExecuteAsync(context.ServiceOrderId, CancellationToken.None);
 
-        Assert.Equal(ServiceOrderStatus.Delivered, response.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Delivered), response.Status);
     }
 
     [Fact]

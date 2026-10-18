@@ -29,7 +29,7 @@ public sealed class ServiceOrderQueryUseCasesTests
         Assert.Equal(first.VehicleId, response.VehicleId);
         Assert.Equal(first.MechanicId, response.MechanicId);
         Assert.Equal(first.Description, response.Description);
-        Assert.Equal(first.Status, response.Status);
+        Assert.Equal(first.Status?.ToString(), response.Status);
         Assert.Equal(first.CreatedAt, response.CreatedAt);
         Assert.Equal(first.TotalParts, response.TotalParts);
         Assert.Equal(cancellation.Token, repository.ListByStatusCancellationToken);
@@ -51,6 +51,7 @@ public sealed class ServiceOrderQueryUseCasesTests
         Assert.Equal(order.Id, response.Id);
         Assert.Equal(order.CustomerId, response.CustomerId);
         Assert.Equal(order.Description, response.Description);
+        Assert.Equal(nameof(ServiceOrderStatus.Created), response.Status);
         Assert.Equal(cancellation.Token, orders.ListCancellationToken);
     }
 

@@ -157,7 +157,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         awaitingApprovalResponse.EnsureSuccessStatusCode();
         var updatedOrder = (await awaitingApprovalResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
         Log($"Order advanced to {updatedOrder.Status} after attaching 2 services of $400", awaitingApprovalResponse);
-        Assert.Equal(ServiceOrderStatus.AwaitingApproval, updatedOrder.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.AwaitingApproval), updatedOrder.Status);
 
         var budgetsResponse = await _client.GetAsync("/api/v1/budgets?page=1&pageSize=100");
         budgetsResponse.EnsureSuccessStatusCode();
@@ -284,7 +284,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         var orderResponse = await _client.GetAsync($"/api/v1/service-orders/{serviceOrder.Id}");
         orderResponse.EnsureSuccessStatusCode();
         var order = (await orderResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
-        Assert.Equal(ServiceOrderStatus.InExecution, order.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.InExecution), order.Status);
         Assert.Single(OficinaApiFactory.FakeEmailTransport.SentEmails, email =>
             email.Body.Contains(serviceOrder.Id.ToString()) && email.Body.Contains("Status atual: Em execução"));
 
@@ -311,7 +311,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         var orderResponse = await _client.GetAsync($"/api/v1/service-orders/{serviceOrder.Id}");
         orderResponse.EnsureSuccessStatusCode();
         var order = (await orderResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
-        Assert.Equal(ServiceOrderStatus.Rejected, order.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Rejected), order.Status);
         Assert.Single(OficinaApiFactory.FakeEmailTransport.SentEmails, email =>
             email.Body.Contains(serviceOrder.Id.ToString()) && email.Body.Contains("Status atual: Rejeitada"));
     }
@@ -386,7 +386,7 @@ public sealed class BudgetTests(OficinaApiFactory factory, ITestOutputHelper out
         });
         awaitingApprovalResponse.EnsureSuccessStatusCode();
         var updatedOrder = (await awaitingApprovalResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
-        Assert.Equal(ServiceOrderStatus.AwaitingApproval, updatedOrder.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.AwaitingApproval), updatedOrder.Status);
 
         var sentEmail = OficinaApiFactory.FakeEmailTransport.SentEmails
             .SingleOrDefault(email => email.Recipient == customerEmail && email.Subject.Contains("Orçamento aguardando aprovação"));

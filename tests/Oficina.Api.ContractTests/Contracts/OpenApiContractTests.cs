@@ -17,6 +17,12 @@ public sealed class OpenApiContractTests(OficinaApiFactory factory) : IClassFixt
         Assert.All(paths, path => Assert.StartsWith("/api/v1/", path));
         Assert.Contains("ServiceOrderListItemResponse", schemas);
         Assert.Contains("ServiceOrderDetailResponse", schemas);
+        foreach (var schemaName in new[] { "ServiceOrderListItemResponse", "ServiceOrderDetailResponse" })
+        {
+            var statusSchema = document.RootElement.GetProperty("components").GetProperty("schemas")
+                .GetProperty(schemaName).GetProperty("properties").GetProperty("status");
+            Assert.Equal("string", statusSchema.GetProperty("type").GetString());
+        }
         Assert.Contains("WorkshopServiceExecutionTimeResponse", schemas);
         Assert.DoesNotContain("ServiceOrder", schemas);
         Assert.DoesNotContain("ServiceOrderHistory", schemas);
