@@ -143,7 +143,9 @@ Todos os endpoints abaixo usam prefixo `/api` e GUIDs nos recursos individuais.
 | `/workshop-services` | `GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}` |
 | `/mechanics` | `GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}` |
 | `/service-orders` | `GET`, `GET /{id}`, `POST`, `POST /{id}/parts` |
-| `/health` | Health check da API |
+| `/health` | Health check da API (compatibilidade; sem dependências) |
+| `/health/live` | Liveness: o processo responde, sem verificar dependências |
+| `/health/ready` | Readiness: verifica o Postgres; `503` com o banco indisponível |
 
 Listagens de cadastros usam `PageRequest` e retornam `PagedResponse`. Criações respondem 201, exclusões bem-sucedidas respondem 204 e consultas inexistentes respondem 404.
 
