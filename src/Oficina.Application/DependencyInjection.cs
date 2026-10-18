@@ -49,6 +49,7 @@ public static class DependencyInjection
         services.AddScoped<OpenServiceOrderUseCase>();
         services.AddScoped<UpdateServiceOrderUseCase>();
         services.AddScoped<ListServiceOrdersUseCase>();
+        services.AddScoped<ListServiceOrdersByStatusUseCase>();
         services.AddScoped<GetServiceOrderByIdUseCase>();
         services.AddScoped<TrackServiceOrderUseCase>();
         services.AddScoped<TrackServiceOrdersByDocumentUseCase>();

@@ -21,6 +21,20 @@ public sealed class ServiceOrderRepository : IServiceOrderRepository
             .ToListAsync(cancellationToken);
 
 
+    public Task<List<ServiceOrder>> ListByStatusAsync(CancellationToken cancellationToken) =>
+        _appDbContext.ServiceOrders
+            .AsNoTracking()
+            .Where(order => order.Status == ServiceOrderStatus.InExecution
+                || order.Status == ServiceOrderStatus.AwaitingApproval
+                || order.Status == ServiceOrderStatus.InDiagnosis
+                || order.Status == ServiceOrderStatus.Received)
+            .OrderBy(order => order.Status == ServiceOrderStatus.InExecution ? 0
+                : order.Status == ServiceOrderStatus.AwaitingApproval ? 1
+                : order.Status == ServiceOrderStatus.InDiagnosis ? 2 : 3)
+            .ThenBy(order => order.CreatedAt)
+            .ThenBy(order => order.Id)
+            .ToListAsync(cancellationToken);
+
     public Task<List<ServiceOrder>> ListSchedulesAsync(CancellationToken cancellationToken) =>
         _appDbContext.ServiceOrders
             .AsNoTracking()

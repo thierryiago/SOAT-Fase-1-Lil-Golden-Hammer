@@ -144,7 +144,7 @@ public sealed class StockTests(OficinaApiFactory factory, ITestOutputHelper outp
         Log("Cancel order with 3 units of the part attached", cancelResponse);
         Assert.Equal(HttpStatusCode.OK, cancelResponse.StatusCode);
         var cancelledOrder = await cancelResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>();
-        Assert.Equal(ServiceOrderStatus.Rejected, cancelledOrder!.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Rejected), cancelledOrder!.Status);
 
         var stockAfterCancel = await GetStockByPartIdAsync(part.Id);
         Log($"Stock after cancelling the order (7 -> {stockAfterCancel.Quantity}, expected back to 10)", cancelResponse);
