@@ -37,7 +37,7 @@ Ordem de bootstrap:
 2. `AddInfrastructure(connectionString, configuration)` — registra `AppDbContext` (Npgsql) e todos os repositórios/serviços de infra.
 3. `AddControllers()`, `AddApplication()` — registra os *Services* da camada de aplicação.
 4. JWT: `JwtOptions` vem de `appsettings.json:Jwt`, validado no start via `JwtOptionsValidator` (`IValidateOptions<JwtOptions>`) e `.ValidateOnStart()`. Autenticação configurada com `AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer()`, parâmetros de validação (issuer/audience/assinatura simétrica HMAC) montados a partir de `JwtOptions`. `ClockSkew` de 30s.
-5. `AddAuthorization()`, `AddHealthChecks()` (`/health`), Swagger com `BearerSecurityOperationFilter` (adiciona cadeado nos endpoints protegidos) e comentários XML.
+5. `AddAuthorization()`, `AddHealthChecks()` com check do Postgres (tag `ready`; `/health`, `/health/live`, `/health/ready`), Swagger com `BearerSecurityOperationFilter` (adiciona cadeado nos endpoints protegidos) e comentários XML.
 6. Middleware de exceção global (`UseExceptionHandler`) mapeia:
    - `KeyNotFoundException` → 404
    - `ConflictException` (custom, `Oficina.Application.Common`) → 409
@@ -45,7 +45,7 @@ Ordem de bootstrap:
    - `ArgumentException` / `InvalidOperationException` → 400
    - qualquer outra → 500 (mensagem oculta, só loga)
    Resposta sempre em `application/problem+json` com `title`, `status`, `detail`, `traceId`.
-7. `UseSwagger/UseSwaggerUI`, `UseHttpsRedirection`, `UseAuthentication`, `UseAuthorization`, `MapHealthChecks`, `MapControllers`.
+7. `UseSwagger/UseSwaggerUI`, `UseHttpsRedirection` (condicional a `HttpsRedirection:Enabled`), `UseAuthentication`, `UseAuthorization`, `MapHealthChecks`, `MapControllers`.
 8. Fora do ambiente `Testing`, roda `context.Database.Migrate()` automaticamente no startup (auto-apply de migrations), logando erro sem derrubar a app se falhar.
 9. `public partial class Program;` no fim — necessário para o `WebApplicationFactory<Program>` dos testes de contrato.
 
@@ -312,7 +312,7 @@ Todos com `[ApiController]`, prefixo `api/v1/...`, a maioria `[Authorize]` (JWT 
 | `MetricsController` | `/api/v1/metrics` | JWT | `GET /workshop-service/execution-time` |
 | `NotificationsController` | `/api/v1/notifications` | **sem `[Authorize]`** | `POST /email` → dispara e-mail avulso |
 
-Infra transversal: `/health` (health checks), `/swagger` (UI + JSON), `BearerSecurityOperationFilter` (`src/Oficina.Api/OpenApi/`) injeta o requisito de segurança Bearer nos endpoints do Swagger.
+Infra transversal: `/health` e `/health/live` (liveness), `/health/ready` (readiness com Postgres), `/swagger` (UI + JSON), `BearerSecurityOperationFilter` (`src/Oficina.Api/OpenApi/`) injeta o requisito de segurança Bearer nos endpoints do Swagger.
 
 ## 10. Configuração (`src/Oficina.Api/appsettings.json` + `.env`)
 

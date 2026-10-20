@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -11,6 +12,7 @@ using Oficina.Application;
 using Oficina.Application.Common;
 using Oficina.Domain.Stocks;
 using Oficina.Infrastructure;
+using Oficina.Infrastructure.Persistence;
 using System.Text;
 
 DotEnvLoader.LoadFromProjectRoot();
@@ -45,7 +47,11 @@ builder.Services
         };
     });
 builder.Services.AddAuthorization();
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>(
+        "postgres",
+        failureStatus: HealthStatus.Unhealthy,
+        tags: ["ready"]);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -101,10 +107,21 @@ app.UseSwaggerUI(options =>
     options.SwaggerEndpoint("/swagger/v1/swagger.json", "Oficina API v1");
 });
 
-app.UseHttpsRedirection();
+// Desligado no container/K8s (HttpsRedirection__Enabled=false): o TLS termina no proxy/ingress.
+if (app.Configuration.GetValue("HttpsRedirection:Enabled", true))
+{
+    app.UseHttpsRedirection();
+}
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapHealthChecks("/health", new HealthCheckOptions { AllowCachingResponses = false });
+// /health e /health/live nao consultam dependencias; somente /health/ready verifica o Postgres.
+app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false, AllowCachingResponses = false });
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false, AllowCachingResponses = false });
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    AllowCachingResponses = false
+});
 app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 app.MapControllers();
 

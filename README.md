@@ -16,6 +16,7 @@ API REST em .NET 10 para gestão operacional de uma oficina mecânica, cobrindo 
   - [Docker Compose](#passo-3-inicialize-os-serviços-com-docker)
   - [Validação da aplicação](#passo-4-verifique-se-a-api-subiu)
   - [Teste da API](#passo-5-teste-a-api)
+- [Health checks, imagem Docker e HTTPS](#health-checks-imagem-docker-e-https)
 - [Executando direto com .NET](#executando-direto-com-net)
 - [Autenticação e autorização](#autenticação-e-autorização)
 - [Endpoints principais](#endpoints-principais)
@@ -200,7 +201,7 @@ Depois do startup, valide:
 
 - API: `http://localhost:8080`
 - Swagger: `http://localhost:8080/swagger`
-- Health check: `http://localhost:8080/health`
+- Health checks: `http://localhost:8080/health/live` (liveness) e `http://localhost:8080/health/ready` (readiness, verifica o Postgres)
 - Mailpit: `http://localhost:8025`
 
 ### Passo 5: teste a API
@@ -224,6 +225,29 @@ Authorization: Bearer <accessToken>
 ```
 
 ---
+
+## 🩺 Health checks, imagem Docker e HTTPS
+
+### Endpoints de saúde
+
+| Rota | Verifica | Uso | Resposta |
+|---|---|---|---|
+| `/health/live` | nada (só que o processo responde) | `livenessProbe` | `200` |
+| `/health/ready` | conexão com o Postgres | `readinessProbe` e healthcheck do compose | `200` ou `503` com o banco indisponível |
+| `/health` | nada (igual ao `/health/live`) | compatibilidade | `200` |
+
+Todos são anônimos e sem cache. Exemplo para o Kubernetes: `livenessProbe.httpGet.path: /health/live` e `readinessProbe.httpGet.path: /health/ready`, porta `8080`.
+
+### Imagem Docker
+
+- **Tags fixadas:** o `Dockerfile` usa `SDK_VERSION` e `RUNTIME_VERSION` (tags de patch). Para atualizar, ajuste os dois `ARG` e valide o build.
+- **Labels OCI:** `org.opencontainers.image.version` e `.revision` vêm dos `ARG VERSION` e `VCS_REF`:
+  ```bash
+  docker build --build-arg VERSION=1.0.0 --build-arg VCS_REF=$(git rev-parse HEAD) -t oficina-api .
+  ```
+  Sem os argumentos, ficam `dev` e `unknown`.
+- **Sem `curl`:** a imagem final não instala `curl`. O healthcheck do compose faz a requisição com `bash` (`/dev/tcp`). No Kubernetes o probe é `httpGet` do kubelet e não precisa de nada na imagem.
+- **Redirecionamento HTTPS:** controlado por `HttpsRedirection__Enabled` (padrão `true` no `dotnet run`). A imagem define `false`, porque o TLS termina no proxy/ingress.
 
 ## 🧪 Executando direto com .NET
 
@@ -258,7 +282,9 @@ A API usa autenticação JWT Bearer com token técnico único.
 ### Endpoints públicos
 
 - `POST /api/v1/auth/token`
-- `GET /health`
+- `GET /health` (compatibilidade; equivale a `/health/live`)
+- `GET /health/live`
+- `GET /health/ready`
 
 ### Endpoints protegidos
 
