@@ -12,3 +12,8 @@ output "localstack_endpoint" {
   description = "Endpoint do LocalStack"
   value       = var.localstack_endpoint
 }
+
+output "localstack_endpoint" {
+  description = "Endpoint do LocalStack"
+  value       = var.localstack_endpoint
+}

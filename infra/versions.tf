@@ -8,13 +8,12 @@ terraform {
     }
   }
 
-  # Blocos backend não aceitam variáveis: o endpoint repete var.localstack_endpoint.
-  # O bucket é criado por infra/bootstrap.
   backend "s3" {
     bucket       = "oficina-tfstate-local"
     key          = "infra/terraform.tfstate"
     region       = "us-east-1"
     use_lockfile = true
+
 
     endpoints = {
       s3 = "http://localhost:4566"
