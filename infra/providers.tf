@@ -1,27 +1,22 @@
 provider "aws" {
   region = var.aws_region
 
-  # Credenciais fictícias e validações desligadas apenas no LocalStack.
-  access_key = var.use_localstack ? "test" : null
-  secret_key = var.use_localstack ? "test" : null
+  # Tudo roda no LocalStack: credenciais fictícias e validações desligadas.
+  access_key                  = "test"
+  secret_key                  = "test"
+  s3_use_path_style           = true
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
 
-  s3_use_path_style           = var.use_localstack
-  skip_credentials_validation = var.use_localstack
-  skip_metadata_api_check     = var.use_localstack
-  skip_requesting_account_id  = var.use_localstack
-
-  dynamic "endpoints" {
-    for_each = var.use_localstack ? [var.localstack_endpoint] : []
-
-    content {
-      s3  = endpoints.value
-      ec2 = endpoints.value
-      eks = endpoints.value
-      rds = endpoints.value
-      ecr = endpoints.value
-      iam = endpoints.value
-      sts = endpoints.value
-    }
+  endpoints {
+    s3  = var.localstack_endpoint
+    ec2 = var.localstack_endpoint
+    eks = var.localstack_endpoint
+    rds = var.localstack_endpoint
+    ecr = var.localstack_endpoint
+    iam = var.localstack_endpoint
+    sts = var.localstack_endpoint
   }
 
   default_tags {

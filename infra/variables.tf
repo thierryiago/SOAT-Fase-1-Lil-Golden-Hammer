@@ -1,9 +1,3 @@
-variable "use_localstack" {
-  description = "Quando true, o provider AWS aponta para o LocalStack; quando false, usa a AWS real"
-  type        = bool
-  default     = true
-}
-
 variable "localstack_endpoint" {
   description = "Endpoint do LocalStack"
   type        = string

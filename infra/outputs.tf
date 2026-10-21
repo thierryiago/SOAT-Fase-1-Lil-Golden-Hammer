@@ -9,6 +9,6 @@ output "environment" {
 }
 
 output "localstack_endpoint" {
-  description = "Endpoint do LocalStack (null quando use_localstack = false)"
-  value       = var.use_localstack ? var.localstack_endpoint : null
+  description = "Endpoint do LocalStack"
+  value       = var.localstack_endpoint
 }
