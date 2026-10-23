@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Oficina.Application.Budgets.UseCases;
 using Oficina.Application.Budgets.UseCases.Queries;
 using Oficina.Application.Notifications;
+using Oficina.Application.Notifications.UseCases;
 using Oficina.Application.Customers.UseCases;
 using Oficina.Application.Customers.UseCases.Queries;
 using Oficina.Application.Mechanics.UseCases;
@@ -48,6 +49,8 @@ public static class DependencyInjection
         services.AddScoped<DeliverServiceOrderUseCase>();
         services.AddScoped<OpenServiceOrderUseCase>();
         services.AddScoped<UpdateServiceOrderUseCase>();
+        services.AddScoped<OpenServiceOrderWithItemsUseCase>();
+        services.AddScoped<SendServiceOrderOpenedEmailUseCase>();
         services.AddScoped<ListServiceOrdersUseCase>();
         services.AddScoped<GetServiceOrderByIdUseCase>();
         services.AddScoped<TrackServiceOrderUseCase>();

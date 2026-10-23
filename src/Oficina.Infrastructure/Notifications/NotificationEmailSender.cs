@@ -7,7 +7,8 @@ public sealed class NotificationEmailSender(
     SendEmailNotification sendEmailNotification,
     SendBudgetAwaitingApproval sendBudgetAwaitingApproval,
     SendVehicleReadyForPickup sendVehicleReadyForPickup,
-    SendServiceOrderStatus sendServiceOrderStatus) : INotificationEmailSender
+    SendServiceOrderStatus sendServiceOrderStatus,
+    SendServiceOrderOpenedAwaitingApproval? sendServiceOrderOpened = null) : INotificationEmailSender
 {
     private readonly SendEmailNotification _sendEmailNotification = sendEmailNotification;
     private readonly SendBudgetAwaitingApproval _sendBudgetAwaitingApproval = sendBudgetAwaitingApproval;
@@ -42,4 +43,8 @@ public sealed class NotificationEmailSender(
             vehicleModel,
             vehicleYear,
             cancellationToken, context);
+
+    public Task SendServiceOrderOpenedAsync(ServiceOrderOpenedEmail email, CancellationToken cancellationToken) =>
+        (sendServiceOrderOpened ?? throw new InvalidOperationException("Service order opened email sender is not configured."))
+            .SendAsync(email, cancellationToken);
 }

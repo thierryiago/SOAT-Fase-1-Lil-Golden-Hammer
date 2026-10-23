@@ -1,4 +1,5 @@
 using Oficina.Domain.ServiceOrders;
+using Oficina.Domain.Vehicles;
 
 namespace Oficina.Application.ServiceOrders;
 
@@ -16,6 +17,28 @@ public sealed record UpdateServiceOrderRequest(
     IReadOnlyCollection<Guid>? WorkshopServiceIds = null);
 
 public sealed record AddPartToServiceOrderRequest(Guid PartId, int Quantity);
+
+public sealed record OpenServiceOrderWithItemsRequest(
+    OpenServiceOrderWithItemsCustomerRequest Customer,
+    OpenServiceOrderWithItemsVehicleRequest Vehicle,
+    string Description,
+    IReadOnlyCollection<Guid> WorkshopServiceIds,
+    IReadOnlyCollection<OpenServiceOrderWithItemsPartRequest>? Parts = null);
+
+public sealed record OpenServiceOrderWithItemsCustomerRequest(
+    string Document,
+    string? Name = null,
+    string? Email = null,
+    string? TelephoneNumber = null);
+
+public sealed record OpenServiceOrderWithItemsVehicleRequest(
+    string Plate,
+    string? Brand = null,
+    string? Model = null,
+    int? Year = null,
+    EnumVehicleCategory Category = EnumVehicleCategory.Car);
+
+public sealed record OpenServiceOrderWithItemsPartRequest(Guid PartId, int Quantity);
 
 public sealed record ServiceOrderListItemResponse(
     Guid Id,

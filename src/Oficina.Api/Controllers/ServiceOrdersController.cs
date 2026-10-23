@@ -23,6 +23,7 @@ public sealed class ServiceOrdersController : ControllerBase
     private readonly TrackServiceOrdersByDocumentUseCase _trackServiceOrdersByDocument;
     private readonly OpenServiceOrderUseCase _openServiceOrder;
     private readonly UpdateServiceOrderUseCase _updateServiceOrder;
+    private readonly OpenServiceOrderWithItemsUseCase _openServiceOrderWithItems;
 
     public ServiceOrdersController(
         ApproveServiceOrderUseCase approveServiceOrder,
@@ -34,7 +35,8 @@ public sealed class ServiceOrdersController : ControllerBase
         ListServiceOrdersUseCase listServiceOrders,
         GetServiceOrderByIdUseCase getServiceOrderById,
         TrackServiceOrderUseCase trackServiceOrder,
-        TrackServiceOrdersByDocumentUseCase trackServiceOrdersByDocument)
+        TrackServiceOrdersByDocumentUseCase trackServiceOrdersByDocument,
+        OpenServiceOrderWithItemsUseCase openServiceOrderWithItems)
     {
         _approveServiceOrder = approveServiceOrder;
         _cancelServiceOrder = cancelServiceOrder;
@@ -46,6 +48,7 @@ public sealed class ServiceOrdersController : ControllerBase
         _getServiceOrderById = getServiceOrderById;
         _trackServiceOrder = trackServiceOrder;
         _trackServiceOrdersByDocument = trackServiceOrdersByDocument;
+        _openServiceOrderWithItems = openServiceOrderWithItems;
     }
 
     [HttpGet(Name = "ListServiceOrders")]
@@ -90,6 +93,18 @@ public sealed class ServiceOrdersController : ControllerBase
     public async Task<IActionResult> Open(OpenServiceOrderRequest request, CancellationToken cancellationToken)
     {
         var serviceOrder = await _openServiceOrder.ExecuteAsync(request, cancellationToken);
+        return CreatedAtAction(nameof(GetById), new { id = serviceOrder.Id }, serviceOrder);
+    }
+
+    [HttpPost("with-items", Name = "OpenServiceOrderWithItems")]
+    [ProducesResponseType(typeof(ServiceOrderDetailResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> OpenWithItems(
+        OpenServiceOrderWithItemsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var serviceOrder = await _openServiceOrderWithItems.ExecuteAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = serviceOrder.Id }, serviceOrder);
     }
 

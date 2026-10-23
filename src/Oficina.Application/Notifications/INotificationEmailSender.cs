@@ -22,4 +22,6 @@ public interface INotificationEmailSender
         string vehicleModel,
         int vehicleYear,
         CancellationToken cancellationToken, ServiceOrderStatusEmail? context = null);
+
+    Task SendServiceOrderOpenedAsync(ServiceOrderOpenedEmail email, CancellationToken cancellationToken);
 }
