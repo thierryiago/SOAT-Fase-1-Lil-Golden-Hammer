@@ -96,7 +96,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var serviceOrder = (await openResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
         Log("0/6", "Open order", openResponse.StatusCode, serviceOrder.Status);
 
-        var observedStatuses = new List<ServiceOrderStatus?> { serviceOrder.Status };
+        var observedStatuses = new List<string?> { serviceOrder.Status };
 
         var receivedResponse = await _client.PutAsJsonAsync("/api/v1/service-orders", new
         {
@@ -147,15 +147,15 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         Log("6/6", "Deliver (expected: Delivered)", deliverResponse.StatusCode, deliverStatus);
 
         Assert.Equal(
-            new ServiceOrderStatus?[]
+            new string[]
             {
-                ServiceOrderStatus.Created,
-                ServiceOrderStatus.Received,
-                ServiceOrderStatus.InDiagnosis,
-                ServiceOrderStatus.AwaitingApproval,
-                ServiceOrderStatus.InExecution,
-                ServiceOrderStatus.Finalized,
-                ServiceOrderStatus.Delivered,
+                nameof(ServiceOrderStatus.Created),
+                nameof(ServiceOrderStatus.Received),
+                nameof(ServiceOrderStatus.InDiagnosis),
+                nameof(ServiceOrderStatus.AwaitingApproval),
+                nameof(ServiceOrderStatus.InExecution),
+                nameof(ServiceOrderStatus.Finalized),
+                nameof(ServiceOrderStatus.Delivered),
             },
             observedStatuses);
 
@@ -173,7 +173,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await OpenNewOrderAsync();
         Log("0 - Created", "Order just opened", ctx.Order.Status);
 
-        Assert.Equal(ServiceOrderStatus.Created, ctx.Order.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Created), ctx.Order.Status);
     }
 
     [Fact]
@@ -182,7 +182,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await ReachReceivedAsync();
         Log("1 - Received", "Checklist informed", ctx.Order.Status);
 
-        Assert.Equal(ServiceOrderStatus.Received, ctx.Order.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Received), ctx.Order.Status);
     }
 
     [Fact]
@@ -191,7 +191,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await ReachInDiagnosisAsync();
         Log("2 - InDiagnosis", "Mechanic assigned", ctx.Order.Status);
 
-        Assert.Equal(ServiceOrderStatus.InDiagnosis, ctx.Order.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.InDiagnosis), ctx.Order.Status);
     }
 
     [Fact]
@@ -200,7 +200,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await ReachAwaitingApprovalAsync();
         Log("3 - AwaitingApproval", "Workshop service attached", ctx.Order.Status);
 
-        Assert.Equal(ServiceOrderStatus.AwaitingApproval, ctx.Order.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.AwaitingApproval), ctx.Order.Status);
     }
 
     [Fact]
@@ -209,7 +209,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await ReachInExecutionAsync();
         Log("4 - InExecution", "Client approved", ctx.Order.Status);
 
-        Assert.Equal(ServiceOrderStatus.InExecution, ctx.Order.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.InExecution), ctx.Order.Status);
     }
 
     [Fact]
@@ -218,7 +218,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await ReachFinalizedAsync();
         Log("5 - Finalized", "Execution finalized", ctx.Order.Status);
 
-        Assert.Equal(ServiceOrderStatus.Finalized, ctx.Order.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Finalized), ctx.Order.Status);
     }
 
     [Fact]
@@ -227,7 +227,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await ReachDeliveredAsync();
         Log("6 - Delivered", "Order delivered", ctx.Order.Status);
 
-        Assert.Equal(ServiceOrderStatus.Delivered, ctx.Order.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Delivered), ctx.Order.Status);
     }
 
     [Fact]
@@ -236,7 +236,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var ctx = await ReachRejectedAsync();
         Log("7 - Rejected", "Client rejected (cancellation)", ctx.Order.Status);
 
-        Assert.Equal(ServiceOrderStatus.Rejected, ctx.Order.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Rejected), ctx.Order.Status);
     }
 
     // =====================================================================================
@@ -471,7 +471,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         Log("First cancel while AwaitingApproval", "POST /cancel", firstCancel.StatusCode);
         Assert.Equal(HttpStatusCode.OK, firstCancel.StatusCode);
         var cancelled = (await firstCancel.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
-        Assert.Equal(ServiceOrderStatus.Rejected, cancelled.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Rejected), cancelled.Status);
 
         var secondCancel = await CancelAsync(ctx.Order.Id);
         Log("Second cancel on the same already-Rejected order", "POST /cancel", secondCancel.StatusCode);
@@ -553,7 +553,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         });
         awaitingApprovalResponse.EnsureSuccessStatusCode();
         var awaitingOrder = (await awaitingApprovalResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
-        Assert.Equal(ServiceOrderStatus.AwaitingApproval, awaitingOrder.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.AwaitingApproval), awaitingOrder.Status);
         Assert.Empty(awaitingOrder.Parts);
         Assert.Equal(0m, awaitingOrder.TotalParts);
 
@@ -575,7 +575,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         var delivered = (await deliverResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
         Log("Order without any part reaches Delivered", "POST /deliver", deliverResponse.StatusCode, delivered.Status);
 
-        Assert.Equal(ServiceOrderStatus.Delivered, delivered.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Delivered), delivered.Status);
     }
 
     // Item 23 - characterization test: a mechanic soft-deleted after being assigned to an
@@ -601,7 +601,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         Log("Order still advances to AwaitingApproval after its mechanic was deactivated", awaitingApprovalResponse);
         Assert.Equal(HttpStatusCode.OK, awaitingApprovalResponse.StatusCode);
         var order = (await awaitingApprovalResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
-        Assert.Equal(ServiceOrderStatus.AwaitingApproval, order.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.AwaitingApproval), order.Status);
         Assert.Equal(ctx.MechanicId, order.MechanicId);
 
         var getResponse = await _client.GetAsync($"/api/v1/service-orders/{ctx.Order.Id}");
@@ -666,7 +666,7 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
         });
         attachResponse.EnsureSuccessStatusCode();
         var afterAttach = (await attachResponse.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
-        Assert.Equal(ServiceOrderStatus.AwaitingApproval, afterAttach.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.AwaitingApproval), afterAttach.Status);
 
         var deleteResponse = await _client.DeleteAsync($"/api/v1/parts/{part.Id}");
         Log("Soft-delete the part already attached to this order", deleteResponse);
@@ -851,12 +851,12 @@ public sealed class ServiceOrderTests(OficinaApiFactory factory, ITestOutputHelp
     private void Log(string scenario, HttpResponseMessage response) =>
         output.WriteLine($"[{scenario}] -> {(int)response.StatusCode} {response.StatusCode}");
 
-    private void Log(string step, string action, HttpStatusCode statusCode, ServiceOrderStatus? osStatus = null)
+    private void Log(string step, string action, HttpStatusCode statusCode, string? osStatus = null)
     {
         var osStatusText = osStatus is null ? "" : $" | order status = {osStatus}";
         output.WriteLine($"[{step}] {action} -> {(int)statusCode} {statusCode}{osStatusText}");
     }
 
-    private void Log(string step, string action, ServiceOrderStatus? osStatus) =>
-        output.WriteLine($"[{step}] {action} -> order status = {(osStatus is null ? "null" : osStatus.ToString())}");
+    private void Log(string step, string action, string? osStatus) =>
+        output.WriteLine($"[{step}] {action} -> order status = {osStatus ?? "null"}");
 }

@@ -11,7 +11,7 @@ internal static class ServiceOrderResponseMapper
             order.VehicleId,
             order.MechanicId,
             order.Description,
-            order.Status,
+            order.Status?.ToString(),
             order.CreatedAt,
             order.TotalParts);
 
@@ -23,7 +23,7 @@ internal static class ServiceOrderResponseMapper
             order.MechanicId,
             order.Description,
             order.CheckList,
-            order.Status,
+            order.Status?.ToString(),
             order.CreatedAt,
             order.TotalParts,
             order.Parts.Select(part => new ServiceOrderPartResponse(part.Id, part.PartId, part.QuantityUsed)).ToList(),

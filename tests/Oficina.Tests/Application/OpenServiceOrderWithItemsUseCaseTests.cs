@@ -32,7 +32,7 @@ public sealed class OpenServiceOrderWithItemsUseCaseTests
 
         var response = await context.UseCase.ExecuteAsync(context.ValidRequest(partQuantity: 2), CancellationToken.None);
 
-        Assert.Equal(ServiceOrderStatus.AwaitingApproval, response.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.AwaitingApproval), response.Status);
         Assert.Null(response.MechanicId);
         Assert.Null(response.CheckList);
         Assert.Equal(context.Customer.Id, response.CustomerId);
@@ -98,7 +98,7 @@ public sealed class OpenServiceOrderWithItemsUseCaseTests
 
         var response = await context.UseCase.ExecuteAsync(request, CancellationToken.None);
 
-        Assert.Equal(ServiceOrderStatus.AwaitingApproval, response.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.AwaitingApproval), response.Status);
         Assert.Empty(response.Parts);
         Assert.Single(context.EmailSender.Sent);
     }
@@ -111,7 +111,7 @@ public sealed class OpenServiceOrderWithItemsUseCaseTests
 
         var response = await context.UseCase.ExecuteAsync(context.ValidRequest(), CancellationToken.None);
 
-        Assert.Equal(ServiceOrderStatus.AwaitingApproval, response.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.AwaitingApproval), response.Status);
     }
 
     [Fact]
@@ -593,6 +593,7 @@ public sealed class OpenServiceOrderWithItemsUseCaseTests
         private readonly Dictionary<Guid, ServiceOrder> _items = new();
         public int Count => _items.Count;
         public Task<List<ServiceOrder>> ListAsync(CancellationToken cancellationToken) => Task.FromResult(_items.Values.ToList());
+        public Task<List<ServiceOrder>> ListByStatusAsync(CancellationToken cancellationToken) => ListAsync(cancellationToken);
         public Task<List<ServiceOrder>> ListSchedulesAsync(CancellationToken cancellationToken) => Task.FromResult(_items.Values.ToList());
         public Task<List<ServiceOrder>> ListSchedulesByDateAsync(DateTimeOffset date, CancellationToken cancellationToken) =>
             Task.FromResult(_items.Values.Where(item => item.ScheduledAt.Date == date.Date).ToList());

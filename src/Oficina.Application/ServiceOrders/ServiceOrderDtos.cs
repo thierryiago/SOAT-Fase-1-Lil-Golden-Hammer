@@ -1,4 +1,3 @@
-using Oficina.Domain.ServiceOrders;
 using Oficina.Domain.Vehicles;
 
 namespace Oficina.Application.ServiceOrders;
@@ -46,7 +45,7 @@ public sealed record ServiceOrderListItemResponse(
     Guid? VehicleId,
     Guid? MechanicId,
     string Description,
-    ServiceOrderStatus? Status,
+    string? Status,
     DateTimeOffset CreatedAt,
     decimal TotalParts);
 
@@ -61,7 +60,7 @@ public sealed record ServiceOrderDetailResponse(
     Guid? MechanicId,
     string Description,
     string? CheckList,
-    ServiceOrderStatus? Status,
+    string? Status,
     DateTimeOffset CreatedAt,
     decimal TotalParts,
     IReadOnlyCollection<ServiceOrderPartResponse> Parts,

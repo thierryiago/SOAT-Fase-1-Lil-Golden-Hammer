@@ -37,7 +37,7 @@ public sealed class ServiceOrderWithItemsTests(OficinaApiFactory factory, ITestO
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var order = (await response.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!;
         Assert.NotEqual(Guid.Empty, order.Id);
-        Assert.Equal(ServiceOrderStatus.AwaitingApproval, order.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.AwaitingApproval), order.Status);
         Assert.Null(order.MechanicId);
         Assert.Null(order.CheckList);
         Assert.Single(order.WorkshopServices);
@@ -84,15 +84,15 @@ public sealed class ServiceOrderWithItemsTests(OficinaApiFactory factory, ITestO
 
         var approve = await _client.PostAsync($"/api/v1/service-orders/{order.Id}/approve", content: null);
         Log("Approve", approve);
-        Assert.Equal(ServiceOrderStatus.InExecution, (await approve.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.InExecution), (await approve.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!.Status);
 
         var finalize = await _client.PostAsync($"/api/v1/service-orders/{order.Id}/finalize", content: null);
         Log("Finalize", finalize);
-        Assert.Equal(ServiceOrderStatus.Finalized, (await finalize.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Finalized), (await finalize.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!.Status);
 
         var deliver = await _client.PostAsync($"/api/v1/service-orders/{order.Id}/deliver", content: null);
         Log("Deliver", deliver);
-        Assert.Equal(ServiceOrderStatus.Delivered, (await deliver.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!.Status);
+        Assert.Equal(nameof(ServiceOrderStatus.Delivered), (await deliver.Content.ReadFromJsonAsync<ServiceOrderDetailResponse>())!.Status);
     }
 
     [Fact]

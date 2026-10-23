@@ -56,3 +56,9 @@ RelatorioHTML
 /Claude outputs
 *.sh
 /estoque-arch-8.http
+
+# Terraform
+infra/**/.terraform/
+infra/**/*.tfstate
+infra/**/*.tfstate.*
+infra/**/terraform.tfvars
