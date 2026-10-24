@@ -8,9 +8,6 @@ public sealed class ServiceOrder
 {
     private const string RepeatedPartMessage = "A part cannot be repeated in the service order.";
     private const string RepeatedWorkshopServiceMessage = "A workshop service cannot be repeated in the service order.";
-
-    // Campos mutaveis, nao readonly: Replace* atribui uma lista nova para manter
-    // a semantica de substituicao que o EF ve hoje em Parts = parts.ToList().
     private List<ServiceOrderPart> _parts = [];
     private List<ServiceOrderWorkshop> _workshopServices = [];
 
@@ -97,12 +94,6 @@ public sealed class ServiceOrder
         }
     }
 
-    /// <summary>
-    /// Adiciona uma peca a ordem de servico, recusando uma peca que ja esteja
-    /// presente. Junto de <see cref="AddWorkshopService"/>, e o unico ponto por
-    /// onde as colecoes crescem, o que mantem a invariante de nao repeticao
-    /// dentro do agregado.
-    /// </summary>
     public void AddPart(ServiceOrderPart part)
     {
         ArgumentNullException.ThrowIfNull(part);
@@ -128,12 +119,6 @@ public sealed class ServiceOrder
         _workshopServices.Add(workshopService);
     }
 
-    /// <summary>
-    /// Valida os identificadores recebidos antes de qualquer efeito colateral.
-    /// Existe porque o caso de uso reserva estoque (com persistencia imediata)
-    /// enquanto resolve as pecas, muito antes de montar a colecao: recusar aqui
-    /// evita debitar estoque de um pedido que seria rejeitado depois.
-    /// </summary>
     public static void EnsureNoRepeatedParts(IEnumerable<Guid> partIds)
     {
         if (HasRepetition(partIds))
@@ -321,6 +306,30 @@ public sealed class ServiceOrder
             throw new InvalidOperationException(
                 "Services and parts cannot be added at this stage.");
         }
+    }
+
+    public IReadOnlyList<ServiceOrderStatus> RequestApprovalOnOpening()
+    {
+        if (Status != ServiceOrderStatus.Created)
+        {
+            throw new InvalidOperationException(
+                "Only a newly created service order can be submitted for approval on opening.");
+        }
+
+        if (WorkshopServices.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "The service order must have at least one workshop service to be submitted for approval.");
+        }
+
+        Status = ServiceOrderStatus.AwaitingApproval;
+
+        return
+        [
+            ServiceOrderStatus.Received,
+            ServiceOrderStatus.InDiagnosis,
+            ServiceOrderStatus.AwaitingApproval
+        ];
     }
 
     public void RequestReapproval(bool hasItemChanges)

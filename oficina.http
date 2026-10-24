@@ -352,6 +352,85 @@ GET {{baseUrl}}/api/v1/service-order-history/service-order/{{openWeightedService
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ###############################################################################
+# Service orders - open with items
+# Abre a OS ja com servicos e pecas e a leva direto para AwaitingApproval
+# (sem checklist e sem mecanico). Registra o historico Created, Received,
+# InDiagnosis e AwaitingApproval, abre o orcamento, reserva o estoque das pecas
+# e envia um unico e-mail com todos os dados para o cliente aprovar ou rejeitar.
+# Validacoes (cliente, veiculo, servicos, pecas e estoque) rodam antes de gravar
+# qualquer coisa; o motivo de uma recusa vem no campo "detail".
+###############################################################################
+
+### Service orders with items 1/4 - Open service order reusing existing customer and vehicle
+# Cliente localizado pelo documento e veiculo pela placa; os demais dados so
+# sao usados quando o documento ou a placa ainda nao estao cadastrados.
+# @name openServiceOrderWithItems
+POST {{baseUrl}}/api/v1/service-orders/with-items
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "customer": {
+    "document": "{{createCustomer.response.body.$.document}}"
+  },
+  "vehicle": {
+    "plate": "{{createVehicle.response.body.$.plate}}"
+  },
+  "description": "OS aberta com servicos e pecas",
+  "workshopServiceIds": [
+    "{{createWeightedServiceA.response.body.$.id}}"
+  ],
+  "parts": [
+    {
+      "partId": "{{createPart.response.body.$.id}}",
+      "quantity": 2
+    }
+  ]
+}
+
+### Service orders with items 2/4 - Open service order registering a new customer and vehicle
+# Documento e placa ainda nao cadastrados: cliente e veiculo sao criados com os
+# dados informados, somente depois de todas as validacoes passarem.
+# @name openServiceOrderWithItemsNewCustomer
+POST {{baseUrl}}/api/v1/service-orders/with-items
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "customer": {
+    "document": "111.444.777-35",
+    "name": "Cliente Novo",
+    "email": "cliente.novo@example.com",
+    "telephoneNumber": "+5511988887777"
+  },
+  "vehicle": {
+    "plate": "QWE1R23",
+    "brand": "Ford",
+    "model": "Ka",
+    "year": 2019,
+    "category": 1
+  },
+  "description": "OS aberta cadastrando cliente e veiculo",
+  "workshopServiceIds": [
+    "{{createWeightedServiceA.response.body.$.id}}"
+  ],
+  "parts": [
+    {
+      "partId": "{{createPart.response.body.$.id}}",
+      "quantity": 2
+    }
+  ]
+}
+
+### Service orders with items 3/4 - Get the service order opened with items
+GET {{baseUrl}}/api/v1/service-orders/{{openServiceOrderWithItems.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+### Service orders with items 4/4 - List history (Created, Received, InDiagnosis, AwaitingApproval)
+GET {{baseUrl}}/api/v1/service-order-history/service-order/{{openServiceOrderWithItems.response.body.$.id}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+###############################################################################
 # Conferência de e-mails no Mailpit (http://localhost:8025)
 # Filtre pelo destinatário fictício e pelo ID da OS usada no fluxo.
 # Caminho principal: 7 mensagens (Criada, Recebida, Em diagnóstico,

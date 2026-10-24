@@ -305,7 +305,7 @@ Todos com `[ApiController]`, prefixo `api/v1/...`, a maioria `[Authorize]` (JWT 
 | `StocksController` | `/api/v1/stocks` | JWT | `GET` (paginado), `GET /{id}`, `PUT /stocks-part/{partId}/entries`, `PUT /stocks-part/{partId}/consumptions`, `PUT /stocks-part/{partId}/adjustments` — **sem `POST` de criação exposto** (criação implícita na primeira movimentação via `GetOrCreateStockAsync`; `StockService.CreateAsync` existe mas não tem endpoint) |
 | `MechanicsController` | `/api/v1/mechanics` | JWT | CRUD completo paginado |
 | `WorkshopServicesController` | `/api/v1/workshop-services` | JWT | CRUD completo paginado |
-| `ServiceOrdersController` | `/api/v1/service-orders` | JWT | `GET` (lista simples, não paginada), `GET /{id}`, `POST` (Open), `PUT` (Update, id no body), `POST /{id}/approve`, `POST /{id}/cancel`, `POST /{id}/finalize`, `POST /{id}/deliver` |
+| `ServiceOrdersController` | `/api/v1/service-orders` | JWT | `GET` (lista simples, não paginada), `GET /{id}`, `POST` (Open), `POST /with-items` (OpenWithItems — cliente por documento e veículo por placa, reaproveitados ou cadastrados; já com serviços e peças, vai direto para `AwaitingApproval`), `PUT` (Update, id no body), `POST /{id}/approve`, `POST /{id}/cancel`, `POST /{id}/finalize`, `POST /{id}/deliver` |
 | `ServiceOrderHistoriesController` | `/api/v1/service-order-history` | JWT | `GET` (tudo), `GET /service-order/{serviceOrderId}` |
 | `SchedulesController` | `/api/v1/schedules` | JWT | `GET ?date=` → agenda de OS (por data ou todas); 404 se vazio |
 | `BudgetsController` | `/api/v1/budgets` | JWT | `GET` (paginado), `GET /{id}` — **sem criação/edição exposta** |

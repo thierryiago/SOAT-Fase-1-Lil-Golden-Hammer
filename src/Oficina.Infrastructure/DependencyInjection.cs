@@ -44,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<SendEmailNotification>();
         services.AddScoped<SendBudgetAwaitingApproval>();
         services.AddScoped<SendVehicleReadyForPickup>();
+        services.AddScoped<SendServiceOrderOpenedAwaitingApproval>();
         services.AddScoped<INotificationEmailSender, NotificationEmailSender>();
         return services;
     }
