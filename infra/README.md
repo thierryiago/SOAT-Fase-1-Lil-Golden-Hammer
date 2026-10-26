@@ -6,10 +6,10 @@ Toda a infraestrutura do projeto é provisionada no **LocalStack**; a AWS real n
 
 - Terraform ≥ 1.10.
 - Docker e `kubectl`.
-- LocalStack rodando no Docker em `http://localhost:4566`, **com o socket do Docker montado** e `LOCALSTACK_AUTH_TOKEN` definido (veja [EKS no LocalStack](#eks-no-localstack)). Confira com `curl http://localhost:4566/_localstack/health`.
+- LocalStack rodando no Docker em `http://localhost:4566` (publicando também a faixa `4510-4559`, usada pelo RDS e pelo EKS), **com o socket do Docker montado** e `LOCALSTACK_AUTH_TOKEN` definido (veja [EKS no LocalStack](#eks-no-localstack)). Confira com `curl http://localhost:4566/_localstack/health`.
 
 ```powershell
-docker run -d --name localstack -p 4566:4566 -e LOCALSTACK_AUTH_TOKEN=$env:LOCALSTACK_AUTH_TOKEN -v /var/run/docker.sock:/var/run/docker.sock -v localstack-data:/var/lib/localstack localstack/localstack
+docker run -d --name localstack -p 4566:4566 -p 4510-4559:4510-4559 -e LOCALSTACK_AUTH_TOKEN=$env:LOCALSTACK_AUTH_TOKEN -v /var/run/docker.sock:/var/run/docker.sock -v localstack-data:/var/lib/localstack localstack/localstack
 ```
 
 ## Ordem de execução
@@ -23,7 +23,7 @@ docker run -d --name localstack -p 4566:4566 -e LOCALSTACK_AUTH_TOKEN=$env:LOCAL
    terraform -chdir=infra/bootstrap apply
    ```
 
-2. **Infra** — VPC, IAM, cluster EKS e node group:
+2. **Infra** — VPC, IAM, cluster EKS, node group e banco RDS:
 
    ```bash
    cp infra/terraform.tfvars.example infra/terraform.tfvars   # opcional
@@ -49,6 +49,27 @@ Decisão: o cluster é criado **pelo Terraform no próprio LocalStack** (`aws_ek
 - O EKS exige `LOCALSTACK_AUTH_TOKEN` válido (`eks: running` em `/_localstack/health`).
 - A versão do Kubernetes (`kubernetes_version`, padrão `1.31`) foi aceita pelo LocalStack.
 - Não há AWS CLI/`awslocal` no projeto: o `infra/scripts/kubeconfig.ps1` extrai o kubeconfig do container k3d e aponta para a porta publicada no host. O arquivo é gravado em `%USERPROFILE%\kubeconfig-oficina` e não altera o seu `~/.kube/config`. A porta é sorteada pelo Docker; se o cluster for recriado, rode o script de novo.
+
+## RDS no LocalStack
+
+Decisão: o PostgreSQL é criado **pelo Terraform no próprio LocalStack** (`aws_db_instance`, PostgreSQL 16). O LocalStack executa o Postgres dentro do container dele, numa porta da faixa `4510-4559`; não foi necessário o fallback com `postgres:16` em container.
+
+- A faixa `4510-4559` precisa estar publicada no `docker run` do LocalStack (`-p 4510-4559:4510-4559`). Sem ela o banco só é alcançável de dentro da rede do container do LocalStack.
+- Os outputs `db_*` são `sensitive`. Para lê-los: `terraform -chdir=infra output -raw db_connection_string` (também `db_endpoint`, `db_port`, `db_name`, `db_username`, `db_password`).
+- O security group do banco só libera a 5432 para o security group do cluster. O LocalStack **não aplica** security groups ao tráfego real; a regra existe por paridade com a AWS.
+- A senha é gerada por `random_password` e fica apenas no state.
+
+Teste de conexão (a partir do host, com a faixa publicada):
+
+```powershell
+$p = terraform -chdir=infra output -raw db_port
+$u = terraform -chdir=infra output -raw db_username
+$d = terraform -chdir=infra output -raw db_name
+$env:PGPASSWORD = terraform -chdir=infra output -raw db_password
+docker run --rm -e PGPASSWORD=$env:PGPASSWORD postgres:16-alpine psql -h host.docker.internal -p $p -U $u -d $d -c "select version();"
+```
+
+Sem a faixa publicada, use a rede do container: `docker run --rm --network container:localstack ... psql -h localhost ...`.
 
 ## Observações
 

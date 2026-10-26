@@ -57,3 +57,21 @@ variable "node_max_size" {
   type        = number
   default     = 4
 }
+
+variable "db_name" {
+  description = "Nome do banco de dados"
+  type        = string
+  default     = "oficina"
+}
+
+variable "db_username" {
+  description = "Usuário administrador do banco"
+  type        = string
+  default     = "oficina"
+}
+
+variable "db_instance_class" {
+  description = "Classe da instância RDS"
+  type        = string
+  default     = "db.t3.micro"
+}
