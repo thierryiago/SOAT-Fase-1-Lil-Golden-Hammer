@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: oficina
+
+resources:
+  - namespace.yaml
+
+# Valores não sensíveis da API. O Kustomize acrescenta um hash ao nome (oficina-config-<hash>)
+# e reescreve as referências, então mudar um valor dispara rollout. Os valores sensíveis ficam
+# no Secret oficina-secrets, criado por k8s/scripts/create-secrets.ps1 (fora do Kustomize).
+configMapGenerator:
+  - name: oficina-config
+    literals:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Smtp__Host=mailpit
+      - Smtp__Port=1025
+      - Smtp__From=noreply@oficina.local
+      - Smtp__EnableSsl=false
+      - Jwt__Issuer=Oficina.Api
+      - Jwt__Audience=Oficina.Administration
+      - App__PublicBaseUrl=http://localhost:8080

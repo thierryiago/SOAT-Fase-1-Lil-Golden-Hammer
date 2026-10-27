@@ -106,12 +106,11 @@ O cluster (k3d do LocalStack) acessa o ECR pela rede Docker; use `image: <url>:d
 
 ## Outputs e Secret do Kubernetes
 
-Os outputs `db_*` alimentam o Secret usado pela API (a chave segue o `ConnectionStrings__Database` do `docker-compose.yml`):
+Os outputs `db_*` alimentam o Secret `oficina-secrets` usado pela API. Ele é criado por `k8s/scripts/create-secrets.ps1`, que lê `db_connection_string` do Terraform (veja [`k8s/README.md`](../k8s/README.md#configuração-e-secrets)):
 
 ```powershell
-$env:KUBECONFIG = "$env:USERPROFILE\kubeconfig-oficina"
-kubectl create secret generic oficina-db `
-  --from-literal=ConnectionStrings__Database="$(terraform -chdir=infra output -raw db_connection_string)"
+. .\infra\scripts\kubeconfig.ps1
+.\k8s\scripts\create-secrets.ps1 -Overlay aws
 ```
 
 ## Destroy
