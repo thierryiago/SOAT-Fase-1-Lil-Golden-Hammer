@@ -10,42 +10,30 @@ k8s/
     kustomization.yaml
     namespace.yaml       Namespace "oficina"
   overlays/
-    local/               cluster local (Docker Desktop, kind, minikube)
-    aws/                 cluster EKS criado pelo Terraform no LocalStack
+    localstack/          cluster EKS criado pelo Terraform no LocalStack (único ambiente)
 ```
 
-A base declara `namespace: oficina`, então os recursos adicionados a ela herdam o namespace. Os overlays só ajustam o que muda por ambiente (imagens, patches, geradores) e acrescentam a label `app.kubernetes.io/environment`.
+A base declara `namespace: oficina`, então os recursos adicionados a ela herdam o namespace. O overlay `localstack` concentra os valores reais do ambiente (imagem, ConfigMap, label `app.kubernetes.io/environment`) e a base guarda só o que não depende dele.
 
 Convenção de labels dos recursos: `app.kubernetes.io/name`, `app.kubernetes.io/part-of: oficina` e `app.kubernetes.io/component`.
 
-## Overlays
+## Overlay
 
-| Overlay | Cluster | Observações |
-|---|---|---|
-| `local` | Docker Desktop, kind ou minikube | Usa imagens locais (`oficina-api:dev`) |
-| `aws` | EKS do LocalStack (k3d), criado em `/infra` | O projeto não usa a AWS real; o nome `aws` indica o EKS provisionado pelo Terraform. Imagens vêm do ECR do LocalStack |
+O projeto tem uma única infraestrutura: o **LocalStack**. O overlay `localstack` mira o cluster EKS criado pelo Terraform (k3d do LocalStack, veja [`infra/README.md`](../infra/README.md)) e traz os valores reais: imagens do ECR do LocalStack, `ASPNETCORE_ENVIRONMENT` e `App__PublicBaseUrl`.
 
 ## Como aplicar
 
 Renderizar sem aplicar (não precisa de cluster):
 
 ```bash
-kubectl kustomize k8s/overlays/local
-kubectl kustomize k8s/overlays/aws
+kubectl kustomize k8s/overlays/localstack
 ```
 
-Aplicar no cluster do contexto atual:
-
-```bash
-kubectl apply -k k8s/overlays/local
-kubectl apply -k k8s/overlays/aws
-```
-
-Para o overlay `aws`, obtenha primeiro o kubeconfig do cluster do LocalStack (veja [`infra/README.md`](../infra/README.md)); o `.` na frente é necessário no PowerShell:
+Obtenha o kubeconfig do cluster do LocalStack (o `.` na frente é necessário no PowerShell) e aplique:
 
 ```powershell
 . .\infra\scripts\kubeconfig.ps1
-kubectl apply -k k8s/overlays/aws
+kubectl apply -k k8s/overlays/localstack
 ```
 
 ## Configuração e Secrets
@@ -54,33 +42,30 @@ A API recebe a configuração por variáveis de ambiente (`envFrom`), de duas or
 
 | Origem | Conteúdo | Quem cria |
 |---|---|---|
-| ConfigMap `oficina-config-<hash>` | `ASPNETCORE_ENVIRONMENT`, `Smtp__Host/Port/From/EnableSsl`, `Jwt__Issuer/Audience`, `App__PublicBaseUrl` | Kustomize (`configMapGenerator` na base, com overrides em cada overlay) |
+| ConfigMap `oficina-config-<hash>` | `ASPNETCORE_ENVIRONMENT`, `Smtp__Host/Port/From/EnableSsl`, `Jwt__Issuer/Audience`, `App__PublicBaseUrl` | Kustomize (`configMapGenerator` na base, com overrides no overlay) |
 | Secret `oficina-secrets` | `ConnectionStrings__Database`, `Jwt__SigningKey`, `Webhooks__BudgetDecisionToken` e, opcionalmente, `Smtp__Username`/`Smtp__Password` | `k8s/scripts/create-secrets.ps1` |
 
 O nome do ConfigMap leva um hash do conteúdo: alterar um valor gera um novo ConfigMap e dispara rollout dos pods que o referenciam. A migration **não** roda na subida da API (não existe `Database__MigrateOnStartup`); ela é aplicada pelo Job de migrations.
 
-> `App__PublicBaseUrl` e `Webhooks__BudgetDecisionToken` ainda não são lidos pela API (issue #110). As chaves já existem para não exigir novo deploy de configuração quando forem usadas. No overlay `aws`, `App__PublicBaseUrl` é um placeholder até a exposição da API ser definida.
+> `App__PublicBaseUrl` e `Webhooks__BudgetDecisionToken` ainda não são lidos pela API (issue #110). As chaves já existem para não exigir novo deploy de configuração quando forem usadas. No overlay, `App__PublicBaseUrl` é um placeholder até a exposição da API ser definida.
 
 ### Criar o Secret
 
 Nenhum valor real é versionado: apenas [`base/secret.example.yaml`](base/secret.example.yaml), que **não** faz parte do Kustomize. O Secret é criado por script, depois do Namespace:
 
 ```powershell
-. .\infra\scripts\kubeconfig.ps1                    # cluster do LocalStack (overlay aws)
+. .\infra\scripts\kubeconfig.ps1                    # cluster do LocalStack
 $env:Jwt__SigningKey = "<chave com pelo menos 32 bytes>"
 $env:Webhooks__BudgetDecisionToken = "<token>"
-.\k8s\scripts\create-secrets.ps1 -Overlay aws       # connection string vem do terraform output
-.\k8s\scripts\create-secrets.ps1 -Overlay aws -DryRun   # só mostra as chaves, valores mascarados
+.\k8s\scripts\create-secrets.ps1                  # connection string vem do terraform output
+.\k8s\scripts\create-secrets.ps1 -DryRun          # só mostra as chaves, valores mascarados
 ```
 
-Cada chave vem da primeira origem disponível: variável de ambiente, valor já existente no cluster ou, só no overlay `local`, valor gerado. No `aws`, uma chave sem origem é erro. O script é idempotente (rodar de novo não altera o Secret) e nunca imprime valores.
+Cada chave vem da primeira origem disponível: variável de ambiente, valor já existente no cluster ou valor gerado. O script é idempotente (rodar de novo não troca chaves já criadas) e nunca imprime valores.
 
-| Overlay | `ConnectionStrings__Database` |
-|---|---|
-| `aws` | `terraform -chdir=infra output -raw db_connection_string`; `-DbHost` troca o host (o endpoint do RDS no LocalStack é `localhost`, que não vale dentro do pod) |
-| `local` | `Host=oficina-db` (Postgres do cluster) com a senha de `POSTGRES_PASSWORD` ou gerada |
+`ConnectionStrings__Database` vem de `terraform -chdir=infra output -raw db_connection_string`. O endpoint do RDS no LocalStack é `localhost`, que não vale dentro do pod; `-DbHost` troca o host (o valor definitivo é definido na K8S-5).
 
-Variáveis opcionais: `POSTGRES_DB`, `POSTGRES_USER`, `Smtp__Username`, `Smtp__Password`.
+Variáveis opcionais: `ConnectionStrings__Database` (sobrepõe o Terraform), `Smtp__Username`, `Smtp__Password`.
 
 ### Rotacionar
 
@@ -109,7 +94,7 @@ A API não aplica migrations na subida; com o banco vazio ou inacessível o read
 
 ### Imagem
 
-O manifest usa `image: oficina-api` e cada overlay resolve nome e tag em `images`: `oficina-api:dev` no `local` e a URL do ECR do LocalStack no `aws` (`terraform -chdir=infra output ecr_repository_urls`). O CD sobrescreve a tag com a do commit.
+O manifest usa `image: oficina-api` e o overlay resolve nome e tag em `images`, com a URL do ECR do LocalStack (`terraform -chdir=infra output ecr_repository_urls`). O CD sobrescreve a tag com a do commit.
 
 > **Pull do ECR no LocalStack:** dentro dos nós do k3d o hostname `*.localhost.localstack.cloud` resolve para `127.0.0.1`, então o `kubelet` não consegue puxar a imagem (`ImagePullBackOff`, `connection refused` em `127.0.0.1:4566`), apesar de o push pelo host funcionar. Contorno: importar a imagem nos nós com o **mesmo nome** do ECR; como o `imagePullPolicy` é `IfNotPresent`, o manifest continua igual ao de uma AWS real.
 >
@@ -121,12 +106,11 @@ O manifest usa `image: oficina-api` e cada overlay resolve nome e tag em `images
 > }
 > ```
 >
-> No overlay `local` com Docker Desktop a imagem `oficina-api:dev` já está visível; em kind use `kind load docker-image oficina-api:dev`.
 
 ### Verificar
 
 ```bash
-kubectl apply -k k8s/overlays/aws
+kubectl apply -k k8s/overlays/localstack
 kubectl -n oficina rollout status deployment/oficina-api
 kubectl -n oficina port-forward svc/oficina-api 8080:80    # http://localhost:8080/swagger
 ```

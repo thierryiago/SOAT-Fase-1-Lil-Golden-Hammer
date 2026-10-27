@@ -1,18 +1,20 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# Único ambiente do projeto: o cluster EKS criado pelo Terraform no LocalStack (k3d).
 resources:
   - ../../base
 
 labels:
   - pairs:
-      app.kubernetes.io/environment: aws
+      app.kubernetes.io/environment: localstack
     includeSelectors: false
 
 configMapGenerator:
   - name: oficina-config
     behavior: merge
     literals:
+      - ASPNETCORE_ENVIRONMENT=Production
       # Placeholder: o endereço público definitivo é definido na K8S-7 (#121).
       - App__PublicBaseUrl=http://localhost:8080
 

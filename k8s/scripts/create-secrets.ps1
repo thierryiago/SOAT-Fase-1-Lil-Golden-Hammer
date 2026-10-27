@@ -1,20 +1,17 @@
-# Cria (ou atualiza) o Secret "oficina-secrets" da API. Nenhum valor é versionado nem impresso.
+# Cria (ou atualiza) o Secret "oficina-secrets" da API no cluster do LocalStack. Nenhum valor é versionado nem impresso.
 # Uso:
-#   .\k8s\scripts\create-secrets.ps1 -Overlay aws
-#   .\k8s\scripts\create-secrets.ps1 -Overlay local
-#   .\k8s\scripts\create-secrets.ps1 -Overlay aws -DryRun     # mostra o YAML com valores mascarados
+#   .\k8s\scripts\create-secrets.ps1
+#   .\k8s\scripts\create-secrets.ps1 -DryRun     # mostra as chaves com valores mascarados
 #
 # Origem de cada chave (a primeira que existir):
-#   variável de ambiente -> valor já presente no Secret do cluster -> valor gerado (só no overlay local).
-# No overlay aws, uma chave sem origem é erro (no CD vêm dos secrets do GitHub como variáveis).
+#   variável de ambiente -> valor já presente no Secret do cluster -> valor gerado.
+# Assim o script é idempotente: rodar de novo não troca chaves já criadas.
 #
-#   ConnectionStrings__Database  aws:   terraform -chdir=infra output -raw db_connection_string
-#                                local: Host=oficina-db com a senha em POSTGRES_PASSWORD
-#   Jwt__SigningKey              variável Jwt__SigningKey (>= 32 bytes)
+#   ConnectionStrings__Database   variável de ambiente ou terraform -chdir=infra output -raw db_connection_string
+#   Jwt__SigningKey               variável Jwt__SigningKey (>= 32 bytes)
 #   Webhooks__BudgetDecisionToken variável Webhooks__BudgetDecisionToken
 #   Smtp__Username/Smtp__Password variáveis opcionais (omitidas se ausentes)
 param(
-    [Parameter(Mandatory)][ValidateSet("local", "aws")][string]$Overlay,
     [string]$Namespace = "oficina",
     # Substitui o host da connection string (o endpoint do RDS no LocalStack é "localhost" para o host,
     # não para o pod; o valor correto é definido na K8S-5).
@@ -44,41 +41,24 @@ function Resolve-Value([string]$key, [string]$fromEnv, [scriptblock]$generate) {
     if ($fromEnv) { return $fromEnv }
     $existing = Get-ExistingValue $key
     if ($existing) { return $existing }
-    if ($Overlay -eq "local" -and $generate) { return & $generate }
+    if ($generate) { return & $generate }
     return $null
 }
 
 $values = [ordered]@{}
 
 # --- Connection string ---
-if ($Overlay -eq "aws") {
-    $conn = [Environment]::GetEnvironmentVariable("ConnectionStrings__Database")
-    if (-not $conn) {
-        $conn = terraform "-chdir=$root\infra" output -raw db_connection_string
-        if ($LASTEXITCODE -ne 0 -or -not $conn) { throw "Não foi possível ler db_connection_string do Terraform (infra aplicada?)." }
-    }
-    if ($DbHost) { $conn = $conn -replace "Host=[^;]*", "Host=$DbHost" }
+$conn = [Environment]::GetEnvironmentVariable("ConnectionStrings__Database")
+if (-not $conn) {
+    $conn = terraform "-chdir=$root\infra" output -raw db_connection_string
+    if ($LASTEXITCODE -ne 0 -or -not $conn) { throw "Não foi possível ler db_connection_string do Terraform (infra aplicada?)." }
 }
-else {
-    # Senha: variável -> a da connection string já existente (idempotência) -> gerada.
-    $pg = $env:POSTGRES_PASSWORD
-    if (-not $pg) {
-        $existingConn = Get-ExistingValue "ConnectionStrings__Database"
-        if ($existingConn -match "Password=([^;]*)") { $pg = $Matches[1] }
-    }
-    if (-not $pg) { $pg = (New-RandomSecret 18) -replace "[^A-Za-z0-9]", "x" }
-    $db = if ($env:POSTGRES_DB) { $env:POSTGRES_DB } else { "oficina" }
-    $user = if ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "oficina" }
-    $host_ = if ($DbHost) { $DbHost } else { "oficina-db" }
-    $conn = "Host=$host_;Port=5432;Database=$db;Username=$user;Password=$pg"
-}
+if ($DbHost) { $conn = $conn -replace "Host=[^;]*", "Host=$DbHost" }
 $values["ConnectionStrings__Database"] = $conn
 
 # --- Chaves da aplicação ---
 $jwt = Resolve-Value "Jwt__SigningKey" $env:Jwt__SigningKey { New-RandomSecret 48 }
 $hook = Resolve-Value "Webhooks__BudgetDecisionToken" $env:Webhooks__BudgetDecisionToken { New-RandomSecret 32 }
-if (-not $jwt) { throw "Jwt__SigningKey ausente: defina a variável de ambiente." }
-if (-not $hook) { throw "Webhooks__BudgetDecisionToken ausente: defina a variável de ambiente." }
 if ([Text.Encoding]::UTF8.GetByteCount($jwt) -lt 32) { throw "Jwt__SigningKey deve ter pelo menos 32 bytes." }
 $values["Jwt__SigningKey"] = $jwt
 $values["Webhooks__BudgetDecisionToken"] = $hook

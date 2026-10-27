@@ -110,7 +110,7 @@ Os outputs `db_*` alimentam o Secret `oficina-secrets` usado pela API. Ele é cr
 
 ```powershell
 . .\infra\scripts\kubeconfig.ps1
-.\k8s\scripts\create-secrets.ps1 -Overlay aws
+.\k8s\scripts\create-secrets.ps1
 ```
 
 ## Destroy
