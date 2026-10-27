@@ -12,6 +12,17 @@ Toda a infraestrutura do projeto é provisionada no **LocalStack**; a AWS real n
 docker run -d --name localstack -p 4566:4566 -p 4510-4559:4510-4559 -e LOCALSTACK_AUTH_TOKEN=$env:LOCALSTACK_AUTH_TOKEN -v /var/run/docker.sock:/var/run/docker.sock -v localstack-data:/var/lib/localstack localstack/localstack
 ```
 
+## Recursos criados
+
+| Arquivo | Recursos |
+|---|---|
+| `bootstrap/` | Bucket S3 do state remoto |
+| `network.tf` | VPC, subnets públicas/privadas, internet gateway, rotas, security group do cluster |
+| `iam.tf` | IAM roles do cluster EKS e do node group (criadas pelo Terraform) |
+| `eks.tf` | Cluster EKS e node group |
+| `rds.tf` | PostgreSQL 16 (`aws_db_instance`), subnet group, security group, senha (`random_password`) |
+| `ecr.tf` | Repositórios `oficina-api` e `oficina-migrations`, com lifecycle de 10 imagens |
+
 ## Ordem de execução
 
 > **Atenção:** o bootstrap (bucket S3 do state) **deve ser executado primeiro**. Sem ele, o `terraform init` da pasta `infra` falha com `NoSuchBucket`.
@@ -23,7 +34,7 @@ docker run -d --name localstack -p 4566:4566 -p 4510-4559:4510-4559 -e LOCALSTAC
    terraform -chdir=infra/bootstrap apply
    ```
 
-2. **Infra** — VPC, IAM, cluster EKS, node group e banco RDS:
+2. **Infra** — VPC, IAM, cluster EKS, node group, banco RDS e repositórios ECR:
 
    ```bash
    cp infra/terraform.tfvars.example infra/terraform.tfvars   # opcional
@@ -70,6 +81,62 @@ docker run --rm -e PGPASSWORD=$env:PGPASSWORD postgres:16-alpine psql -h host.do
 ```
 
 Sem a faixa publicada, use a rede do container: `docker run --rm --network container:localstack ... psql -h localhost ...`.
+
+## ECR no LocalStack
+
+Decisão: os repositórios são criados **pelo Terraform no próprio LocalStack** (`aws_ecr_repository`, com `scan_on_push` e lifecycle policy de 10 imagens). O fallback com `registry:2` só será necessário se o ECR não estiver disponível no plano do LocalStack (`ecr` em `/_localstack/health`); nesse caso mantenha a URL do repositório configurável. **Status: o código passa em `terraform validate`, mas push e pull ainda não foram validados contra um LocalStack real.**
+
+```bash
+terraform -chdir=infra output ecr_repository_urls
+```
+
+No LocalStack a URL tem o formato `<account>.dkr.ecr.us-east-1.localhost.localstack.cloud:4566/<repo>`. Login, build e push (o LocalStack não valida a senha):
+
+```powershell
+$api = (terraform -chdir=infra output -json ecr_repository_urls | ConvertFrom-Json).'oficina-api'
+$mig = (terraform -chdir=infra output -json ecr_repository_urls | ConvertFrom-Json).'oficina-migrations'
+docker login -u AWS -p x ($api -split '/')[0]
+docker build -t oficina-api:dev .
+docker build --target migrations -t oficina-migrations:dev .
+docker tag oficina-api:dev "${api}:dev";        docker push "${api}:dev"
+docker tag oficina-migrations:dev "${mig}:dev"; docker push "${mig}:dev"
+```
+
+O cluster (k3d do LocalStack) acessa o ECR pela rede Docker; use `image: <url>:dev` nos manifests. A policy `AmazonEC2ContainerRegistryReadOnly` já está anexada à role dos nodes.
+
+## Outputs e Secret do Kubernetes
+
+Os outputs `db_*` alimentam o Secret usado pela API (a chave segue o `ConnectionStrings__Database` do `docker-compose.yml`):
+
+```powershell
+$env:KUBECONFIG = "$env:USERPROFILE\kubeconfig-oficina"
+kubectl create secret generic oficina-db `
+  --from-literal=ConnectionStrings__Database="$(terraform -chdir=infra output -raw db_connection_string)"
+```
+
+## Destroy
+
+```bash
+terraform -chdir=infra destroy
+terraform -chdir=infra/bootstrap destroy   # opcional: remove o bucket do state
+```
+
+Destrua primeiro a infra e só depois o bootstrap, senão o state fica sem backend.
+
+## Custo
+
+Tudo roda localmente: **custo zero na AWS**. Os únicos requisitos são recursos da máquina (Docker, vários containers k3d/Postgres) e o `LOCALSTACK_AUTH_TOKEN` (EKS exige plano com token). Não há cobrança por dia, mas pare ou destrua o ambiente ao fim das demos para liberar CPU/memória.
+
+## Troubleshooting
+
+| Sintoma | Causa / solução |
+|---|---|
+| `NoSuchBucket` no `terraform init` | Bootstrap não executado ou LocalStack recriado; repita o passo 1 |
+| `connection refused` em `localhost:4566` | LocalStack parado ou Docker Desktop fechado; suba e confira `/_localstack/health` |
+| `Docker not available` / cluster `FAILED` | Falta montar `/var/run/docker.sock` no container do LocalStack |
+| EKS indisponível | `LOCALSTACK_AUTH_TOKEN` ausente ou inválido |
+| `kubectl` não conecta | Cluster recriado muda a porta; rode `kubeconfig.ps1` de novo |
+| Erro no bootstrap por state local | Apague `infra/bootstrap/terraform.tfstate*` |
 
 ## Observações
 
