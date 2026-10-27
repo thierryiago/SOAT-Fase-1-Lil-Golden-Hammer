@@ -8,3 +8,10 @@ labels:
   - pairs:
       app.kubernetes.io/environment: local
     includeSelectors: false
+
+configMapGenerator:
+  - name: oficina-config
+    behavior: merge
+    literals:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - App__PublicBaseUrl=http://localhost:8080

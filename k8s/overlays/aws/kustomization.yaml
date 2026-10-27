@@ -8,3 +8,10 @@ labels:
   - pairs:
       app.kubernetes.io/environment: aws
     includeSelectors: false
+
+configMapGenerator:
+  - name: oficina-config
+    behavior: merge
+    literals:
+      # Placeholder: o endereço público definitivo é definido na K8S-7 (#121).
+      - App__PublicBaseUrl=http://localhost:8080
