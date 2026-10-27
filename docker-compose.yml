@@ -56,10 +56,14 @@ services:
       <<: *database-connection
       ASPNETCORE_ENVIRONMENT: Development
       Jwt__SigningKey: ${Jwt__SigningKey:?}
+      App__PublicBaseUrl: ${App__PublicBaseUrl:?}
       Smtp__Host: mailpit
       Smtp__Port: 1025
       Smtp__From: ${Smtp__From:-noreply@oficina.local}
       Smtp__EnableSsl: "false"
+      Smtp__Username: ${Smtp__Username:-}
+      Smtp__Password: ${Smtp__Password:-}
+      Webhooks__BudgetDecisionToken: ${Webhooks__BudgetDecisionToken:-}
     ports:
       - "8080:8080"
     healthcheck:

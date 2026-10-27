@@ -135,19 +135,16 @@ cd 17SOAT-Fase1
 
 ### Passo 2: configure a aplicação
 
-O projeto usa `appsettings.json` e também pode ler valores via variáveis de ambiente ou `.env` para manter segredos fora do repositório.
+O `appsettings.json` contém apenas configurações sem segredo. A API lê as variáveis de ambiente do .NET; para desenvolvimento local, também carrega o `.env` da raiz sem sobrescrever variáveis já definidas no sistema.
 
 Exemplo de `appsettings.json`:
 
 ```json
 {
-  "ConnectionStrings": {
-    "Database": "Host=localhost;Port=5432;Database=oficina;Username=oficina;Password=***"
-  },
+  "AllowedHosts": "*",
   "Jwt": {
     "Issuer": "Oficina.Api",
     "Audience": "Oficina.Administration",
-    "SigningKey": "***",
     "ExpirationMinutes": 120
   },
   "Smtp": {
@@ -165,14 +162,18 @@ Crie o `.env` a partir do exemplo e ajuste os valores:
 cp .env.example .env
 ```
 
-O mesmo `.env` é usado pelo Docker Compose (interpolação do `docker-compose.yml`) e pelo `dotnet run` (a API carrega o `.env` da raiz). As principais variáveis:
+O mesmo `.env` é usado pelo Docker Compose (interpolação do `docker-compose.yml`) e pelo `dotnet run` (a API carrega o `.env` da raiz). Ajuste `App__PublicBaseUrl` para a origem pública usada em cada execução: `http://localhost:8080` no Compose ou `https://localhost:5001` no perfil local do `dotnet run`. A URL deve conter apenas esquema HTTP(S), host e porta opcional; a API valida esse valor ao iniciar.
 
-| Variável | Uso |
-|---|---|
-| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Banco do compose; o compose monta a connection string dos containers com `Host=db` |
-| `ConnectionStrings__Database` | Connection string do `dotnet run` (fora do container, `Host=localhost`) |
-| `Jwt__SigningKey` | Chave de assinatura do JWT (mínimo 32 bytes) |
-| `Smtp__*` | SMTP; por padrão o Mailpit local |
+| Variável | Destino K8S-3 | Uso |
+|---|---|---|
+| `App__PublicBaseUrl` | ConfigMap | Origem pública dos links de decisão nos e-mails; obrigatória no startup |
+| `ConnectionStrings__Database` | Secret | Connection string da API e do Job de migrations; no Compose é montada a partir de `POSTGRES_DB`, `POSTGRES_USER` e `POSTGRES_PASSWORD` |
+| `Jwt__SigningKey` | Secret | Chave de assinatura do JWT, com pelo menos 32 bytes |
+| `Smtp__Host`, `Smtp__Port`, `Smtp__From`, `Smtp__EnableSsl` | ConfigMap | Endereço, porta, remetente e TLS do SMTP; Mailpit no Compose |
+| `Smtp__Username`, `Smtp__Password` | Secret | Credenciais opcionais do SMTP; omitir quando o servidor não exige autenticação |
+| `Webhooks__BudgetDecisionToken` | Secret | Reservado para K8S-3; ainda não é consumido pelos endpoints de decisão |
+
+No Compose, `POSTGRES_PASSWORD` também deve vir de um segredo local. Para `dotnet run`, defina `ConnectionStrings__Database` no ambiente ou no `.env`; o valor de `appsettings.json` não fornece fallback.
 
 > Importante: nunca versionar segredos reais em Git. O `.env` é ignorado pelo `.gitignore`.
 
@@ -689,7 +690,7 @@ Falhas na preparação ou no SMTP são registradas em log, sem desfazer a opera�
 
 Para verificar localmente, use `docker compose up --build -d` e execute o fluxo de OS em `oficina.http` com um cliente fictício. No Mailpit (`http://localhost:8025`), filtre pelo destinatário: o caminho Criada → Recebida → Em diagnóstico → Aguardando aprovação → Em execução → Finalizada → Entregue deve produzir **sete mensagens**. O caminho que termina em Rejeitada produz **cinco**. Cada retorno para aprovação e nova aprovação acrescenta duas mensagens. Confira os textos, a identificação da OS e a presença de apenas um orçamento por entrada em Aguardando aprovação.
 
-Os links de decisão existentes apontam para `https://localhost:5001`; ao validar pela API do Docker em `http://localhost:8080`, use a mesma rota e `budgetId` nessa base, conforme os exemplos HTTP.
+Os links de decisão usam `App__PublicBaseUrl`. Para o Docker Compose local, mantenha `http://localhost:8080` no `.env`; para outra origem pública, ajuste a variável antes de iniciar a API.
 
 ---
 

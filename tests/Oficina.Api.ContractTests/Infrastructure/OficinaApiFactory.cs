@@ -13,6 +13,12 @@ namespace Oficina.Api.ContractTests.Infrastructure;
 
 public sealed class OficinaApiFactory : WebApplicationFactory<Program>
 {
+    private readonly string? _publicBaseUrl = "https://oficina.example.test";
+
+    public OficinaApiFactory() { }
+
+    internal OficinaApiFactory(string? publicBaseUrl) => _publicBaseUrl = publicBaseUrl;
+
     public const string JwtIssuer = "Oficina.Api.Tests";
     public const string JwtAudience = "Oficina.Administration.Tests";
     public const string JwtSigningKey = "contract-tests-only-signing-key-at-least-32-bytes";
@@ -27,7 +33,8 @@ public sealed class OficinaApiFactory : WebApplicationFactory<Program>
                 ["Jwt:Issuer"] = JwtIssuer,
                 ["Jwt:Audience"] = JwtAudience,
                 ["Jwt:SigningKey"] = JwtSigningKey,
-                ["Jwt:ExpirationMinutes"] = "15"
+                ["Jwt:ExpirationMinutes"] = "15",
+                ["App:PublicBaseUrl"] = _publicBaseUrl
             }));
         // O nome do banco precisa ser calculado uma unica vez fora do lambda: AddDbContext
         // registra o DbContextOptions com ServiceLifetime.Scoped por padrao, entao um

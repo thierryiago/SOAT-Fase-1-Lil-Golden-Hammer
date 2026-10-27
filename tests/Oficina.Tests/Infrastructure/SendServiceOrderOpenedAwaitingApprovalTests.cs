@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Oficina.Application.Budgets;
 using Oficina.Application.Notifications;
 using Oficina.Infrastructure.Notifications;
@@ -10,7 +11,7 @@ public sealed class SendServiceOrderOpenedAwaitingApprovalTests
     public async Task Should_send_html_email_with_every_opening_data_and_decision_buttons()
     {
         var transport = new FakeEmailTransport();
-        var sender = new SendServiceOrderOpenedAwaitingApproval(transport);
+        var sender = new SendServiceOrderOpenedAwaitingApproval(transport, CreateDecisionLinks());
         var email = CreateEmail();
 
         await sender.SendAsync(email, CancellationToken.None);
@@ -34,10 +35,10 @@ public sealed class SendServiceOrderOpenedAwaitingApprovalTests
         Assert.Contains("<li>Filtro | Quantidade: 2 | Preço unitário: 10.00 | Total: 20.00</li>", body);
         Assert.Contains("<strong>Valor total:</strong> 120.00", body);
         Assert.Contains(
-            $"href=\"https://localhost:5001/api/v1/notifications/approveBudget?budgetId={email.Budget.Id}\"",
+            $"href=\"https://oficina.example.test/api/v1/notifications/approveBudget?budgetId={email.Budget.Id}\"",
             body);
         Assert.Contains(
-            $"href=\"https://localhost:5001/api/v1/notifications/rejectBudget?budgetId={email.Budget.Id}\"",
+            $"href=\"https://oficina.example.test/api/v1/notifications/rejectBudget?budgetId={email.Budget.Id}\"",
             body);
     }
 
@@ -45,7 +46,7 @@ public sealed class SendServiceOrderOpenedAwaitingApprovalTests
     public async Task Should_show_no_parts_when_the_order_has_only_services()
     {
         var transport = new FakeEmailTransport();
-        var sender = new SendServiceOrderOpenedAwaitingApproval(transport);
+        var sender = new SendServiceOrderOpenedAwaitingApproval(transport, CreateDecisionLinks());
         var email = CreateEmail();
         email = email with { Budget = email.Budget with { Parts = [] } };
 
@@ -58,7 +59,7 @@ public sealed class SendServiceOrderOpenedAwaitingApprovalTests
     public async Task Should_html_encode_user_provided_values()
     {
         var transport = new FakeEmailTransport();
-        var sender = new SendServiceOrderOpenedAwaitingApproval(transport);
+        var sender = new SendServiceOrderOpenedAwaitingApproval(transport, CreateDecisionLinks());
         var email = CreateEmail() with
         {
             CustomerName = "<script>alert(1)</script>",
@@ -83,10 +84,10 @@ public sealed class SendServiceOrderOpenedAwaitingApprovalTests
         var transport = new FakeEmailTransport();
         var notifications = new NotificationEmailSender(
             new SendEmailNotification(transport),
-            new SendBudgetAwaitingApproval(transport),
+            new SendBudgetAwaitingApproval(transport, CreateDecisionLinks()),
             new SendVehicleReadyForPickup(transport),
             new SendServiceOrderStatus(transport),
-            new SendServiceOrderOpenedAwaitingApproval(transport));
+            new SendServiceOrderOpenedAwaitingApproval(transport, CreateDecisionLinks()));
         var email = CreateEmail();
 
         await notifications.SendServiceOrderOpenedAsync(email, CancellationToken.None);
@@ -102,10 +103,10 @@ public sealed class SendServiceOrderOpenedAwaitingApprovalTests
         var transport = new FakeEmailTransport();
         var notifications = new NotificationEmailSender(
             new SendEmailNotification(transport),
-            new SendBudgetAwaitingApproval(transport),
+            new SendBudgetAwaitingApproval(transport, CreateDecisionLinks()),
             new SendVehicleReadyForPickup(transport),
             new SendServiceOrderStatus(transport),
-            new SendServiceOrderOpenedAwaitingApproval(transport));
+            new SendServiceOrderOpenedAwaitingApproval(transport, CreateDecisionLinks()));
         var budget = CreateEmail().Budget;
 
         await notifications.SendBudgetAwaitingApprovalAsync("Pedro", "pedro@example.com", budget, CancellationToken.None);
@@ -120,7 +121,7 @@ public sealed class SendServiceOrderOpenedAwaitingApprovalTests
         var transport = new FakeEmailTransport();
         var notifications = new NotificationEmailSender(
             new SendEmailNotification(transport),
-            new SendBudgetAwaitingApproval(transport),
+            new SendBudgetAwaitingApproval(transport, CreateDecisionLinks()),
             new SendVehicleReadyForPickup(transport),
             new SendServiceOrderStatus(transport));
 
@@ -130,6 +131,9 @@ public sealed class SendServiceOrderOpenedAwaitingApprovalTests
         Assert.Equal("Service order opened email sender is not configured.", exception.Message);
         Assert.Null(transport.Recipient);
     }
+
+    private static BudgetDecisionLinks CreateDecisionLinks() =>
+        new(Options.Create(new AppOptions { PublicBaseUrl = "https://oficina.example.test/" }));
 
     private static ServiceOrderOpenedEmail CreateEmail()
     {

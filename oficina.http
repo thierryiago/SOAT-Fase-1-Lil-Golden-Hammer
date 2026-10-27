@@ -438,8 +438,8 @@ Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 # Rejeição: 5 mensagens. Cada retorno para aprovação + nova aprovação: +2.
 # Orçamento e veículo pronto são as próprias notificações desses status.
 # Atualizações sem mudança de status não devem acrescentar mensagens.
-# Os links do orçamento usam https://localhost:5001; para Docker, use a
-# mesma rota e budgetId na base http://localhost:8080.
+# Os links do orçamento usam App__PublicBaseUrl. Configure a variável com a
+# origem pública da API (por exemplo, http://localhost:8080 no Docker Compose).
 #
 # Limpeza opcional
 #

@@ -6,11 +6,9 @@ using System.Text;
 namespace Oficina.Infrastructure.Notifications;
 
 public sealed class SendServiceOrderOpenedAwaitingApproval(
-    IEmailTransport emailSender)
+    IEmailTransport emailSender,
+    BudgetDecisionLinks decisionLinks)
 {
-    private const string ApproveBudgetUrl = "https://localhost:5001/api/v1/notifications/approveBudget";
-    private const string RejectBudgetUrl = "https://localhost:5001/api/v1/notifications/rejectBudget";
-
     private readonly IEmailTransport _emailSender = emailSender;
 
     public Task SendAsync(ServiceOrderOpenedEmail email, CancellationToken cancellationToken)
@@ -21,7 +19,7 @@ public sealed class SendServiceOrderOpenedAwaitingApproval(
         return _emailSender.SendAsync(email.CustomerEmail, subject, body, isHtml: true, cancellationToken);
     }
 
-    private static string BuildBody(ServiceOrderOpenedEmail email)
+    private string BuildBody(ServiceOrderOpenedEmail email)
     {
         var budget = email.Budget;
         var body = new StringBuilder()
@@ -79,11 +77,11 @@ public sealed class SendServiceOrderOpenedAwaitingApproval(
         body.AppendLine("</ul>")
             .AppendLine($"<p><strong>Valor total:</strong> {FormatMoney(budget.TotalValue)}</p>")
             .AppendLine(
-                $"<p><a href=\"{ApproveBudgetUrl}?budgetId={budget.Id}\" " +
+                $"<p><a href=\"{decisionLinks.Approve(budget.Id)}\" " +
                 "style=\"display:inline-block;padding:12px 24px;background-color:#1a73e8;color:#ffffff;" +
                 "text-decoration:none;border-radius:4px;font-weight:bold;\">Aprovar orçamento</a>")
             .AppendLine(
-                $"<a href=\"{RejectBudgetUrl}?budgetId={budget.Id}\" " +
+                $"<a href=\"{decisionLinks.Reject(budget.Id)}\" " +
                 "style=\"display:inline-block;padding:12px 24px;background-color:#1a73e8;color:#ffffff;" +
                 "text-decoration:none;border-radius:4px;font-weight:bold;\">Rejeitar orçamento</a></p>")
             .Append("</body></html>");
