@@ -15,3 +15,8 @@ configMapGenerator:
     literals:
       - ASPNETCORE_ENVIRONMENT=Development
       - App__PublicBaseUrl=http://localhost:8080
+
+images:
+  - name: oficina-api
+    newName: oficina-api
+    newTag: dev
