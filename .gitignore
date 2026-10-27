@@ -62,3 +62,9 @@ infra/**/.terraform/
 infra/**/*.tfstate
 infra/**/*.tfstate.*
 infra/**/terraform.tfvars
+
+# Kubernetes: Secrets locais nunca versionados (apenas k8s/base/secret.example.yaml)
+k8s/**/secret.yaml
+k8s/**/*.secret.yaml
+k8s/**/secret.local.yaml
+k8s/**/*.env
