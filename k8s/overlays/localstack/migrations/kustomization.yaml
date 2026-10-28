@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Job de migrations do ambiente LocalStack; aplicado por k8s/scripts/run-migrations.ps1, antes da API.
+resources:
+  - ../../../base/migrations
+
+labels:
+  - pairs:
+      app.kubernetes.io/environment: localstack
+    includeSelectors: false
+
+images:
+  # URL do output ecr_repository_urls; o CD sobrescreve a tag.
+  - name: oficina-migrations
+    newName: 000000000000.dkr.ecr.us-east-1.localhost.localstack.cloud:4566/oficina-migrations
+    newTag: dev
