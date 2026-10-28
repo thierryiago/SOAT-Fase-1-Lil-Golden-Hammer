@@ -63,7 +63,7 @@ $env:Webhooks__BudgetDecisionToken = "<token>"
 
 Cada chave vem da primeira origem disponível: variável de ambiente, valor já existente no cluster ou valor gerado. O script é idempotente (rodar de novo não troca chaves já criadas) e nunca imprime valores.
 
-`ConnectionStrings__Database` vem de `terraform -chdir=infra output -raw db_connection_string`. O endpoint do RDS no LocalStack é `localhost`, que não vale dentro do pod; `-DbHost` troca o host (o valor definitivo é definido na K8S-5).
+`ConnectionStrings__Database` vem de `terraform -chdir=infra output -raw db_connection_string`, com o host trocado por `host.k3d.internal` (veja [Banco de dados](#banco-de-dados)). Uma variável de ambiente `ConnectionStrings__Database` tem precedência e é usada como está.
 
 Variáveis opcionais: `ConnectionStrings__Database` (sobrepõe o Terraform), `Smtp__Username`, `Smtp__Password`.
 
@@ -79,6 +79,24 @@ kubectl -n oficina rollout restart deployment/oficina-api
 
 O workflow de CD (CICD-4) faz o mesmo passo, lendo os secrets do GitHub como variáveis de ambiente e rodando `kubectl create secret generic oficina-secrets ... --dry-run=client -o yaml | kubectl apply -f -`.
 
+## Banco de dados
+
+O banco é o **RDS do LocalStack** (criado pelo Terraform, veja [`infra/README.md`](../infra/README.md)); não há Postgres dentro do cluster. Nenhum Service, Ingress ou LoadBalancer expõe o banco e o RDS é `publicly_accessible = false`. O LocalStack **não aplica** security groups ao tráfego real, então essa garantia vem do desenho (nada no cluster publica o banco), não de enforcement de rede.
+
+**Por que não funciona o endpoint do output:** `db_endpoint` é `localhost` e a porta (faixa `4510-4559`) está publicada no **host** pelo container do LocalStack. Dentro de um pod, `localhost` é o próprio pod. O `create-secrets.ps1` troca o host por `host.k3d.internal` (parâmetro `-DbHost`, que também aceita outro valor).
+
+Hosts testados a partir de um pod (`psql` contra a porta do RDS):
+
+| Host | Resultado |
+|---|---|
+| `host.k3d.internal` | funciona; injetado pelo k3d no DNS do cluster, não depende do Docker Desktop (**escolhido**) |
+| `host.docker.internal` | funciona, mas existe só no Docker Desktop |
+| `localstack` (nome do container) | falha por timeout: o nome resolve para o IP em outra rede Docker (k3d antiga) |
+
+Para testar a conexão, confira o readiness da API, que consulta o Postgres (`kubectl -n oficina port-forward svc/oficina-api 8080:80` e `curl http://localhost:8080/health/ready`, esperado `200`). Para testar o banco direto de um pod, use uma imagem `postgres:16-alpine` com `psql` apontando para `host.k3d.internal` e a porta do output `db_port`.
+
+> Se a porta do RDS mudar (instância recriada), rode `create-secrets.ps1` de novo e `kubectl -n oficina rollout restart deployment/oficina-api`.
+
 ## API (Deployment e Service)
 
 `base/api/` define o Deployment e o Service `oficina-api` (ClusterIP, porta 80 → 8080). Pré-requisito: o Secret `oficina-secrets` (veja acima); sem ele os pods ficam em `CreateContainerConfigError`.
@@ -90,7 +108,7 @@ O workflow de CD (CICD-4) faz o mesmo passo, lendo os secrets do GitHub como var
 | Recursos | requests 100m CPU / 192Mi; limits 500m CPU / 384Mi (os requests são a base do HPA) |
 | Segurança | `runAsNonRoot`, UID 1654, `seccompProfile: RuntimeDefault`, sem escalada de privilégio, `drop: ALL` |
 
-A API não aplica migrations na subida; com o banco vazio ou inacessível o readiness falha até as migrations rodarem.
+A API não aplica migrations na subida; com o banco inacessível o readiness falha.
 
 ### Imagem
 

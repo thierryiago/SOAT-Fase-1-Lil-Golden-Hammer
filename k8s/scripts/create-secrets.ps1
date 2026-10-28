@@ -13,9 +13,12 @@
 #   Smtp__Username/Smtp__Password variáveis opcionais (omitidas se ausentes)
 param(
     [string]$Namespace = "oficina",
-    # Substitui o host da connection string (o endpoint do RDS no LocalStack é "localhost" para o host,
-    # não para o pod; o valor correto é definido na K8S-5).
-    [string]$DbHost,
+    # Host do RDS visto de dentro do pod. O endpoint do output do Terraform é "localhost" (o do host);
+    # dentro do pod isso é o próprio pod. host.k3d.internal é injetado pelo k3d no DNS do cluster e
+    # aponta para o host Docker, onde o LocalStack publica a porta do banco (faixa 4510-4559).
+    # Só vale para a connection string vinda do Terraform; uma ConnectionStrings__Database definida
+    # em variável de ambiente é usada como está (a menos que -DbHost seja passado).
+    [string]$DbHost = "host.k3d.internal",
     [switch]$DryRun
 )
 
@@ -49,11 +52,13 @@ $values = [ordered]@{}
 
 # --- Connection string ---
 $conn = [Environment]::GetEnvironmentVariable("ConnectionStrings__Database")
+$replaceHost = $PSBoundParameters.ContainsKey("DbHost")
 if (-not $conn) {
     $conn = terraform "-chdir=$root\infra" output -raw db_connection_string
     if ($LASTEXITCODE -ne 0 -or -not $conn) { throw "Não foi possível ler db_connection_string do Terraform (infra aplicada?)." }
+    $replaceHost = $true
 }
-if ($DbHost) { $conn = $conn -replace "Host=[^;]*", "Host=$DbHost" }
+if ($replaceHost) { $conn = $conn -replace "Host=[^;]*", "Host=$DbHost" }
 $values["ConnectionStrings__Database"] = $conn
 
 # --- Chaves da aplicação ---
