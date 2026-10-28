@@ -35,6 +35,9 @@ function New-RandomSecret([int]$bytes = 32) {
 # Valor atual no cluster, para manter a idempotência (senha do banco e chaves não mudam a cada execução).
 function Get-ExistingValue([string]$key) {
     if ($DryRun) { return $null }
+    # Na primeira execução o namespace/Secret ainda não existe; no PowerShell 5.1 o stderr do kubectl
+    # viraria exceção com "Stop", então o erro é tratado aqui pelo $LASTEXITCODE.
+    $ErrorActionPreference = "Continue"
     $b64 = kubectl -n $Namespace get secret $secretName -o "jsonpath={.data.$key}" 2>$null
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrEmpty($b64)) { return $null }
     return [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64))
