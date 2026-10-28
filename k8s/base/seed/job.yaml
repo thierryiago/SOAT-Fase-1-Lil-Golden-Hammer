@@ -1,0 +1,65 @@
+# Carga de dados de demonstração (seed-data.sql, idempotente via ON CONFLICT). Nunca roda no deploy:
+# só por k8s/scripts/run-seed.ps1, depois das migrations. O ConfigMap oficina-seed é criado pelo script.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: oficina-seed
+  labels:
+    app.kubernetes.io/name: oficina-seed
+    app.kubernetes.io/part-of: oficina
+    app.kubernetes.io/component: seed
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 120
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: oficina-seed
+        app.kubernetes.io/part-of: oficina
+        app.kubernetes.io/component: seed
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: seed
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - |
+              # Separa os campos da connection string do Secret (formato Npgsql: Chave=valor;...).
+              get() { echo "$CS" | tr ';' '\n' | sed -n "s/^$1=//p"; }
+              export PGPASSWORD="$(get Password)"
+              exec psql "host=$(get Host) port=$(get Port) dbname=$(get Database) user=$(get Username)" \
+                -v ON_ERROR_STOP=1 -f /seed/seed-data.sql
+          env:
+            - name: CS
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-secrets
+                  key: ConnectionStrings__Database
+          volumeMounts:
+            - name: seed
+              mountPath: /seed
+              readOnly: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: seed
+          configMap:
+            name: oficina-seed
