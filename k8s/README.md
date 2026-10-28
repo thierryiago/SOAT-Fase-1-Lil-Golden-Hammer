@@ -9,6 +9,9 @@ k8s/
   base/                  recursos comuns a todos os ambientes
     kustomization.yaml
     namespace.yaml       Namespace "oficina"
+    api/                 Deployment e Service da API
+    migrations/          Job de migrations (aplicado à parte, antes da API)
+    seed/                Job de seed opcional
   overlays/
     localstack/          cluster EKS criado pelo Terraform no LocalStack (único ambiente)
 ```
@@ -96,6 +99,31 @@ Hosts testados a partir de um pod (`psql` contra a porta do RDS):
 Para testar a conexão, confira o readiness da API, que consulta o Postgres (`kubectl -n oficina port-forward svc/oficina-api 8080:80` e `curl http://localhost:8080/health/ready`, esperado `200`). Para testar o banco direto de um pod, use uma imagem `postgres:16-alpine` com `psql` apontando para `host.k3d.internal` e a porta do output `db_port`.
 
 > Se a porta do RDS mudar (instância recriada), rode `create-secrets.ps1` de novo e `kubectl -n oficina rollout restart deployment/oficina-api`.
+
+## Migrations
+
+O Job `oficina-migrations` roda a imagem `oficina-migrations` (target `migrations` do Dockerfile) com `ConnectionStrings__Database` vinda do Secret. A API **não** migra ao subir. O Job fica em kustomization própria, fora do deploy da API, porque a spec de um Job é imutável: o script apaga e recria o Job a cada execução e só então a API pode ser aplicada.
+
+Ordem do deploy: Terraform, kubeconfig, **Secret**, **migrations**, **API**, seed (opcional).
+
+```powershell
+.\k8s\scripts\create-secrets.ps1
+.\k8s\scriptsun-migrations.ps1      # recria o Job, espera complete ou failed, imprime os logs
+kubectl apply -k k8s/overlays/localstack
+```
+
+- `backoffLimit: 3`, `activeDeadlineSeconds: 300`, `restartPolicy: Never`, `ttlSecondsAfterFinished: 600` (10 min para `kubectl logs`).
+- Em falha (ou timeout) o script sai com código diferente de zero e imprime os logs, então um pipeline que o chame para antes de aplicar a API. O step do workflow de CD é da CICD-4 (#130) e reaproveita este script.
+- A imagem é idempotente: só aplica as migrations pendentes.
+- O pull do ECR não funciona dentro do k3d: importe a `oficina-migrations` nos nós como a da API (veja [Imagem](#imagem)), trocando o nome da imagem.
+
+### Seed (opcional, só demonstração)
+
+```powershell
+.\k8s\scriptsun-seed.ps1
+```
+
+Cria o ConfigMap `oficina-seed` a partir de [`seed-data.sql`](../seed-data.sql) e roda o Job `oficina-seed` (`psql`). O arquivo usa `ON CONFLICT DO NOTHING`, então pode ser repetido sem duplicar dados. Nunca roda no deploy.
 
 ## API (Deployment e Service)
 
