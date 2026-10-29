@@ -52,7 +52,8 @@ desktop.ini
 coverage.xml
 .sonarqube
 RelatorioHTML
-/docs
+/docs/*
+!/docs/Oficina-API.postman_collection.json
 /Claude outputs
 *.sh
 /estoque-arch-8.http
