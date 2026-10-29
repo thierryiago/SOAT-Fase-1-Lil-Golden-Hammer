@@ -8,14 +8,14 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
+$root = Resolve-Path (Join-Path $PSScriptRoot "../..")
 $job = "oficina-migrations"
 
 # Spec de Job é imutável: apaga o anterior (se houver) antes de aplicar de novo.
 kubectl -n $Namespace delete job $job --ignore-not-found --wait=true | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Falha ao remover o Job anterior." }
 
-kubectl apply -k "$root\k8s\overlays\localstack\migrations" | Out-Null
+kubectl apply -k (Join-Path $root "k8s/overlays/localstack/migrations") | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Falha ao aplicar o Job de migrations." }
 
 # O "kubectl wait" sozinho só detecta falha pelo timeout; por isso consulta o status do Job.
