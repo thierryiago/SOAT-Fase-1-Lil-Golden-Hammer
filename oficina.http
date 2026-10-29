@@ -1,11 +1,15 @@
-@baseUrl = https://localhost:5001
+@baseUrl = http://localhost:8080
+# Para as requests opcionais de orcamento, substitua pelo ID retornado em GET /budgets.
+@budgetId = 00000000-0000-0000-0000-000000000000
 
 # Oficina API - requests executaveis
 #
 # Pre-requisitos:
 #   1. Execute `docker compose up --build` na raiz do repositorio.
 #   2. Confirme GET {{baseUrl}}/health e abra {{baseUrl}}/swagger.
+#      Para `dotnet run`, use https://localhost:5001 no lugar da porta do Docker.
 #   3. Execute as requests da secao "Fluxo principal" de cima para baixo.
+#      As secoes de rejeicao e limpeza sao alternativas/opcionais.
 #   4. Execute a secao "Limpeza opcional" somente ao final e individualmente.
 #
 # Sintaxe: Visual Studio HTTP files, JetBrains Rider e extensao REST Client do VS Code.
@@ -17,12 +21,11 @@
 # for interrompida antes da limpeza, conclua a limpeza com os IDs retornados ou
 # altere esses valores antes de executar o fluxo novamente.
 
-### Health check (auxiliar; nao faz parte das 38 operacoes do Swagger)
-
 ###############################################################################
 # Fluxo principal
 ###############################################################################
 
+### Health check (auxiliar; nao consta na especificacao OpenAPI em docs)
 GET {{baseUrl}}/health
 
 ### Notifications - Send simple email
@@ -181,7 +184,7 @@ Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 GET {{baseUrl}}/api/v1/workshop-services/{{createWeightedServiceA.response.body.$.id}}
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
-### Workshop Services Services 5/6 - Update workshop service A
+### Workshop Services 5/6 - Update workshop service A
 PUT {{baseUrl}}/api/v1/workshop-services/{{createWeightedServiceA.response.body.$.id}}
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
@@ -233,7 +236,7 @@ Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Stocks 2/5 - Add stock entry and capture the stock ID
 # @name enterStock
-PUT {{baseUrl}}/api/v1/stocks/{{createPart.response.body.$.id}}/entries
+PUT {{baseUrl}}/api/v1/stocks/stocks-part/{{createPart.response.body.$.id}}/entries
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
@@ -246,7 +249,7 @@ GET {{baseUrl}}/api/v1/stocks/{{enterStock.response.body.$.id}}
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Stocks 4/5 - Consume stock after a positive balance exists
-PUT {{baseUrl}}/api/v1/stocks/{{createPart.response.body.$.id}}/consumptions
+PUT {{baseUrl}}/api/v1/stocks/stocks-part/{{createPart.response.body.$.id}}/consumptions
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
@@ -255,7 +258,7 @@ Content-Type: application/json
 }
 
 ### Stocks 5/5 - Set the absolute stock quantity
-PUT {{baseUrl}}/api/v1/stocks/{{createPart.response.body.$.id}}/adjustments
+PUT {{baseUrl}}/api/v1/stocks/stocks-part/{{createPart.response.body.$.id}}/adjustments
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
@@ -263,7 +266,7 @@ Content-Type: application/json
   "quantity": 25
 }
 
-### Service orders 1/6 - Open weighted service order
+### Service orders - Open weighted service order
 # @name openWeightedServiceOrder
 POST {{baseUrl}}/api/v1/service-orders
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
@@ -271,29 +274,44 @@ Content-Type: application/json
 
 {
   "customerId": "{{createCustomer.response.body.$.id}}",
+  "vehicleId": "{{createVehicle.response.body.$.id}}",
   "description": "OS de teste para rateio ponderado"
 }
 
-### Service orders 2/6 - Associate the two weighted services with the service order
+### Service orders - Receive the weighted service order
 PUT {{baseUrl}}/api/v1/service-orders
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
   "serviceOrderId": "{{openWeightedServiceOrder.response.body.$.id}}",
-  "customerId": "{{createCustomer.response.body.$.id}}",
-  "mechanicId": null,
-  "description": "OS de teste para rateio ponderado",
-  "checkList": "Inspecao inicial concluida",
-  "clientApproved": null,
-  "parts": [],
+  "checkList": "Inspecao inicial concluida"
+}
+
+### Service orders - Start diagnosis by assigning a mechanic
+PUT {{baseUrl}}/api/v1/service-orders
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "serviceOrderId": "{{openWeightedServiceOrder.response.body.$.id}}",
+  "mechanicId": "{{createMechanic.response.body.$.id}}"
+}
+
+### Service orders - Associate services and request approval
+PUT {{baseUrl}}/api/v1/service-orders
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "serviceOrderId": "{{openWeightedServiceOrder.response.body.$.id}}",
   "workshopServiceIds": [
     "{{createWeightedServiceA.response.body.$.id}}",
     "{{createWeightedServiceB.response.body.$.id}}"
   ]
 }
 
-### Service orders 3/6 - Open a second service order for service A
+### Service orders - Open a second service order for service A
 # @name openSingleServiceOrder
 POST {{baseUrl}}/api/v1/service-orders
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
@@ -301,28 +319,43 @@ Content-Type: application/json
 
 {
   "customerId": "{{createCustomer.response.body.$.id}}",
+  "vehicleId": "{{createVehicle.response.body.$.id}}",
   "description": "Segunda OS de teste para media do servico A"
 }
 
-### Service orders 4/6 - Associate service A with the second service order
+### Service orders - Receive the second service order
 PUT {{baseUrl}}/api/v1/service-orders
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
   "serviceOrderId": "{{openSingleServiceOrder.response.body.$.id}}",
-  "customerId": "{{createCustomer.response.body.$.id}}",
-  "mechanicId": null,
-  "description": "Segunda OS de teste para media do servico A",
-  "checkList": "Inspecao inicial concluida",
-  "clientApproved": null,
-  "parts": [],
+  "checkList": "Inspecao inicial concluida"
+}
+
+### Service orders - Start diagnosis on the second service order
+PUT {{baseUrl}}/api/v1/service-orders
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "serviceOrderId": "{{openSingleServiceOrder.response.body.$.id}}",
+  "mechanicId": "{{createMechanic.response.body.$.id}}"
+}
+
+### Service orders - Associate service A and request approval
+PUT {{baseUrl}}/api/v1/service-orders
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "serviceOrderId": "{{openSingleServiceOrder.response.body.$.id}}",
   "workshopServiceIds": [
     "{{createWeightedServiceA.response.body.$.id}}"
   ]
 }
 
-### Service orders 5/6 - List service orders
+### Service orders - List service orders
 # As respostas de ordens de serviço retornam status pelo nome do enum, por exemplo "Created".
 GET {{baseUrl}}/api/v1/service-orders
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
@@ -333,14 +366,56 @@ Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 GET {{baseUrl}}/api/v1/service-orders/status
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
-### Service orders 6/6 - Get the weighted service order by ID
+### Service orders - Get the weighted service order by ID
 GET {{baseUrl}}/api/v1/service-orders/{{openWeightedServiceOrder.response.body.$.id}}
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
+### Budgets - List budget versions
+GET {{baseUrl}}/api/v1/budgets?page=1&pageSize=20
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+### Service orders - Approve the weighted service order
+POST {{baseUrl}}/api/v1/service-orders/{{openWeightedServiceOrder.response.body.$.id}}/approve
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+### Service orders - Approve the second service order
+POST {{baseUrl}}/api/v1/service-orders/{{openSingleServiceOrder.response.body.$.id}}/approve
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+### Service orders - Finalize the weighted service order
+POST {{baseUrl}}/api/v1/service-orders/{{openWeightedServiceOrder.response.body.$.id}}/finalize
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+### Service orders - Finalize the second service order
+POST {{baseUrl}}/api/v1/service-orders/{{openSingleServiceOrder.response.body.$.id}}/finalize
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
 ### Metrics - Workshop service execution time
-# A resposta tera averageTimeMinutes preenchido depois que as OS forem movidas para
-# InExecution e Finalized, com os respectivos historicos registrados.
+# A resposta tera averageTimeMinutes preenchido depois da finalizacao das OS.
 GET {{baseUrl}}/api/v1/metrics/workshop-service/execution-time
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+### Service orders - Deliver the weighted service order
+POST {{baseUrl}}/api/v1/service-orders/{{openWeightedServiceOrder.response.body.$.id}}/deliver
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+### Service orders - Deliver the second service order
+POST {{baseUrl}}/api/v1/service-orders/{{openSingleServiceOrder.response.body.$.id}}/deliver
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+### Service orders - Track the weighted order by document (public)
+GET {{baseUrl}}/api/v1/service-orders/{{openWeightedServiceOrder.response.body.$.id}}/track?document=52998224725
+
+### Service orders - Track all orders for the customer (public)
+GET {{baseUrl}}/api/v1/service-orders/track?document=52998224725
+
+### Schedules - List schedules
+GET {{baseUrl}}/api/v1/schedules
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+### Schedules - Filter schedules by date (optional)
+# Substitua a data por uma data de agendamento existente no ambiente.
+GET {{baseUrl}}/api/v1/schedules?date=2026-10-29
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
 ### Service order history 1/2 - List all history
@@ -430,16 +505,39 @@ Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 GET {{baseUrl}}/api/v1/service-order-history/service-order/{{openServiceOrderWithItems.response.body.$.id}}
 Authorization: Bearer {{issueToken.response.body.$.accessToken}}
 
+### Budgets - Get a budget by ID (after setting budgetId above)
+GET {{baseUrl}}/api/v1/budgets/{{budgetId}}
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
 ###############################################################################
-# Conferência de e-mails no Mailpit (http://localhost:8025)
-# Filtre pelo destinatário fictício e pelo ID da OS usada no fluxo.
-# Caminho principal: 7 mensagens (Criada, Recebida, Em diagnóstico,
-# Aguardando aprovação, Em execução, Finalizada e Entregue).
-# Rejeição: 5 mensagens. Cada retorno para aprovação + nova aprovação: +2.
-# Orçamento e veículo pronto são as próprias notificações desses status.
-# Atualizações sem mudança de status não devem acrescentar mensagens.
-# Os links do orçamento usam App__PublicBaseUrl. Configure a variável com a
-# origem pública da API (por exemplo, http://localhost:8080 no Docker Compose).
+# Decisoes alternativas para uma OS em AwaitingApproval
+# Escolha apenas uma acao por OS. Os links de notificacao sao publicos e usam
+# budgetId; os endpoints da OS exigem o token tecnico.
+###############################################################################
+
+### Service orders - Approve the order opened with items
+POST {{baseUrl}}/api/v1/service-orders/{{openServiceOrderWithItems.response.body.$.id}}/approve
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+### Service orders - Cancel the order opened with a new customer
+POST {{baseUrl}}/api/v1/service-orders/{{openServiceOrderWithItemsNewCustomer.response.body.$.id}}/cancel
+Authorization: Bearer {{issueToken.response.body.$.accessToken}}
+
+### Notifications - Approve a budget via public link (alternative to POST /approve)
+# Use o ID do orcamento de uma OS que ainda esteja em AwaitingApproval.
+GET {{baseUrl}}/api/v1/notifications/approveBudget?budgetId={{budgetId}}
+
+### Notifications - Reject a budget via public link (alternative to POST /cancel)
+# Use o ID do orcamento de outra OS que ainda esteja em AwaitingApproval.
+GET {{baseUrl}}/api/v1/notifications/rejectBudget?budgetId={{budgetId}}
+
+###############################################################################
+# Conferencia de e-mails no Mailpit (http://localhost:8025)
+# Filtre pelo destinatario ficticio e pelo ID da OS usada no fluxo.
+# Cada OS do fluxo Created -> Delivered produz sete notificacoes de status.
+# Uma OS cancelada apos AwaitingApproval produz cinco. Cada retorno para
+# aprovacao seguido de nova aprovacao acrescenta duas notificacoes.
+# Os links do orcamento usam App__PublicBaseUrl (http://localhost:8080 no Docker).
 #
 # Limpeza opcional
 #
