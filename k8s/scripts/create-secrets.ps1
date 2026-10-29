@@ -23,7 +23,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
+$root = Resolve-Path (Join-Path $PSScriptRoot "../..")
 $secretName = "oficina-secrets"
 
 function New-RandomSecret([int]$bytes = 32) {
@@ -57,7 +57,7 @@ $values = [ordered]@{}
 $conn = [Environment]::GetEnvironmentVariable("ConnectionStrings__Database")
 $replaceHost = $PSBoundParameters.ContainsKey("DbHost")
 if (-not $conn) {
-    $conn = terraform "-chdir=$root\infra" output -raw db_connection_string
+    $conn = terraform "-chdir=$(Join-Path $root 'infra')" output -raw db_connection_string
     if ($LASTEXITCODE -ne 0 -or -not $conn) { throw "Não foi possível ler db_connection_string do Terraform (infra aplicada?)." }
     $replaceHost = $true
 }
@@ -88,7 +88,7 @@ if ($DryRun) {
 }
 
 # Garante o Namespace e cria/atualiza o Secret sem passar valores pela linha de comando.
-# Só o Namespace: aplicar a base inteira criaria a API com a imagem sem o nome do ECR (ImagePullBackOff).
+# Só o Namespace: aplicar a base inteira criaria a API com a imagem sem o nome do registry (ImagePullBackOff).
 kubectl apply -f (Join-Path $root "k8s/base/namespace.yaml") | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Falha ao aplicar o Namespace." }
 

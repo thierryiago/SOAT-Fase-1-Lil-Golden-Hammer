@@ -23,7 +23,8 @@ configMapGenerator:
       - App__PublicBaseUrl=http://localhost:8080
 
 images:
-  # URL do output ecr_repository_urls (terraform -chdir=infra output ecr_repository_urls); o CD sobrescreve a tag.
+  # Repositório privado do Docker Hub (publish-images.yml), imagens separadas por tag: api-<sha7>.
+  # O pull usa o Secret dockerhub-pull (k8s/scripts/create-pull-secret.ps1); o CD sobrescreve a tag.
   - name: oficina-api
-    newName: 000000000000.dkr.ecr.us-east-1.localhost.localstack.cloud:4566/oficina-api
-    newTag: dev
+    newName: docker.io/thierryiago27/fiap-oficina-image-docker-hub
+    newTag: api-cb55fa1

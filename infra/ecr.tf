@@ -1,3 +1,11 @@
+# O ECR é opcional: as imagens da aplicação ficam no Docker Hub (images.tf), porque o k3d do LocalStack não
+# consegue puxar do ECR emulado. Numa AWS real, ligar create_ecr e trocar o newName do overlay basta.
+variable "create_ecr" {
+  description = "Cria os repositórios ECR da aplicação (desligado: as imagens vêm do Docker Hub)"
+  type        = bool
+  default     = false
+}
+
 variable "ecr_repositories" {
   description = "Repositórios ECR das imagens da aplicação (API e migrations)"
   type        = set(string)
@@ -5,7 +13,7 @@ variable "ecr_repositories" {
 }
 
 resource "aws_ecr_repository" "app" {
-  for_each = var.ecr_repositories
+  for_each = var.create_ecr ? var.ecr_repositories : toset([])
 
   name                 = each.key
   image_tag_mutability = "MUTABLE" # tags dev/latest são reescritas a cada push
@@ -38,6 +46,6 @@ resource "aws_ecr_lifecycle_policy" "app" {
 }
 
 output "ecr_repository_urls" {
-  description = "URLs dos repositórios ECR (nome => URL)"
+  description = "URLs dos repositórios ECR (nome => URL); vazio quando create_ecr = false"
   value       = { for name, repo in aws_ecr_repository.app : name => repo.repository_url }
 }

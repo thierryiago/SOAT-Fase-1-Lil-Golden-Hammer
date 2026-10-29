@@ -1,0 +1,186 @@
+# Piloto de CD (#156): sobe o LocalStack no próprio runner, aplica o Terraform (EKS/k3d, RDS), faz o deploy
+# de /k8s com as imagens já publicadas no Docker Hub (publish-images.yml) e roda um smoke test.
+# O ambiente é efêmero: nasce e morre com o job. Serve para validar o deploy de ponta a ponta, não como
+# ambiente persistente. A tag padrão (sha7 do commit) só existe se o publish-images já rodou para ele.
+name: CD LocalStack
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Tag das imagens no Docker Hub, sem o prefixo (ex.: latest ou o sha7). Padrão: sha7 do commit.'
+        required: false
+        type: string
+
+concurrency:
+  group: cd-localstack
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  AWS_DEFAULT_REGION: us-east-1
+  IMAGE_REPOSITORY: docker.io/thierryiago27/fiap-oficina-image-docker-hub
+
+jobs:
+  deploy-localstack:
+    name: deploy-localstack
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Conferir secrets e tag das imagens
+        env:
+          LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          INPUT_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -euo pipefail
+          if [ -z "$LOCALSTACK_AUTH_TOKEN" ]; then
+            echo "::error::Secret LOCALSTACK_AUTH_TOKEN ausente. EKS e RDS exigem o LocalStack Pro."
+            exit 1
+          fi
+          if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "::error::Secrets DOCKERHUB_USERNAME/DOCKERHUB_TOKEN ausentes (pull do repositório privado)."
+            exit 1
+          fi
+          tag="${INPUT_TAG:-${GITHUB_SHA::7}}"
+          if ! [[ "$tag" =~ ^[A-Za-z0-9._-]{1,100}$ ]]; then
+            echo "::error::Tag inválida: use apenas letras, números, '.', '_' e '-'."
+            exit 1
+          fi
+          echo "IMAGE_TAG=${tag}" >> "$GITHUB_ENV"
+
+      - name: Conferir as imagens no Docker Hub
+        # Falha cedo, antes de subir o LocalStack, se a tag ainda não foi publicada.
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          for image in api migrations; do
+            docker manifest inspect "${IMAGE_REPOSITORY}:${image}-${IMAGE_TAG}" > /dev/null \
+              || { echo "::error::Imagem ${IMAGE_REPOSITORY}:${image}-${IMAGE_TAG} não encontrada. Rode o publish-images."; exit 1; }
+          done
+          docker logout
+
+      - name: Subir o LocalStack
+        # v0.3.2 (release imutável), fixada pelo SHA.
+        uses: LocalStack/setup-localstack@7c8a0cb3405bc58be4c8f763f812aa000bc46303
+        with:
+          image-tag: '2026.9.1'
+          install-awslocal: 'true'
+        env:
+          LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
+          LS_WAIT_TIMEOUT: '180'
+
+      - name: Conferir serviços e portas do LocalStack
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            health=$(curl -s localhost:4566/_localstack/health || true)
+            if echo "$health" | jq -e '.services | (.eks|test("available|running")) and (.rds|test("available|running"))' >/dev/null 2>&1; then
+              break
+            fi
+            sleep 5
+          done
+          echo "$health" | jq '{version, edition, services: (.services | {eks, rds, s3, ec2, iam})}'
+          echo "$health" | jq -e '.services.eks | test("available|running")' >/dev/null
+          docker ps --format '{{.Names}}\t{{.Ports}}'
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform bootstrap (bucket do state)
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/bootstrap init -input=false
+          terraform -chdir=infra/bootstrap apply -input=false -auto-approve
+
+      - name: Terraform apply (EKS, RDS)
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra init -input=false
+          terraform -chdir=infra apply -input=false -auto-approve
+          docker ps --format '{{.Names}}' | grep k3d-oficina-local
+
+      - name: Fixar as tags nos overlays
+        # Só na cópia do runner; o commit continua com as tags versionadas.
+        run: |
+          set -euo pipefail
+          (cd k8s/overlays/localstack && kustomize edit set image "oficina-api=${IMAGE_REPOSITORY}:api-${IMAGE_TAG}")
+          (cd k8s/overlays/localstack/migrations && kustomize edit set image "oficina-migrations=${IMAGE_REPOSITORY}:migrations-${IMAGE_TAG}")
+          kubectl kustomize k8s/overlays/localstack | grep -E 'image: '
+          kubectl kustomize k8s/overlays/localstack/migrations | grep -E 'image: '
+
+      - name: Kubeconfig
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP "kubeconfig-oficina"
+          ./infra/scripts/kubeconfig.ps1 -OutFile $out
+          if (-not (Test-Path $out)) { throw "kubeconfig não gerado." }
+          "KUBECONFIG=$out" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $env:KUBECONFIG = $out
+          kubectl get nodes -o wide
+
+      - name: Secrets, migrations e deploy
+        shell: pwsh
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          ./k8s/scripts/create-secrets.ps1
+          ./k8s/scripts/create-pull-secret.ps1
+          ./k8s/scripts/run-migrations.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          kubectl apply -k k8s/overlays/localstack
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          kubectl -n oficina rollout status deployment/oficina-api --timeout=300s
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          kubectl -n oficina rollout status deployment/mailpit --timeout=180s
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Smoke test
+        # De dentro do cluster, pelo Service (sem port-forward).
+        run: |
+          set -euo pipefail
+          kubectl -n oficina run smoke --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- \
+            curl -fsS --retry 10 --retry-delay 3 --retry-all-errors \
+            http://oficina-api.oficina.svc.cluster.local/health/ready
+          echo
+          kubectl -n oficina get pods,svc,hpa
+
+      - name: Coletar diagnósticos
+        if: failure()
+        run: |
+          d="$RUNNER_TEMP/diagnosticos"; mkdir -p "$d"
+          docker ps -a > "$d/docker-ps.txt" 2>&1 || true
+          docker logs localstack > "$d/localstack.log" 2>&1 || true
+          docker exec localstack sh -c 'ss -ltn' > "$d/localstack-portas.txt" 2>&1 || true
+          curl -s localhost:4566/_localstack/health > "$d/localstack-health.json" 2>&1 || true
+          if [ -n "${KUBECONFIG:-}" ]; then
+            kubectl get pods -A -o wide > "$d/pods.txt" 2>&1 || true
+            kubectl get events -A --sort-by=.lastTimestamp > "$d/events.txt" 2>&1 || true
+            kubectl -n oficina describe pods > "$d/describe-pods.txt" 2>&1 || true
+            for p in $(kubectl -n oficina get pods -o name 2>/dev/null); do
+              kubectl -n oficina logs "$p" --all-containers > "$d/logs-$(basename "$p").txt" 2>&1 || true
+            done
+          fi
+
+      - name: Publicar diagnósticos
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnosticos-cd-localstack
+          path: ${{ runner.temp }}/diagnosticos
+          retention-days: 7

@@ -30,6 +30,9 @@ spec:
         runAsGroup: 1654
         seccompProfile:
           type: RuntimeDefault
+      # Repositório privado no Docker Hub: Secret criado por k8s/scripts/create-pull-secret.ps1.
+      imagePullSecrets:
+        - name: dockerhub-pull
       containers:
         - name: api
           # A imagem final (nome e tag) é resolvida por "images" no overlay.

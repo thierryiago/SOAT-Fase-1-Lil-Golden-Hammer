@@ -2,7 +2,8 @@
 # Uso: . .\infra\scripts\kubeconfig.ps1   (com ponto, para que KUBECONFIG valha na sessão atual)
 param(
     [string]$ClusterName = "oficina-local",
-    [string]$OutFile = (Join-Path $env:USERPROFILE "kubeconfig-oficina")
+    # GetFolderPath funciona no Windows e no Linux (no runner do GitHub, $env:USERPROFILE não existe).
+    [string]$OutFile = (Join-Path ([Environment]::GetFolderPath("UserProfile")) "kubeconfig-oficina")
 )
 
 $server = docker ps --filter "name=k3d-$ClusterName.*server-0" --format "{{.Names}}" | Select-Object -First 1

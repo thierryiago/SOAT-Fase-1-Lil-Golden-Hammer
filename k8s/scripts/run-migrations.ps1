@@ -1,21 +1,21 @@
 # Recria o Job de migrations e espera o resultado. Sai com código != 0 (e imprime os logs) se a
 # migração falhar ou estourar o tempo, para o deploy não seguir para a API.
 # Uso: .\k8s\scripts\run-migrations.ps1            (com KUBECONFIG apontando para o cluster)
-# Pré-requisitos: Secret oficina-secrets (create-secrets.ps1) e a imagem oficina-migrations nos nós.
+# Pré-requisitos: Secrets oficina-secrets (create-secrets.ps1) e dockerhub-pull (create-pull-secret.ps1).
 param(
     [string]$Namespace = "oficina",
     [int]$TimeoutSeconds = 300
 )
 
 $ErrorActionPreference = "Stop"
-$root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
+$root = Resolve-Path (Join-Path $PSScriptRoot "../..")
 $job = "oficina-migrations"
 
 # Spec de Job é imutável: apaga o anterior (se houver) antes de aplicar de novo.
 kubectl -n $Namespace delete job $job --ignore-not-found --wait=true | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Falha ao remover o Job anterior." }
 
-kubectl apply -k "$root\k8s\overlays\localstack\migrations" | Out-Null
+kubectl apply -k (Join-Path $root "k8s/overlays/localstack/migrations") | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Falha ao aplicar o Job de migrations." }
 
 # O "kubectl wait" sozinho só detecta falha pelo timeout; por isso consulta o status do Job.

@@ -24,7 +24,7 @@ Convenção de labels dos recursos: `app.kubernetes.io/name`, `app.kubernetes.io
 
 ## Overlay
 
-O projeto tem uma única infraestrutura: o **LocalStack**. O overlay `localstack` mira o cluster EKS criado pelo Terraform (k3d do LocalStack, veja [`infra/README.md`](../infra/README.md)) e traz os valores reais: imagens do ECR do LocalStack, `ASPNETCORE_ENVIRONMENT` e `App__PublicBaseUrl`.
+O projeto tem uma única infraestrutura: o **LocalStack**. O overlay `localstack` mira o cluster EKS criado pelo Terraform (k3d do LocalStack, veja [`infra/README.md`](../infra/README.md)) e traz os valores reais: imagens do Docker Hub (repositório privado), `ASPNETCORE_ENVIRONMENT` e `App__PublicBaseUrl`.
 
 ## Como aplicar
 
@@ -106,10 +106,11 @@ Para testar a conexão, confira o readiness da API, que consulta o Postgres (`ku
 
 O Job `oficina-migrations` roda a imagem `oficina-migrations` (target `migrations` do Dockerfile) com `ConnectionStrings__Database` vinda do Secret. A API **não** migra ao subir. O Job fica em kustomization própria, fora do deploy da API, porque a spec de um Job é imutável: o script apaga e recria o Job a cada execução e só então a API pode ser aplicada.
 
-Ordem do deploy: Terraform, kubeconfig, **Secret**, **migrations**, **API**, seed (opcional).
+Ordem do deploy: Terraform, kubeconfig, **Secrets** (aplicação e pull do Docker Hub), **migrations**, **API**, seed (opcional).
 
 ```powershell
 .\k8s\scripts\create-secrets.ps1
+.\k8s\scripts\create-pull-secret.ps1  # exige $env:DOCKERHUB_USERNAME e $env:DOCKERHUB_TOKEN
 .\k8s\scripts\run-migrations.ps1      # recria o Job, espera complete ou failed, imprime os logs
 kubectl apply -k k8s/overlays/localstack
 ```
@@ -117,7 +118,7 @@ kubectl apply -k k8s/overlays/localstack
 - `backoffLimit: 3`, `activeDeadlineSeconds: 300`, `restartPolicy: Never`, `ttlSecondsAfterFinished: 600` (10 min para `kubectl logs`).
 - Em falha (ou timeout) o script sai com código diferente de zero e imprime os logs, então um pipeline que o chame para antes de aplicar a API. O step do workflow de CD é da CICD-4 (#130) e reaproveita este script.
 - A imagem é idempotente: só aplica as migrations pendentes.
-- O pull do ECR não funciona dentro do k3d: importe a `oficina-migrations` nos nós como a da API (veja [Imagem](#imagem)), trocando o nome da imagem.
+- A imagem `migrations-<sha7>` vem do mesmo repositório privado do Docker Hub da API e usa o mesmo Secret de pull (veja [Imagem](#imagem)).
 
 ### Seed (opcional, só demonstração)
 
@@ -190,23 +191,35 @@ A API não aplica migrations na subida; com o banco inacessível o readiness fal
 
 ### Imagem
 
-O manifest usa `image: oficina-api` e o overlay resolve nome e tag em `images`, com a URL do ECR do LocalStack (`terraform -chdir=infra output ecr_repository_urls`). O CD sobrescreve a tag com a do commit.
+As imagens ficam num repositório **privado** do Docker Hub, `thierryiago27/fiap-oficina-image-docker-hub`, separadas por tag: `api-<sha7>` e `migrations-<sha7>` (e `*-latest` na `main`). Quem publica é o workflow [`publish-images.yml`](../.github/workflows/publish-images.yml), a cada push na `main` (ou manualmente, com `workflow_dispatch`).
 
-> **Pull do ECR no LocalStack:** dentro dos nós do k3d o hostname `*.localhost.localstack.cloud` resolve para `127.0.0.1`, então o `kubelet` não consegue puxar a imagem (`ImagePullBackOff`, `connection refused` em `127.0.0.1:4566`), apesar de o push pelo host funcionar. Contorno: importar a imagem nos nós com o **mesmo nome** do ECR; como o `imagePullPolicy` é `IfNotPresent`, o manifest continua igual ao de uma AWS real.
->
-> ```powershell
-> $reg = "000000000000.dkr.ecr.us-east-1.localhost.localstack.cloud:4566"
-> $nodes = docker ps --format "{{.Names}}" | Select-String "k3d-oficina-local-.*(agent|server-0)"
-> foreach ($name in "oficina-api", "oficina-migrations") {
->   docker tag "${name}:dev" "$reg/${name}:dev"
->   foreach ($n in $nodes) {
->     cmd /c "docker save $reg/${name}:dev | docker exec -i $n ctr -n k8s.io images import -"
->   }
-> }
-> ```
->
-> O `cmd /c` é necessário: no Windows PowerShell 5.1 o pipe nativo converte os bytes e o `ctr` falha com `invalid tar header`.
->
+O manifest usa `image: oficina-api` / `oficina-migrations`, e os overlays resolvem nome e tag em `images`. O CD sobrescreve a tag com a do commit. A referência completa também sai do Terraform: `terraform -chdir=infra output app_images` com `-var app_image_tag=<sha7>`.
+
+Como o repositório é privado, o cluster puxa com o Secret `dockerhub-pull` (tipo `dockerconfigjson`), referenciado em `imagePullSecrets` na API e no Job de migrations. Ele é criado pelo script, com um Access Token de **leitura** do Docker Hub:
+
+```powershell
+$env:DOCKERHUB_USERNAME = "thierryiago27"
+$env:DOCKERHUB_TOKEN    = "<access token de leitura>"
+.\k8s\scripts\create-pull-secret.ps1
+```
+
+Sem o Secret, o pod fica em `ErrImagePull` com `pull access denied`.
+
+> **Por que não o ECR:** dentro dos nós do k3d o hostname do ECR do LocalStack (`*.localhost.localstack.cloud`) resolve para `127.0.0.1`, e o `kubelet` não consegue puxar a imagem. O ECR ficou opcional no Terraform (`create_ecr`, desligado); numa AWS real basta ligá-lo e trocar o `newName` dos overlays.
+
+#### Testar uma imagem local sem publicar
+
+Para iterar sem passar pelo CI, importe a imagem nos nós com o **mesmo nome** que o overlay usa (o `imagePullPolicy: IfNotPresent` faz o nó usar a cópia local):
+
+```powershell
+$repo = "docker.io/thierryiago27/fiap-oficina-image-docker-hub"
+docker build -t "${repo}:api-local" .
+$nodes = docker ps --format "{{.Names}}" | Select-String "k3d-oficina-local-.*(agent|server-0)"
+foreach ($n in $nodes) { cmd /c "docker save ${repo}:api-local | docker exec -i $n ctr -n k8s.io images import -" }
+kubectl -n oficina set image deployment/oficina-api api="${repo}:api-local"
+```
+
+O `cmd /c` é necessário: no Windows PowerShell 5.1 o pipe nativo converte os bytes e o `ctr` falha com `invalid tar header`.
 
 ### Verificar
 

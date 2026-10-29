@@ -6,16 +6,16 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
+$root = Resolve-Path (Join-Path $PSScriptRoot "../..")
 $job = "oficina-seed"
 
 kubectl -n $Namespace delete job $job --ignore-not-found --wait=true | Out-Null
 
 # O arquivo fica fora da raiz do Kustomize, então o ConfigMap é criado direto do arquivo.
-kubectl -n $Namespace create configmap oficina-seed --from-file="seed-data.sql=$root\seed-data.sql" --dry-run=client -o yaml | kubectl apply -f - | Out-Null
+kubectl -n $Namespace create configmap oficina-seed --from-file="seed-data.sql=$(Join-Path $root 'seed-data.sql')" --dry-run=client -o yaml | kubectl apply -f - | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Falha ao criar o ConfigMap oficina-seed." }
 
-kubectl apply -k "$root\k8s\overlays\localstack\seed" | Out-Null
+kubectl apply -k (Join-Path $root "k8s/overlays/localstack/seed") | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Falha ao aplicar o Job de seed." }
 
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
