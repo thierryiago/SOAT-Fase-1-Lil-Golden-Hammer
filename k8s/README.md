@@ -155,7 +155,7 @@ O `HorizontalPodAutoscaler` [`oficina-api`](base/api/hpa.yaml) (`autoscaling/v2`
 
 - O Deployment **não declara `replicas`**: com o HPA ativo, um valor fixo seria reaplicado a cada `kubectl apply`.
 - O `metrics-server` já vem no k3d do LocalStack (`kubectl top nodes` e `kubectl top pods -n oficina` funcionam); nenhum addon é instalado.
-- **Request de memória de 320Mi por causa do HPA:** depois de uma carga o .NET mantém ~140Mi por pod (não devolve o heap). Com o request anterior de 192Mi isso era 73% e o HPA nunca descia. Com 320Mi fica ~45%: pela memória, `ceil(3 × 45/75) = 2`, então a descida vai de 3 a 2. **De 2 a 1 ela para**, porque `ceil(2 × 45/75) = 2`; só chega a 1 com a memória abaixo de 37,5% (~120Mi por pod), por exemplo depois que os pods forem recriados (`kubectl -n oficina rollout restart deployment/oficina-api`).
+- **Request de memória de 320Mi por causa do HPA:** o .NET não devolve o heap depois de uma carga. Com o request anterior de 192Mi os pods ficavam em ~73% e o HPA nunca descia (`ceil(6 × 73/80) = 6`). Com 320Mi a memória pós-carga fica entre ~30% e ~45%, conforme a duração do teste. A descida até 1 réplica depende disso: de 2 para 1 a memória precisa estar abaixo de 37,5% (`ceil(2 × 37,5/75) = 1`). Com o teste padrão (2m15s) ela ficou em 34% e chegou a 1; após cargas longas pode parar em 2 até os pods serem recriados (`kubectl -n oficina rollout restart deployment/oficina-api`).
 
 ### Reproduzir o escalonamento
 
