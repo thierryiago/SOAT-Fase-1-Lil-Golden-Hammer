@@ -110,7 +110,7 @@ Ordem do deploy: Terraform, kubeconfig, **Secret**, **migrations**, **API**, see
 
 ```powershell
 .\k8s\scripts\create-secrets.ps1
-.\k8s\scriptsun-migrations.ps1      # recria o Job, espera complete ou failed, imprime os logs
+.\k8s\scripts\run-migrations.ps1      # recria o Job, espera complete ou failed, imprime os logs
 kubectl apply -k k8s/overlays/localstack
 ```
 
@@ -122,7 +122,7 @@ kubectl apply -k k8s/overlays/localstack
 ### Seed (opcional, só demonstração)
 
 ```powershell
-.\k8s\scriptsun-seed.ps1
+.\k8s\scripts\run-seed.ps1
 ```
 
 Cria o ConfigMap `oficina-seed` a partir de [`seed-data.sql`](../seed-data.sql) e roda o Job `oficina-seed` (`psql`). O arquivo usa `ON CONFLICT DO NOTHING`, então pode ser repetido sem duplicar dados. Nunca roda no deploy.
@@ -169,8 +169,8 @@ kubectl -n oficina get pods -l app.kubernetes.io/name=oficina-api -w
 Em um terceiro, o teste de carga ([`k8s/loadtest/oficina.js`](loadtest/oficina.js), k6):
 
 ```powershell
-.\k8s\loadtestun-loadtest.ps1                       # padrão: 30 VUs, subida 1m, patamar 3m, descida 30s
-.\k8s\loadtestun-loadtest.ps1 -TargetVus 60 -Hold 3m  # mais carga
+.\k8s\loadtest\run-loadtest.ps1                       # padrão: 30 VUs, subida 1m, patamar 3m, descida 30s
+.\k8s\loadtest\run-loadtest.ps1 -TargetVus 60 -Hold 3m  # mais carga
 ```
 
 O k6 roda como Job **dentro do cluster** (`grafana/k6`, imagem puxada do Docker Hub), contra o Service `oficina-api`. Assim a carga se distribui entre as réplicas; um `port-forward` prenderia tudo em um único pod. O script autentica com o token técnico, cria um serviço, uma peça e estoque, e mistura listagens (clientes, veículos, peças, ordens de serviço e métricas) com aberturas de OS (5%, variável `WRITE_RATIO`). Os e-mails dessas OS vão para o Mailpit. O threshold é `http_req_failed < 5%`.
