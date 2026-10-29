@@ -36,7 +36,7 @@ spec:
               # Separa os campos da connection string do Secret (formato Npgsql: Chave=valor;...).
               get() { echo "$CS" | tr ';' '\n' | sed -n "s/^$1=//p"; }
               export PGPASSWORD="$(get Password)"
-              exec psql "host=$(get Host) port=$(get Port) dbname=$(get Database) user=$(get Username)" \
+              exec psql "host=$(get Host) port=$(get Port) dbname=$(get Database) user=$(get Username) sslmode=disable" \
                 -v ON_ERROR_STOP=1 -f /seed/seed-data.sql
           env:
             - name: CS

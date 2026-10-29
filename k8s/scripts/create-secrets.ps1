@@ -62,6 +62,12 @@ if (-not $conn) {
     $replaceHost = $true
 }
 if ($replaceHost) { $conn = $conn -replace "Host=[^;]*", "Host=$DbHost" }
+# O proxy Postgres do LocalStack derruba a porta do RDS quando um handshake TLS é abortado (ssl.SSLEOFError),
+# o que acontece sob carga com o SSL Mode=Prefer padrão do Npgsql. O banco é emulado e local, então o TLS é
+# desligado na string vinda do Terraform; uma string definida em variável de ambiente é usada como está.
+if (-not [Environment]::GetEnvironmentVariable("ConnectionStrings__Database") -and $conn -notmatch "SSL ?Mode=") {
+    $conn = $conn.TrimEnd(";") + ";SSL Mode=Disable"
+}
 $values["ConnectionStrings__Database"] = $conn
 
 # --- Chaves da aplicação ---
@@ -82,7 +88,8 @@ if ($DryRun) {
 }
 
 # Garante o Namespace e cria/atualiza o Secret sem passar valores pela linha de comando.
-kubectl apply -k "$root\k8s\base" | Out-Null
+# Só o Namespace: aplicar a base inteira criaria a API com a imagem sem o nome do ECR (ImagePullBackOff).
+kubectl apply -f (Join-Path $root "k8s/base/namespace.yaml") | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Falha ao aplicar o Namespace." }
 
 $args_ = @("-n", $Namespace, "create", "secret", "generic", $secretName, "--dry-run=client", "-o", "yaml")

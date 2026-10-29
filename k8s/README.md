@@ -13,6 +13,7 @@ k8s/
     migrations/          Job de migrations (aplicado à parte, antes da API)
     seed/                Job de seed opcional
     mailpit/             Mailpit (SMTP 1025 e UI 8025)
+  loadtest/              teste de carga k6 (script, Job e run-loadtest.ps1)
   overlays/
     localstack/          cluster EKS criado pelo Terraform no LocalStack (único ambiente)
 ```
@@ -109,7 +110,7 @@ Ordem do deploy: Terraform, kubeconfig, **Secret**, **migrations**, **API**, see
 
 ```powershell
 .\k8s\scripts\create-secrets.ps1
-.\k8s\scriptsun-migrations.ps1      # recria o Job, espera complete ou failed, imprime os logs
+.\k8s\scripts\run-migrations.ps1      # recria o Job, espera complete ou failed, imprime os logs
 kubectl apply -k k8s/overlays/localstack
 ```
 
@@ -121,7 +122,7 @@ kubectl apply -k k8s/overlays/localstack
 ### Seed (opcional, só demonstração)
 
 ```powershell
-.\k8s\scriptsun-seed.ps1
+.\k8s\scripts\run-seed.ps1
 ```
 
 Cria o ConfigMap `oficina-seed` a partir de [`seed-data.sql`](../seed-data.sql) e roda o Job `oficina-seed` (`psql`). O arquivo usa `ON CONFLICT DO NOTHING`, então pode ser repetido sem duplicar dados. Nunca roda no deploy.
@@ -139,6 +140,40 @@ kubectl -n oficina port-forward svc/mailpit 8025:8025        # UI do Mailpit: ht
 - O `port-forward` de um Service se liga a **um** pod; se ele for substituído, a conexão cai e o comando precisa ser repetido.
 - A UI do Mailpit não tem autenticação e mostra e-mails de clientes, então **só** é exposta por `port-forward` (Service `ClusterIP`). Os e-mails ficam num `emptyDir` e somem quando o pod reinicia.
 - A API alcança o Mailpit pelo Service `mailpit:1025` (`Smtp__Host=mailpit`).
+
+## Autoscaling e teste de carga
+
+O `HorizontalPodAutoscaler` [`oficina-api`](base/api/hpa.yaml) (`autoscaling/v2`) escala o Deployment pela utilização **relativa aos `requests`** (CPU 100m e memória 320Mi):
+
+| Item | Valor |
+|---|---|
+| Réplicas | mínimo 1, máximo 3 |
+| CPU | alvo de 70% |
+| Memória | alvo de 75% |
+| Scale up | sem estabilização, até 2 pods a cada 30 s |
+| Scale down | estabilização de 120 s (o padrão é 300 s e alonga a demonstração), 1 pod a cada 60 s |
+
+- O Deployment **não declara `replicas`**: com o HPA ativo, um valor fixo seria reaplicado a cada `kubectl apply`.
+- O `metrics-server` já vem no k3d do LocalStack (`kubectl top nodes` e `kubectl top pods -n oficina` funcionam); nenhum addon é instalado.
+- **Request de memória de 320Mi por causa do HPA:** o .NET não devolve o heap depois de uma carga. Com o request anterior de 192Mi os pods ficavam em ~73% e o HPA nunca descia (`ceil(6 × 73/80) = 6`). Com 320Mi a memória pós-carga fica entre ~30% e ~45%, conforme a duração do teste. A descida até 1 réplica depende disso: de 2 para 1 a memória precisa estar abaixo de 37,5% (`ceil(2 × 37,5/75) = 1`). Com o teste padrão (2m15s) ela ficou em 34% e chegou a 1; após cargas longas pode parar em 2 até os pods serem recriados (`kubectl -n oficina rollout restart deployment/oficina-api`).
+
+### Reproduzir o escalonamento
+
+Em dois terminais (com o `KUBECONFIG` carregado):
+
+```powershell
+kubectl -n oficina get hpa oficina-api -w
+kubectl -n oficina get pods -l app.kubernetes.io/name=oficina-api -w
+```
+
+Em um terceiro, o teste de carga ([`k8s/loadtest/oficina.js`](loadtest/oficina.js), k6):
+
+```powershell
+.\k8s\loadtest\run-loadtest.ps1                       # padrão: 30 VUs, subida 30s, patamar 1m30s, descida 15s
+.\k8s\loadtest\run-loadtest.ps1 -TargetVus 60 -Hold 3m  # mais carga e patamar mais longo
+```
+
+O k6 roda como Job **dentro do cluster** (`grafana/k6`, imagem puxada do Docker Hub), contra o Service `oficina-api`. Assim a carga se distribui entre as réplicas; um `port-forward` prenderia tudo em um único pod. O script autentica com o token técnico, cria um serviço, uma peça e estoque, e mistura listagens (clientes, veículos, peças, ordens de serviço e métricas) com aberturas de OS (5%, variável `WRITE_RATIO`). Os e-mails dessas OS vão para o Mailpit. O threshold é `http_req_failed < 5%`.
 
 ## API (Deployment e Service)
 

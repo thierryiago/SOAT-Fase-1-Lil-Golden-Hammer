@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/part-of: oficina
     app.kubernetes.io/component: api
 spec:
-  replicas: 2
+  # Sem "replicas": quem define o número de réplicas é o HPA (hpa.yaml).
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -62,12 +62,15 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
           resources:
+            # O HPA mede memória em % deste request. Após carga o .NET mantém ~140Mi por pod (não devolve o
+            # heap); com 192Mi isso dava 73% e o HPA nunca descia. Com 320Mi fica ~45% e, com alvo de 75%,
+            # o scale down vai de 3 a 2 (de 2 a 1 só com a memória abaixo de 37,5%, ex.: pods recém-criados).
             requests:
               cpu: 100m
-              memory: 192Mi
+              memory: 320Mi
             limits:
               cpu: 500m
-              memory: 384Mi
+              memory: 512Mi
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
