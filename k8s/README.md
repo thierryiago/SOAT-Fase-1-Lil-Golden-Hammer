@@ -9,6 +9,9 @@ k8s/
   base/                  recursos comuns a todos os ambientes
     kustomization.yaml
     namespace.yaml       Namespace "oficina"
+    api/                 Deployment e Service da API
+    migrations/          Job de migrations (aplicado à parte, antes da API)
+    seed/                Job de seed opcional
   overlays/
     localstack/          cluster EKS criado pelo Terraform no LocalStack (único ambiente)
 ```
@@ -97,6 +100,31 @@ Para testar a conexão, confira o readiness da API, que consulta o Postgres (`ku
 
 > Se a porta do RDS mudar (instância recriada), rode `create-secrets.ps1` de novo e `kubectl -n oficina rollout restart deployment/oficina-api`.
 
+## Migrations
+
+O Job `oficina-migrations` roda a imagem `oficina-migrations` (target `migrations` do Dockerfile) com `ConnectionStrings__Database` vinda do Secret. A API **não** migra ao subir. O Job fica em kustomization própria, fora do deploy da API, porque a spec de um Job é imutável: o script apaga e recria o Job a cada execução e só então a API pode ser aplicada.
+
+Ordem do deploy: Terraform, kubeconfig, **Secret**, **migrations**, **API**, seed (opcional).
+
+```powershell
+.\k8s\scripts\create-secrets.ps1
+.\k8s\scriptsun-migrations.ps1      # recria o Job, espera complete ou failed, imprime os logs
+kubectl apply -k k8s/overlays/localstack
+```
+
+- `backoffLimit: 3`, `activeDeadlineSeconds: 300`, `restartPolicy: Never`, `ttlSecondsAfterFinished: 600` (10 min para `kubectl logs`).
+- Em falha (ou timeout) o script sai com código diferente de zero e imprime os logs, então um pipeline que o chame para antes de aplicar a API. O step do workflow de CD é da CICD-4 (#130) e reaproveita este script.
+- A imagem é idempotente: só aplica as migrations pendentes.
+- O pull do ECR não funciona dentro do k3d: importe a `oficina-migrations` nos nós como a da API (veja [Imagem](#imagem)), trocando o nome da imagem.
+
+### Seed (opcional, só demonstração)
+
+```powershell
+.\k8s\scriptsun-seed.ps1
+```
+
+Cria o ConfigMap `oficina-seed` a partir de [`seed-data.sql`](../seed-data.sql) e roda o Job `oficina-seed` (`psql`). O arquivo usa `ON CONFLICT DO NOTHING`, então pode ser repetido sem duplicar dados. Nunca roda no deploy.
+
 ## API (Deployment e Service)
 
 `base/api/` define o Deployment e o Service `oficina-api` (ClusterIP, porta 80 → 8080). Pré-requisito: o Secret `oficina-secrets` (veja acima); sem ele os pods ficam em `CreateContainerConfigError`.
@@ -117,12 +145,17 @@ O manifest usa `image: oficina-api` e o overlay resolve nome e tag em `images`, 
 > **Pull do ECR no LocalStack:** dentro dos nós do k3d o hostname `*.localhost.localstack.cloud` resolve para `127.0.0.1`, então o `kubelet` não consegue puxar a imagem (`ImagePullBackOff`, `connection refused` em `127.0.0.1:4566`), apesar de o push pelo host funcionar. Contorno: importar a imagem nos nós com o **mesmo nome** do ECR; como o `imagePullPolicy` é `IfNotPresent`, o manifest continua igual ao de uma AWS real.
 >
 > ```powershell
-> $img = "000000000000.dkr.ecr.us-east-1.localhost.localstack.cloud:4566/oficina-api:dev"
-> docker tag oficina-api:dev $img
-> foreach ($n in docker ps --format "{{.Names}}" | Select-String "k3d-oficina-local-.*(agent|server-0)") {
->   docker save $img | docker exec -i $n ctr -n k8s.io images import -
+> $reg = "000000000000.dkr.ecr.us-east-1.localhost.localstack.cloud:4566"
+> $nodes = docker ps --format "{{.Names}}" | Select-String "k3d-oficina-local-.*(agent|server-0)"
+> foreach ($name in "oficina-api", "oficina-migrations") {
+>   docker tag "${name}:dev" "$reg/${name}:dev"
+>   foreach ($n in $nodes) {
+>     cmd /c "docker save $reg/${name}:dev | docker exec -i $n ctr -n k8s.io images import -"
+>   }
 > }
 > ```
+>
+> O `cmd /c` é necessário: no Windows PowerShell 5.1 o pipe nativo converte os bytes e o `ctr` falha com `invalid tar header`.
 >
 
 ### Verificar
