@@ -30,10 +30,18 @@ while ((Get-Date) -lt $deadline) {
 }
 $ErrorActionPreference = "Stop"
 
-kubectl -n $Namespace logs "job/$job" --all-containers=true 2>&1 | ForEach-Object { Write-Host $_ }
-
-switch ($result) {
-    "complete" { Write-Host "Migrations aplicadas com sucesso."; return }
-    "failed" { Write-Error "A migração falhou (logs acima). O deploy deve ser interrompido."; exit 1 }
-    default { Write-Error "Tempo esgotado ($TimeoutSeconds s) esperando o Job de migrations."; exit 1 }
+# Logs só existem se o pod chegou a iniciar; sem eles, mostra o estado e os eventos (ex.: imagem ausente).
+$ErrorActionPreference = "Continue"
+$logs = kubectl -n $Namespace logs "job/$job" --all-containers=true 2>&1
+if ($LASTEXITCODE -eq 0) {
+    $logs | ForEach-Object { Write-Host $_ }
 }
+elseif ($result -ne "complete") {
+    kubectl -n $Namespace get pods -l "job-name=$job" 2>&1 | ForEach-Object { Write-Host $_ }
+    kubectl -n $Namespace get events --field-selector "involvedObject.kind=Pod" --sort-by=.lastTimestamp 2>&1 |
+        Select-Object -Last 8 | ForEach-Object { Write-Host $_ }
+}
+
+if ($result -eq "complete") { Write-Host "Migrations aplicadas com sucesso."; exit 0 }
+if ($result -eq "failed") { [Console]::Error.WriteLine("A migração falhou (logs acima). O deploy deve ser interrompido."); exit 1 }
+[Console]::Error.WriteLine("Tempo esgotado ($TimeoutSeconds s) esperando o Job de migrations."); exit 1

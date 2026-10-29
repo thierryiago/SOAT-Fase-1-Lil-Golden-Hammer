@@ -145,12 +145,17 @@ O manifest usa `image: oficina-api` e o overlay resolve nome e tag em `images`, 
 > **Pull do ECR no LocalStack:** dentro dos nós do k3d o hostname `*.localhost.localstack.cloud` resolve para `127.0.0.1`, então o `kubelet` não consegue puxar a imagem (`ImagePullBackOff`, `connection refused` em `127.0.0.1:4566`), apesar de o push pelo host funcionar. Contorno: importar a imagem nos nós com o **mesmo nome** do ECR; como o `imagePullPolicy` é `IfNotPresent`, o manifest continua igual ao de uma AWS real.
 >
 > ```powershell
-> $img = "000000000000.dkr.ecr.us-east-1.localhost.localstack.cloud:4566/oficina-api:dev"
-> docker tag oficina-api:dev $img
-> foreach ($n in docker ps --format "{{.Names}}" | Select-String "k3d-oficina-local-.*(agent|server-0)") {
->   docker save $img | docker exec -i $n ctr -n k8s.io images import -
+> $reg = "000000000000.dkr.ecr.us-east-1.localhost.localstack.cloud:4566"
+> $nodes = docker ps --format "{{.Names}}" | Select-String "k3d-oficina-local-.*(agent|server-0)"
+> foreach ($name in "oficina-api", "oficina-migrations") {
+>   docker tag "${name}:dev" "$reg/${name}:dev"
+>   foreach ($n in $nodes) {
+>     cmd /c "docker save $reg/${name}:dev | docker exec -i $n ctr -n k8s.io images import -"
+>   }
 > }
 > ```
+>
+> O `cmd /c` é necessário: no Windows PowerShell 5.1 o pipe nativo converte os bytes e o `ctr` falha com `invalid tar header`.
 >
 
 ### Verificar
