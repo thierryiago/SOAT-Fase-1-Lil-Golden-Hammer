@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Oficina.Application.Budgets;
 using Oficina.Application.Notifications;
 using Oficina.Infrastructure.Notifications;
@@ -43,7 +44,7 @@ public sealed class NotificationsTests
     public async Task SendBudgetAwaitingApproval_should_send_budget_as_html_with_decision_buttons()
     {
         var sender = new FakeEmailSender();
-        var useCase = new SendBudgetAwaitingApproval(sender);
+        var useCase = new SendBudgetAwaitingApproval(sender, CreateDecisionLinks());
         var budget = new BudgetResponse(
             Guid.NewGuid(),
             Guid.NewGuid(),
@@ -68,10 +69,10 @@ public sealed class NotificationsTests
         Assert.Contains("<li>Troca de oleo | Preço unitário: 100.00</li>", sender.Body);
         Assert.Contains("Valor total:</strong> 120.00", sender.Body);
         Assert.Contains(
-            $"href=\"https://localhost:5001/api/v1/notifications/approveBudget?budgetId={budget.Id}\"",
+            $"href=\"https://oficina.example.test/api/v1/notifications/approveBudget?budgetId={budget.Id}\"",
             sender.Body);
         Assert.Contains(
-            $"href=\"https://localhost:5001/api/v1/notifications/rejectBudget?budgetId={budget.Id}\"",
+            $"href=\"https://oficina.example.test/api/v1/notifications/rejectBudget?budgetId={budget.Id}\"",
             sender.Body);
         Assert.Contains(">Aprovar orçamento</a>", sender.Body);
         Assert.Contains(">Rejeitar orçamento</a>", sender.Body);
@@ -81,7 +82,7 @@ public sealed class NotificationsTests
     public async Task SendBudgetAwaitingApproval_should_list_none_when_budget_has_no_items()
     {
         var sender = new FakeEmailSender();
-        var useCase = new SendBudgetAwaitingApproval(sender);
+        var useCase = new SendBudgetAwaitingApproval(sender, CreateDecisionLinks());
         var budget = new BudgetResponse(
             Guid.NewGuid(),
             Guid.NewGuid(),
@@ -177,7 +178,7 @@ public sealed class NotificationsTests
     private static NotificationEmailSender CreateNotificationEmailSender(IEmailTransport emailTransport) =>
         new(
             new SendEmailNotification(emailTransport),
-            new SendBudgetAwaitingApproval(emailTransport),
+            new SendBudgetAwaitingApproval(emailTransport, CreateDecisionLinks()),
             new SendVehicleReadyForPickup(emailTransport),
             new SendServiceOrderStatus(emailTransport));
 
@@ -209,7 +210,7 @@ public sealed class NotificationsTests
             DateTimeOffset.UnixEpoch, null, 10m,
             [new BudgetPartResponse(Guid.NewGuid(), Guid.NewGuid(), "<script>peça</script>", 1, 10m)], []);
 
-        await new SendBudgetAwaitingApproval(sender).SendBudgetAwaitingApprovalAsync(context.CustomerName,
+        await new SendBudgetAwaitingApproval(sender, CreateDecisionLinks()).SendBudgetAwaitingApprovalAsync(context.CustomerName,
             context.CustomerEmail, budget, CancellationToken.None, context);
 
         Assert.DoesNotContain("<script>", sender.Body);
@@ -217,6 +218,9 @@ public sealed class NotificationsTests
         Assert.Contains("&lt;script&gt;", sender.Body);
         Assert.Contains("&lt;b&gt;marca&lt;/b&gt;", sender.Body);
     }
+
+    private static BudgetDecisionLinks CreateDecisionLinks() =>
+        new(Options.Create(new AppOptions { PublicBaseUrl = "https://oficina.example.test/" }));
 
     private sealed class FakeEmailSender : IEmailTransport
     {

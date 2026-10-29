@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Oficina.Application.Budgets;
 using Oficina.Application.Customers;
 using Oficina.Application.Mechanics;
@@ -39,6 +40,11 @@ public static class DependencyInjection
         services.AddScoped<IMetricExecutionTimeRepository, MetricExecutionTimeRepository>();
         services.AddScoped<IBudgetRepository, BudgetRepository>();
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+        services.AddSingleton<IValidateOptions<AppOptions>, AppOptionsValidator>();
+        services.AddOptions<AppOptions>()
+            .BindConfiguration(AppOptions.SectionName)
+            .ValidateOnStart();
+        services.AddSingleton<BudgetDecisionLinks>();
         services.AddScoped<IEmailTransport, SmtpEmailTransport>();
         services.AddScoped<SendServiceOrderStatus>();
         services.AddScoped<SendEmailNotification>();

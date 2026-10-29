@@ -1006,7 +1006,9 @@ public sealed partial class ServiceOrderContractTests
     private static NotificationEmailSender CreateNotificationEmailSender(IEmailTransport emailTransport) =>
         new(
             new SendEmailNotification(emailTransport),
-            new SendBudgetAwaitingApproval(emailTransport),
+            new SendBudgetAwaitingApproval(emailTransport,
+                new BudgetDecisionLinks(Microsoft.Extensions.Options.Options.Create(
+                    new AppOptions { PublicBaseUrl = "https://oficina.example.test" }))),
             new SendVehicleReadyForPickup(emailTransport),
             new SendServiceOrderStatus(emailTransport));
 
