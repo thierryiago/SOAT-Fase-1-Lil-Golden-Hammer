@@ -143,7 +143,7 @@ kubectl -n oficina port-forward svc/mailpit 8025:8025        # UI do Mailpit: ht
 
 ## Autoscaling e teste de carga
 
-O `HorizontalPodAutoscaler` [`oficina-api`](base/api/hpa.yaml) (`autoscaling/v2`) escala o Deployment pela utilização **relativa aos `requests`** (CPU 100m e memória 192Mi):
+O `HorizontalPodAutoscaler` [`oficina-api`](base/api/hpa.yaml) (`autoscaling/v2`) escala o Deployment pela utilização **relativa aos `requests`** (CPU 100m e memória 320Mi):
 
 | Item | Valor |
 |---|---|
@@ -155,7 +155,7 @@ O `HorizontalPodAutoscaler` [`oficina-api`](base/api/hpa.yaml) (`autoscaling/v2`
 
 - O Deployment **não declara `replicas`**: com o HPA ativo, um valor fixo seria reaplicado a cada `kubectl apply`.
 - O `metrics-server` já vem no k3d do LocalStack (`kubectl top nodes` e `kubectl top pods -n oficina` funcionam); nenhum addon é instalado.
-- Em repouso a memória fica em ~90 a 120Mi por pod (~50% do request), abaixo do alvo de 80%, então o HPA não permanece "escalado" sem carga.
+- **Request de memória de 320Mi por causa do HPA:** depois de uma carga o .NET mantém ~140Mi por pod (não devolve o heap). Com o request anterior de 192Mi isso era 73% e o HPA nunca descia (`ceil(6 × 73/80) = 6`); com 256Mi ficaria preso em 3 (`ceil(3 × 55/80) = 3`). Com 320Mi (~44%) o scale down chega ao mínimo de 2.
 
 ### Reproduzir o escalonamento
 

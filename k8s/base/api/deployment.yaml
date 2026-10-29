@@ -62,12 +62,15 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
           resources:
+            # O HPA mede memória em % deste request. Após carga o .NET mantém ~140Mi por pod (não devolve o
+            # heap); com 192Mi isso dava 73% e o HPA nunca descia (ceil(6 x 73/80) = 6). Com 320Mi fica ~44%
+            # e o scale down chega ao mínimo de 2.
             requests:
               cpu: 100m
-              memory: 192Mi
+              memory: 320Mi
             limits:
               cpu: 500m
-              memory: 384Mi
+              memory: 512Mi
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
