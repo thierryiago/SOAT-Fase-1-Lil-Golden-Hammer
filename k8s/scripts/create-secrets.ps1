@@ -62,6 +62,12 @@ if (-not $conn) {
     $replaceHost = $true
 }
 if ($replaceHost) { $conn = $conn -replace "Host=[^;]*", "Host=$DbHost" }
+# O proxy Postgres do LocalStack derruba a porta do RDS quando um handshake TLS é abortado (ssl.SSLEOFError),
+# o que acontece sob carga com o SSL Mode=Prefer padrão do Npgsql. O banco é emulado e local, então o TLS é
+# desligado na string vinda do Terraform; uma string definida em variável de ambiente é usada como está.
+if (-not [Environment]::GetEnvironmentVariable("ConnectionStrings__Database") -and $conn -notmatch "SSL ?Mode=") {
+    $conn = $conn.TrimEnd(";") + ";SSL Mode=Disable"
+}
 $values["ConnectionStrings__Database"] = $conn
 
 # --- Chaves da aplicação ---
