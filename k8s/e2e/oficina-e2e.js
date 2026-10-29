@@ -132,7 +132,18 @@ function expectStatus(expected) {
   return (json) => (json && json.status === expected ? null : `status da OS ${json && json.status}, esperado ${expected}`);
 }
 
-const MAIN_FLOW_STATUSES = ['Created', 'Received', 'InDiagnosis', 'AwaitingApproval', 'InExecution', 'Finalized', 'Delivered'];
+// A abertura simples (POST /service-orders) não registra "Created" no histórico, só as transições seguintes;
+// a abertura com itens registra "Created" e o caminho até a aprovação.
+const MAIN_FLOW_HISTORY = ['Received', 'InDiagnosis', 'AwaitingApproval', 'InExecution', 'Finalized', 'Delivered'];
+const WITH_ITEMS_HISTORY = ['Created', 'Received', 'InDiagnosis', 'AwaitingApproval'];
+
+function expectHistory(expected) {
+  return (json) => {
+    const recorded = (json || []).map((entry) => entry.statusName);
+    const missing = expected.filter((status) => !recorded.includes(status));
+    return missing.length === 0 ? null : `faltam no histórico: ${missing.join(', ')}`;
+  };
+}
 
 function runFlow(flow) {
   const suffix = `${Date.now()}`;
@@ -214,14 +225,10 @@ function runFlow(flow) {
     }));
   }
 
-  flow.then([order], 'Histórico', 'Histórico com os 7 status', () => flow.call({
-    group: 'Histórico', name: 'Histórico com os 7 status', method: 'GET',
+  flow.then([order], 'Histórico', 'Histórico com as 6 transições', () => flow.call({
+    group: 'Histórico', name: 'Histórico com as 6 transições', method: 'GET',
     path: `/api/v1/service-order-history/service-order/${orderId}`, expectedStatus: 200,
-    validate: (json) => {
-      const recorded = (json || []).map((entry) => entry.statusName);
-      const missing = MAIN_FLOW_STATUSES.filter((status) => !recorded.includes(status));
-      return missing.length === 0 ? null : `faltam no histórico: ${missing.join(', ')}`;
-    },
+    validate: expectHistory(MAIN_FLOW_HISTORY),
   }));
   flow.then([order], 'Histórico', 'Acompanhamento público pelo documento', () => flow.call({
     group: 'Histórico', name: 'Acompanhamento público pelo documento', method: 'GET',
@@ -229,7 +236,7 @@ function runFlow(flow) {
     validate: expectStatus('Delivered'),
   }));
 
-  flow.then([customer, vehicle, service, stock], 'OS com itens', 'Abrir OS com serviço e 2 peças', () => flow.call({
+  const orderWithItems = flow.then([customer, vehicle, service, stock], 'OS com itens', 'Abrir OS com serviço e 2 peças', () => flow.call({
     group: 'OS com itens', name: 'Abrir OS com serviço e 2 peças', method: 'POST', path: '/api/v1/service-orders/with-items',
     expectedStatus: 201,
     body: {
@@ -237,6 +244,11 @@ function runFlow(flow) {
       workshopServiceIds: [service.id], parts: [{ partId: part.id, quantity: 2 }],
     },
     validate: expectStatus('AwaitingApproval'),
+  }));
+  flow.then([orderWithItems], 'OS com itens', 'Histórico da abertura (Created → AwaitingApproval)', () => flow.call({
+    group: 'OS com itens', name: 'Histórico da abertura (Created → AwaitingApproval)', method: 'GET',
+    path: `/api/v1/service-order-history/service-order/${orderWithItems.id}`, expectedStatus: 200,
+    validate: expectHistory(WITH_ITEMS_HISTORY),
   }));
   flow.then([stock], 'OS com itens', 'Consultar estoque da peça', () => flow.call({
     group: 'OS com itens', name: 'Consultar estoque da peça', method: 'GET', path: `/api/v1/stocks/${stock.id}`,
