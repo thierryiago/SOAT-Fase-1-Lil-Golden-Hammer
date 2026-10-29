@@ -5,7 +5,8 @@ name: Publish images
 
 on:
   push:
-    branches: [main]
+    # TEMPORÁRIO (#158): valida a publicação antes do merge; remover antes de mergear o PR.
+    branches: [main, feature/dockerhub-issue-158]
   workflow_dispatch:
     inputs:
       tag:
