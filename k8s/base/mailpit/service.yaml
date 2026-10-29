@@ -1,0 +1,21 @@
+# Só ClusterIP: a UI não tem autenticação e mostra e-mails de clientes, então não é exposta fora do
+# cluster (acesso por kubectl port-forward).
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailpit
+  labels:
+    app.kubernetes.io/name: mailpit
+    app.kubernetes.io/part-of: oficina
+    app.kubernetes.io/component: mail
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: mailpit
+  ports:
+    - name: smtp
+      port: 1025
+      targetPort: smtp
+    - name: ui
+      port: 8025
+      targetPort: ui

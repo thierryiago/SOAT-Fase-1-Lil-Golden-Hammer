@@ -10,12 +10,16 @@ labels:
       app.kubernetes.io/environment: localstack
     includeSelectors: false
 
+patches:
+  - path: service-lb-patch.yaml
+
 configMapGenerator:
   - name: oficina-config
     behavior: merge
     literals:
       - ASPNETCORE_ENVIRONMENT=Production
-      # Placeholder: o endereço público definitivo é definido na K8S-7 (#121).
+      # Endereço público da API = o do kubectl port-forward (o EXTERNAL-IP do LoadBalancer fica <pending> no k3d
+      # do LocalStack). É o que aparece nos links de aprovação/rejeição dos e-mails.
       - App__PublicBaseUrl=http://localhost:8080
 
 images:
