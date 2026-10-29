@@ -1,4 +1,4 @@
-# Escala a API por CPU e memória. A utilização é relativa aos "requests" do Deployment (100m / 192Mi).
+# Escala a API por CPU e memória. A utilização é relativa aos "requests" do Deployment (100m / 320Mi).
 # Com o HPA ativo o Deployment não declara "replicas" (senão cada apply voltaria ao valor fixo).
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -13,8 +13,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: oficina-api
-  minReplicas: 2
-  maxReplicas: 6
+  minReplicas: 1
+  maxReplicas: 3
   metrics:
     - type: Resource
       resource:
@@ -27,7 +27,7 @@ spec:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 80
+          averageUtilization: 75
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0

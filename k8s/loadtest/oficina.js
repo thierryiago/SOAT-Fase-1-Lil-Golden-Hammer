@@ -14,9 +14,9 @@ const VEHICLE_PLATE = __ENV.VEHICLE_PLATE || 'ABC-1234';
 
 export const options = {
   stages: [
-    { duration: __ENV.RAMP_UP || '1m', target: TARGET_VUS },
-    { duration: __ENV.HOLD || '3m', target: TARGET_VUS },
-    { duration: __ENV.RAMP_DOWN || '30s', target: 0 },
+    { duration: __ENV.RAMP_UP || '30s', target: TARGET_VUS },
+    { duration: __ENV.HOLD || '1m30s', target: TARGET_VUS },
+    { duration: __ENV.RAMP_DOWN || '15s', target: 0 },
   ],
   thresholds: {
     http_req_failed: ['rate<0.05'],

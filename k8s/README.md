@@ -147,15 +147,15 @@ O `HorizontalPodAutoscaler` [`oficina-api`](base/api/hpa.yaml) (`autoscaling/v2`
 
 | Item | Valor |
 |---|---|
-| Réplicas | mínimo 2, máximo 6 |
+| Réplicas | mínimo 1, máximo 3 |
 | CPU | alvo de 70% |
-| Memória | alvo de 80% |
+| Memória | alvo de 75% |
 | Scale up | sem estabilização, até 2 pods a cada 30 s |
 | Scale down | estabilização de 120 s (o padrão é 300 s e alonga a demonstração), 1 pod a cada 60 s |
 
 - O Deployment **não declara `replicas`**: com o HPA ativo, um valor fixo seria reaplicado a cada `kubectl apply`.
 - O `metrics-server` já vem no k3d do LocalStack (`kubectl top nodes` e `kubectl top pods -n oficina` funcionam); nenhum addon é instalado.
-- **Request de memória de 320Mi por causa do HPA:** depois de uma carga o .NET mantém ~140Mi por pod (não devolve o heap). Com o request anterior de 192Mi isso era 73% e o HPA nunca descia (`ceil(6 × 73/80) = 6`); com 256Mi ficaria preso em 3 (`ceil(3 × 55/80) = 3`). Com 320Mi (~44%) o scale down chega ao mínimo de 2.
+- **Request de memória de 320Mi por causa do HPA:** depois de uma carga o .NET mantém ~140Mi por pod (não devolve o heap). Com o request anterior de 192Mi isso era 73% e o HPA nunca descia. Com 320Mi fica ~45%: pela memória, `ceil(3 × 45/75) = 2`, então a descida vai de 3 a 2. **De 2 a 1 ela para**, porque `ceil(2 × 45/75) = 2`; só chega a 1 com a memória abaixo de 37,5% (~120Mi por pod), por exemplo depois que os pods forem recriados (`kubectl -n oficina rollout restart deployment/oficina-api`).
 
 ### Reproduzir o escalonamento
 
@@ -169,8 +169,8 @@ kubectl -n oficina get pods -l app.kubernetes.io/name=oficina-api -w
 Em um terceiro, o teste de carga ([`k8s/loadtest/oficina.js`](loadtest/oficina.js), k6):
 
 ```powershell
-.\k8s\loadtest\run-loadtest.ps1                       # padrão: 30 VUs, subida 1m, patamar 3m, descida 30s
-.\k8s\loadtest\run-loadtest.ps1 -TargetVus 60 -Hold 3m  # mais carga
+.\k8s\loadtest\run-loadtest.ps1                       # padrão: 30 VUs, subida 30s, patamar 1m30s, descida 15s
+.\k8s\loadtest\run-loadtest.ps1 -TargetVus 60 -Hold 3m  # mais carga e patamar mais longo
 ```
 
 O k6 roda como Job **dentro do cluster** (`grafana/k6`, imagem puxada do Docker Hub), contra o Service `oficina-api`. Assim a carga se distribui entre as réplicas; um `port-forward` prenderia tudo em um único pod. O script autentica com o token técnico, cria um serviço, uma peça e estoque, e mistura listagens (clientes, veículos, peças, ordens de serviço e métricas) com aberturas de OS (5%, variável `WRITE_RATIO`). Os e-mails dessas OS vão para o Mailpit. O threshold é `http_req_failed < 5%`.

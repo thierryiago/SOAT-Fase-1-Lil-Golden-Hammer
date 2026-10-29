@@ -36,11 +36,11 @@ spec:
             - name: TARGET_VUS
               value: "30"
             - name: RAMP_UP
-              value: "1m"
-            - name: HOLD
-              value: "3m"
-            - name: RAMP_DOWN
               value: "30s"
+            - name: HOLD
+              value: "1m30s"
+            - name: RAMP_DOWN
+              value: "15s"
           volumeMounts:
             - name: scripts
               mountPath: /scripts

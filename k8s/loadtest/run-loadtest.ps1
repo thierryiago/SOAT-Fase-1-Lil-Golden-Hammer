@@ -1,12 +1,12 @@
 # Roda o teste de carga (k6) dentro do cluster e mostra o resultado. Para ver o HPA reagir, abra antes
 # em outros terminais:  kubectl -n oficina get hpa oficina-api -w   e   kubectl -n oficina get pods -w
-# Uso: .\k8s\loadtest\run-loadtest.ps1 [-TargetVus 30] [-RampUp 1m] [-Hold 3m] [-RampDown 30s]
+# Uso: .\k8s\loadtest\run-loadtest.ps1 [-TargetVus 30] [-RampUp 30s] [-Hold 1m30s] [-RampDown 15s]
 param(
     [string]$Namespace = "oficina",
     [int]$TargetVus = 30,
-    [string]$RampUp = "1m",
-    [string]$Hold = "3m",
-    [string]$RampDown = "30s"
+    [string]$RampUp = "30s",
+    [string]$Hold = "1m30s",
+    [string]$RampDown = "15s"
 )
 
 $ErrorActionPreference = "Stop"
