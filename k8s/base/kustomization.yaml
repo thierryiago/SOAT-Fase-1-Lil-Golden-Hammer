@@ -6,6 +6,7 @@ namespace: oficina
 resources:
   - namespace.yaml
   - api
+  - mailpit
 
 # Valores não sensíveis da API. O Kustomize acrescenta um hash ao nome (oficina-config-<hash>)
 # e reescreve as referências, então mudar um valor dispara rollout. Os valores sensíveis ficam
