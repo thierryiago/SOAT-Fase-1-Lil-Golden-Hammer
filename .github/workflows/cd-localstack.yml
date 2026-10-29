@@ -134,16 +134,12 @@ jobs:
 
       - name: Conectar o LocalStack à rede do k3d
         # O setup-localstack publica as portas só em 127.0.0.1, então host.k3d.internal (gateway da rede do k3d)
-        # não alcança o RDS. Na rede do cluster (o LocalStack costuma já se ligar a ela ao criar o EKS),
-        # o container do LocalStack é acessado pelo IP dele nela.
+        # não alcança o RDS. Ligado à rede do cluster, o container do LocalStack é acessado pelo IP dele nela.
         run: |
           set -euo pipefail
-          networks() { docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{println $k}}{{end}}' "$1"; }
           server=$(docker ps --format '{{.Names}}' | grep -E 'k3d-oficina-local-.*server-0' | head -1)
-          net=$(networks "$server" | grep '^k3d-' | head -1)
-          if ! networks localstack-main | grep -qx "$net"; then
-            docker network connect "$net" localstack-main
-          fi
+          net=$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{println $k}}{{end}}' "$server" | grep '^k3d-' | head -1)
+          docker network connect "$net" localstack-main
           ip=$(docker inspect -f "{{(index .NetworkSettings.Networks \"$net\").IPAddress}}" localstack-main)
           echo "Rede $net, LocalStack em $ip"
           echo "LOCALSTACK_CLUSTER_IP=$ip" >> "$GITHUB_ENV"
@@ -175,6 +171,21 @@ jobs:
             http://oficina-api.oficina.svc.cluster.local/health/ready
           echo
           kubectl -n oficina get pods,svc,hpa
+
+      - name: Teste de ponta a ponta na API
+        # Fluxo de negócio completo de dentro do cluster (banco, migrations, API e SMTP); o resumo vai para
+        # a página da execução e o relatório HTML para o artifact relatorio-e2e.
+        shell: pwsh
+        run: ./k8s/e2e/run-e2e.ps1 -OutDir (Join-Path $env:RUNNER_TEMP "e2e")
+
+      - name: Publicar relatório de ponta a ponta
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-e2e
+          path: ${{ runner.temp }}/e2e
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Coletar diagnósticos
         if: failure()
