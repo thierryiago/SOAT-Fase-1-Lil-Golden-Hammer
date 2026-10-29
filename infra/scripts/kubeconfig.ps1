@@ -17,6 +17,9 @@ $port = (docker port $lb 6443/tcp | Select-Object -First 1).Split(":")[-1]
 
 docker exec $server cat /etc/rancher/k3s/k3s.yaml |
     ForEach-Object { $_ -replace "server: .*", "server: https://127.0.0.1:$port" } |
+    # O k3s nomeia cluster, usuário e contexto como "default"; ferramentas como o Headlamp identificam
+    # o cluster por esse nome e confundem este com outros (ou com uma execução anterior, de outra porta).
+    ForEach-Object { $_ -replace "^(\s*-?\s*(name|cluster|user|current-context):\s*)default\s*$", "`$1$ClusterName" } |
     Set-Content -Encoding ascii $OutFile
 
 $env:KUBECONFIG = $OutFile
