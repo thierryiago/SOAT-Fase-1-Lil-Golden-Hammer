@@ -1,7 +1,7 @@
 # Recria o Job de migrations e espera o resultado. Sai com código != 0 (e imprime os logs) se a
 # migração falhar ou estourar o tempo, para o deploy não seguir para a API.
 # Uso: .\k8s\scripts\run-migrations.ps1            (com KUBECONFIG apontando para o cluster)
-# Pré-requisitos: Secret oficina-secrets (create-secrets.ps1) e a imagem oficina-migrations nos nós.
+# Pré-requisitos: Secrets oficina-secrets (create-secrets.ps1) e dockerhub-pull (create-pull-secret.ps1).
 param(
     [string]$Namespace = "oficina",
     [int]$TimeoutSeconds = 300

@@ -21,7 +21,8 @@ docker run -d --name localstack -p 4566:4566 -p 4510-4559:4510-4559 -e LOCALSTAC
 | `iam.tf` | IAM roles do cluster EKS e do node group (criadas pelo Terraform) |
 | `eks.tf` | Cluster EKS e node group |
 | `rds.tf` | PostgreSQL 16 (`aws_db_instance`), subnet group, security group, senha (`random_password`) |
-| `ecr.tf` | Repositórios `oficina-api` e `oficina-migrations`, com lifecycle de 10 imagens |
+| `ecr.tf` | Repositórios ECR **opcionais** (`create_ecr`, desligado por padrão) |
+| `images.tf` | Repositório das imagens no Docker Hub e o output `app_images` |
 
 ## Ordem de execução
 
@@ -34,7 +35,7 @@ docker run -d --name localstack -p 4566:4566 -p 4510-4559:4510-4559 -e LOCALSTAC
    terraform -chdir=infra/bootstrap apply
    ```
 
-2. **Infra** — VPC, IAM, cluster EKS, node group, banco RDS e repositórios ECR:
+2. **Infra** — VPC, IAM, cluster EKS, node group e banco RDS:
 
    ```bash
    cp infra/terraform.tfvars.example infra/terraform.tfvars   # opcional
@@ -82,27 +83,18 @@ docker run --rm -e PGPASSWORD=$env:PGPASSWORD postgres:16-alpine psql -h host.do
 
 Sem a faixa publicada, use a rede do container: `docker run --rm --network container:localstack ... psql -h localhost ...`.
 
-## ECR no LocalStack
+## Imagens da aplicação
 
-Decisão: os repositórios são criados **pelo Terraform no próprio LocalStack** (`aws_ecr_repository`, com `scan_on_push` e lifecycle policy de 10 imagens). O fallback com `registry:2` só será necessário se o ECR não estiver disponível no plano do LocalStack (`ecr` em `/_localstack/health`); nesse caso mantenha a URL do repositório configurável. **Status: o código passa em `terraform validate`, mas push e pull ainda não foram validados contra um LocalStack real.**
+As imagens da API e de migrations ficam num repositório **privado** do Docker Hub (`thierryiago27/fiap-oficina-image-docker-hub`), separadas por tag (`api-<sha7>`, `migrations-<sha7>`), publicadas pelo workflow `publish-images.yml`. O Terraform não implanta workloads; ele só expõe as referências:
 
 ```bash
-terraform -chdir=infra output ecr_repository_urls
+terraform -chdir=infra output app_images                      # null sem tag
+terraform -chdir=infra apply -var app_image_tag=<sha7>       # o CD informa a tag
 ```
 
-No LocalStack a URL tem o formato `<account>.dkr.ecr.us-east-1.localhost.localstack.cloud:4566/<repo>`. Login, build e push (o LocalStack não valida a senha):
+O pull no cluster usa o Secret `dockerhub-pull` (veja `k8s/README.md`, seção Imagem).
 
-```powershell
-$api = (terraform -chdir=infra output -json ecr_repository_urls | ConvertFrom-Json).'oficina-api'
-$mig = (terraform -chdir=infra output -json ecr_repository_urls | ConvertFrom-Json).'oficina-migrations'
-docker login -u AWS -p x ($api -split '/')[0]
-docker build -t oficina-api:dev .
-docker build --target migrations -t oficina-migrations:dev .
-docker tag oficina-api:dev "${api}:dev";        docker push "${api}:dev"
-docker tag oficina-migrations:dev "${mig}:dev"; docker push "${mig}:dev"
-```
-
-O cluster (k3d do LocalStack) acessa o ECR pela rede Docker; use `image: <url>:dev` nos manifests. A policy `AmazonEC2ContainerRegistryReadOnly` já está anexada à role dos nodes.
+**ECR:** ficou opcional (`create_ecr = false`). No LocalStack o `kubelet` do k3d não consegue puxar do ECR emulado (o hostname `*.localhost.localstack.cloud` resolve para `127.0.0.1` dentro do nó). Numa AWS real o ECR continua sendo o caminho idiomático para EKS: ligue `create_ecr`, troque o `newName` dos overlays e faça login no ECR no CD. A policy `AmazonEC2ContainerRegistryReadOnly` continua anexada à role dos nodes para esse caso.
 
 ## Outputs e Secret do Kubernetes
 

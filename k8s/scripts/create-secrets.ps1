@@ -88,7 +88,7 @@ if ($DryRun) {
 }
 
 # Garante o Namespace e cria/atualiza o Secret sem passar valores pela linha de comando.
-# Só o Namespace: aplicar a base inteira criaria a API com a imagem sem o nome do ECR (ImagePullBackOff).
+# Só o Namespace: aplicar a base inteira criaria a API com a imagem sem o nome do registry (ImagePullBackOff).
 kubectl apply -f (Join-Path $root "k8s/base/namespace.yaml") | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Falha ao aplicar o Namespace." }
 
