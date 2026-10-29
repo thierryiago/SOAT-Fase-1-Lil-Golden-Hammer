@@ -132,6 +132,18 @@ jobs:
           $env:KUBECONFIG = $out
           kubectl get nodes -o wide
 
+      - name: Conectar o LocalStack à rede do k3d
+        # O setup-localstack publica as portas só em 127.0.0.1, então host.k3d.internal (gateway da rede do k3d)
+        # não alcança o RDS. Ligado à rede do cluster, o container do LocalStack é acessado pelo IP dele nela.
+        run: |
+          set -euo pipefail
+          server=$(docker ps --format '{{.Names}}' | grep -E 'k3d-oficina-local-.*server-0' | head -1)
+          net=$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{println $k}}{{end}}' "$server" | grep '^k3d-' | head -1)
+          docker network connect "$net" localstack-main
+          ip=$(docker inspect -f "{{(index .NetworkSettings.Networks \"$net\").IPAddress}}" localstack-main)
+          echo "Rede $net, LocalStack em $ip"
+          echo "LOCALSTACK_CLUSTER_IP=$ip" >> "$GITHUB_ENV"
+
       - name: Secrets, migrations e deploy
         shell: pwsh
         env:
@@ -139,7 +151,7 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           $ErrorActionPreference = "Stop"
-          ./k8s/scripts/create-secrets.ps1
+          ./k8s/scripts/create-secrets.ps1 -DbHost $env:LOCALSTACK_CLUSTER_IP
           ./k8s/scripts/create-pull-secret.ps1
           ./k8s/scripts/run-migrations.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -165,8 +177,8 @@ jobs:
         run: |
           d="$RUNNER_TEMP/diagnosticos"; mkdir -p "$d"
           docker ps -a > "$d/docker-ps.txt" 2>&1 || true
-          docker logs localstack > "$d/localstack.log" 2>&1 || true
-          docker exec localstack sh -c 'ss -ltn' > "$d/localstack-portas.txt" 2>&1 || true
+          docker logs localstack-main > "$d/localstack.log" 2>&1 || true
+          docker exec localstack-main sh -c 'ss -ltn' > "$d/localstack-portas.txt" 2>&1 || true
           curl -s localhost:4566/_localstack/health > "$d/localstack-health.json" 2>&1 || true
           if [ -n "${KUBECONFIG:-}" ]; then
             kubectl get pods -A -o wide > "$d/pods.txt" 2>&1 || true
