@@ -11,7 +11,7 @@ labels:
     includeSelectors: false
 
 images:
-  # URL do output ecr_repository_urls; o CD sobrescreve a tag.
+  # Mesmo repositório privado do Docker Hub, tag migrations-<sha7>; o CD sobrescreve a tag.
   - name: oficina-migrations
-    newName: 000000000000.dkr.ecr.us-east-1.localhost.localstack.cloud:4566/oficina-migrations
-    newTag: dev
+    newName: docker.io/thierryiago27/fiap-oficina-image-docker-hub
+    newTag: migrations-cb55fa1
