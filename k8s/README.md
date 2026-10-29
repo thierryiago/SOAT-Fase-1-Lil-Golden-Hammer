@@ -13,6 +13,7 @@ k8s/
     migrations/          Job de migrations (aplicado à parte, antes da API)
     seed/                Job de seed opcional
     mailpit/             Mailpit (SMTP 1025 e UI 8025)
+  loadtest/              teste de carga k6 (script, Job e run-loadtest.ps1)
   overlays/
     localstack/          cluster EKS criado pelo Terraform no LocalStack (único ambiente)
 ```
@@ -139,6 +140,40 @@ kubectl -n oficina port-forward svc/mailpit 8025:8025        # UI do Mailpit: ht
 - O `port-forward` de um Service se liga a **um** pod; se ele for substituído, a conexão cai e o comando precisa ser repetido.
 - A UI do Mailpit não tem autenticação e mostra e-mails de clientes, então **só** é exposta por `port-forward` (Service `ClusterIP`). Os e-mails ficam num `emptyDir` e somem quando o pod reinicia.
 - A API alcança o Mailpit pelo Service `mailpit:1025` (`Smtp__Host=mailpit`).
+
+## Autoscaling e teste de carga
+
+O `HorizontalPodAutoscaler` [`oficina-api`](base/api/hpa.yaml) (`autoscaling/v2`) escala o Deployment pela utilização **relativa aos `requests`** (CPU 100m e memória 192Mi):
+
+| Item | Valor |
+|---|---|
+| Réplicas | mínimo 2, máximo 6 |
+| CPU | alvo de 70% |
+| Memória | alvo de 80% |
+| Scale up | sem estabilização, até 2 pods a cada 30 s |
+| Scale down | estabilização de 120 s (o padrão é 300 s e alonga a demonstração), 1 pod a cada 60 s |
+
+- O Deployment **não declara `replicas`**: com o HPA ativo, um valor fixo seria reaplicado a cada `kubectl apply`.
+- O `metrics-server` já vem no k3d do LocalStack (`kubectl top nodes` e `kubectl top pods -n oficina` funcionam); nenhum addon é instalado.
+- Em repouso a memória fica em ~90 a 120Mi por pod (~50% do request), abaixo do alvo de 80%, então o HPA não permanece "escalado" sem carga.
+
+### Reproduzir o escalonamento
+
+Em dois terminais (com o `KUBECONFIG` carregado):
+
+```powershell
+kubectl -n oficina get hpa oficina-api -w
+kubectl -n oficina get pods -l app.kubernetes.io/name=oficina-api -w
+```
+
+Em um terceiro, o teste de carga ([`k8s/loadtest/oficina.js`](loadtest/oficina.js), k6):
+
+```powershell
+.\k8s\loadtestun-loadtest.ps1                       # padrão: 30 VUs, subida 1m, patamar 3m, descida 30s
+.\k8s\loadtestun-loadtest.ps1 -TargetVus 60 -Hold 3m  # mais carga
+```
+
+O k6 roda como Job **dentro do cluster** (`grafana/k6`, imagem puxada do Docker Hub), contra o Service `oficina-api`. Assim a carga se distribui entre as réplicas; um `port-forward` prenderia tudo em um único pod. O script autentica com o token técnico, cria um serviço, uma peça e estoque, e mistura listagens (clientes, veículos, peças, ordens de serviço e métricas) com aberturas de OS (5%, variável `WRITE_RATIO`). Os e-mails dessas OS vão para o Mailpit. O threshold é `http_req_failed < 5%`.
 
 ## API (Deployment e Service)
 
