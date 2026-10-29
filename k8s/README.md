@@ -12,6 +12,7 @@ k8s/
     api/                 Deployment e Service da API
     migrations/          Job de migrations (aplicado à parte, antes da API)
     seed/                Job de seed opcional
+    mailpit/             Mailpit (SMTP 1025 e UI 8025)
   overlays/
     localstack/          cluster EKS criado pelo Terraform no LocalStack (único ambiente)
 ```
@@ -124,6 +125,20 @@ kubectl apply -k k8s/overlays/localstack
 ```
 
 Cria o ConfigMap `oficina-seed` a partir de [`seed-data.sql`](../seed-data.sql) e roda o Job `oficina-seed` (`psql`). O arquivo usa `ON CONFLICT DO NOTHING`, então pode ser repetido sem duplicar dados. Nunca roda no deploy.
+
+## Acesso
+
+O Service `oficina-api` é `LoadBalancer` (paridade com o EKS real), mas o k3d do LocalStack sobe o k3s com `--disable=servicelb`: o `EXTERNAL-IP` fica `<pending>` e os IPs dos nós (`172.27.0.x`) não são alcançáveis do host. O acesso é por `port-forward` (com o `KUBECONFIG` carregado, veja `infra/scripts/kubeconfig.ps1`):
+
+```powershell
+kubectl -n oficina port-forward svc/oficina-api 8080:80      # API e Swagger: http://localhost:8080/swagger
+kubectl -n oficina port-forward svc/mailpit 8025:8025        # UI do Mailpit: http://localhost:8025
+```
+
+- `App__PublicBaseUrl` é `http://localhost:8080` (o endereço do port-forward); é ele que aparece nos links de aprovação e rejeição de orçamento enviados por e-mail. Se usar outra porta local, ajuste o valor no overlay.
+- O `port-forward` de um Service se liga a **um** pod; se ele for substituído, a conexão cai e o comando precisa ser repetido.
+- A UI do Mailpit não tem autenticação e mostra e-mails de clientes, então **só** é exposta por `port-forward` (Service `ClusterIP`). Os e-mails ficam num `emptyDir` e somem quando o pod reinicia.
+- A API alcança o Mailpit pelo Service `mailpit:1025` (`Smtp__Host=mailpit`).
 
 ## API (Deployment e Service)
 
