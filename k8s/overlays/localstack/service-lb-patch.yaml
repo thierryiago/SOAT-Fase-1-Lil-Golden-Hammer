@@ -1,0 +1,9 @@
+# Paridade com o EKS real: a API é um Service LoadBalancer. No k3d do LocalStack o servicelb do k3s está
+# desabilitado (--disable=servicelb), então o EXTERNAL-IP fica <pending> e o acesso é por port-forward
+# (veja k8s/README.md, seção Acesso).
+apiVersion: v1
+kind: Service
+metadata:
+  name: oficina-api
+spec:
+  type: LoadBalancer

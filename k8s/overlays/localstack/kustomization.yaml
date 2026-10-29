@@ -10,6 +10,9 @@ labels:
       app.kubernetes.io/environment: localstack
     includeSelectors: false
 
+patches:
+  - path: service-lb-patch.yaml
+
 configMapGenerator:
   - name: oficina-config
     behavior: merge
