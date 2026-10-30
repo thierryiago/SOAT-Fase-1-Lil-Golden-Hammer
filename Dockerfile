@@ -9,7 +9,7 @@ ARG VCS_REF=unknown
 FROM mcr.microsoft.com/dotnet/sdk:${SDK_VERSION} AS build
 WORKDIR /src
 
-COPY src/Oficina.Domain/Inexistente.csproj src/Oficina.Domain/
+COPY src/Oficina.Domain/Oficina.Domain.csproj src/Oficina.Domain/
 COPY src/Oficina.Application/Oficina.Application.csproj src/Oficina.Application/
 COPY src/Oficina.Infrastructure/Oficina.Infrastructure.csproj src/Oficina.Infrastructure/
 COPY src/Oficina.Api/Oficina.Api.csproj src/Oficina.Api/
