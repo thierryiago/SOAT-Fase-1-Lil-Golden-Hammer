@@ -656,7 +656,14 @@ Todo push na `main` dispara a esteira [`.github/workflows/pipeline.yml`](.github
 2. **Publish** ([`publish-images.yml`](.github/workflows/publish-images.yml)): publica no Docker Hub as imagens `api-<sha7>` e `migrations-<sha7>` do commit, e também `*-latest`.
 3. **CD** ([`cd-localstack.yml`](.github/workflows/cd-localstack.yml)): sobe o LocalStack no runner e aplica o Terraform (EKS e RDS). Depois faz o deploy de `/k8s` com as imagens desse commit, roda o smoke test e o teste de ponta a ponta. O resumo do teste aparece na página da execução e o relatório HTML fica no artifact `relatorio-e2e`.
 
-As etapas continuam em arquivos separados, chamados pela esteira via `workflow_call`. Cada uma ainda pode ser disparada sozinha pelo **Run workflow**. O `ci.yml` também roda em todo pull request para a `main`.
+As etapas continuam em arquivos separados, chamados pela esteira via `workflow_call`. Cada uma ainda pode ser disparada sozinha pelo **Run workflow**.
+
+O `ci.yml` também roda em todo pull request para a `main`. Nos PRs, além dos testes, ele valida o que só seria exercitado depois do merge:
+
+- `docker-build`: build das imagens `runtime` e `migrations`, sem push, reaproveitando o cache do Publish. Na esteira não roda, porque a etapa Publish já faz esse build.
+- `terraform-validate`: `fmt -check`, `init -backend=false` e `validate` em `infra/` e `infra/bootstrap/`. Roda também na esteira, antes do CD.
+
+Nenhuma das duas checagens usa secrets ou LocalStack.
 
 A versão do SDK é fixada em [`global.json`](global.json).
 

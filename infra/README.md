@@ -53,6 +53,20 @@ docker run -d --name localstack -p 4566:4566 -p 4510-4559:4510-4559 -e LOCALSTAC
 
 O LocalStack guarda os dados em memória: **sempre que o container for recriado, o bucket e o state somem** e é preciso repetir o passo 1 (se o bootstrap reclamar do state local, apague `infra/bootstrap/terraform.tfstate*`) e depois o passo 2.
 
+## Validação (a mesma do CI)
+
+Todo pull request roda o job `terraform-validate` do `ci.yml`, que também roda como portão na esteira da `main`, antes do CD. O job não precisa de LocalStack nem de credenciais. Para reproduzir localmente:
+
+```bash
+terraform fmt -check -recursive -diff infra     # sem -check, corrige a formatação
+terraform -chdir=infra init -backend=false
+terraform -chdir=infra validate
+terraform -chdir=infra/bootstrap init -backend=false
+terraform -chdir=infra/bootstrap validate
+```
+
+O `init -backend=false` não mexe no state remoto. Se a pasta `infra` já estiver inicializada com o backend do LocalStack, use `TF_DATA_DIR` apontando para uma pasta temporária, para não misturar os dois.
+
 ## EKS no LocalStack
 
 Decisão: o cluster é criado **pelo Terraform no próprio LocalStack** (`aws_eks_cluster` + `aws_eks_node_group`), os mesmos recursos que seriam usados na AWS real. Não foi necessário o fallback com kind/k3d externo.
