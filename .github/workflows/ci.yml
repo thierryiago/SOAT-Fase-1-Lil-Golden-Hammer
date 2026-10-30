@@ -70,3 +70,62 @@ jobs:
           path: TestResults/**
           if-no-files-found: ignore
           retention-days: 14
+
+  # Garante que as imagens constroem antes do merge. Na esteira (push na main) não roda: a etapa Publish
+  # faz o mesmo build e falha antes do push.
+  docker-build:
+    name: docker-build (${{ matrix.image }})
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: api
+            target: runtime
+          - image: migrations
+            target: migrations
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Só lê o cache gravado pelo publish na main; o PR não grava, para não encher a cota com branches.
+      - name: Build sem push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: ${{ matrix.target }}
+          platforms: linux/amd64
+          push: false
+          cache-from: type=gha,scope=${{ matrix.image }}
+
+  terraform-validate:
+    name: terraform-validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      - name: Formatação
+        run: terraform fmt -check -recursive -diff infra
+
+      # Sem backend: valida a configuração sem LocalStack nem credenciais; os providers vêm dos lock files.
+      - name: Validação
+        run: |
+          set -euo pipefail
+          for module in infra infra/bootstrap; do
+            echo "::group::$module"
+            terraform -chdir="$module" init -backend=false -input=false
+            terraform -chdir="$module" validate
+            echo "::endgroup::"
+          done
