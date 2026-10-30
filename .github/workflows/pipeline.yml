@@ -5,7 +5,8 @@ name: Pipeline
 
 on:
   push:
-    branches: [main]
+    # TEMPORÁRIO (#130): valida a esteira antes do merge; remover antes de abrir o PR.
+    branches: [main, feature/cd-issue-130]
   workflow_dispatch:
 
 # Sem cancelar: um deploy interrompido no meio deixaria a execução sem resultado conclusivo.
