@@ -1,6 +1,6 @@
 # Oficina API
 
-[![CI](https://github.com/thierryiago/SOAT-Fase-1-Lil-Golden-Hammer/actions/workflows/ci.yml/badge.svg)](https://github.com/thierryiago/SOAT-Fase-1-Lil-Golden-Hammer/actions/workflows/ci.yml)
+[![Pipeline](https://github.com/thierryiago/SOAT-Fase-1-Lil-Golden-Hammer/actions/workflows/pipeline.yml/badge.svg)](https://github.com/thierryiago/SOAT-Fase-1-Lil-Golden-Hammer/actions/workflows/pipeline.yml)
 
 API REST em .NET 10 para gestão operacional de uma oficina mecânica, cobrindo clientes, veículos, peças, estoque, mecânicos, serviços, ordens de serviço, orçamentos, histórico, métricas e notificações por e-mail.
 
@@ -648,12 +648,15 @@ dotnet test tests/Oficina.Tests/Oficina.Tests.csproj
 dotnet test tests/Oficina.Api.ContractTests/Oficina.Api.ContractTests.csproj
 ```
 
-### Integração contínua
+### Integração e entrega contínuas
 
-O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda em todo pull request e push na `main`, com dois jobs:
+Todo push na `main` dispara a esteira [`.github/workflows/pipeline.yml`](.github/workflows/pipeline.yml), que também pode ser disparada pelo **Run workflow**. Ela tem três etapas, e cada uma só começa se a anterior passou:
 
-- `gitignore-check`: garante que artefatos de build, resultados de testes, coverage, configurações locais e segredos (`bin/`, `obj/`, `TestResults/`, `*.trx`, `coverage.xml`, `.env`, `appsettings.Development.json` etc.) continuam cobertos pelo `.gitignore` e não estão versionados.
-- `build-and-test`: `restore` → `build` (Release) → testes de arquitetura → testes unitários (com coverage) → testes de contrato. Os resultados (`.trx` e coverage) ficam disponíveis como artifact `test-results`.
+1. **CI** ([`ci.yml`](.github/workflows/ci.yml)): `restore` → `build` (Release) → testes de arquitetura → testes unitários (com coverage) → testes de contrato. Os resultados (`.trx` e coverage) ficam no artifact `test-results`.
+2. **Publish** ([`publish-images.yml`](.github/workflows/publish-images.yml)): publica no Docker Hub as imagens `api-<sha7>` e `migrations-<sha7>` do commit, e também `*-latest`.
+3. **CD** ([`cd-localstack.yml`](.github/workflows/cd-localstack.yml)): sobe o LocalStack no runner e aplica o Terraform (EKS e RDS). Depois faz o deploy de `/k8s` com as imagens desse commit, roda o smoke test e o teste de ponta a ponta. O resumo do teste aparece na página da execução e o relatório HTML fica no artifact `relatorio-e2e`.
+
+As etapas continuam em arquivos separados, chamados pela esteira via `workflow_call`. Cada uma ainda pode ser disparada sozinha pelo **Run workflow**. O `ci.yml` também roda em todo pull request para a `main`.
 
 A versão do SDK é fixada em [`global.json`](global.json).
 

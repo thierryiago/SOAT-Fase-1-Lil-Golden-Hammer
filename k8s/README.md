@@ -203,7 +203,7 @@ O script grava dois arquivos e sai com código diferente de 0 se algum passo fal
 
 Como o pod do Job termina e o sistema de arquivos dele some, o k6 imprime o relatório no stdout, em base64, entre os marcadores `@@OFICINA-E2E-BEGIN@@`/`@@OFICINA-E2E-END@@`. O script extrai esse trecho dos logs.
 
-No piloto de CD (`.github/workflows/cd-localstack.yml`), o teste roda depois do smoke test. O resumo aparece na página da execução e o HTML fica no artifact `relatorio-e2e`.
+No CD (`.github/workflows/cd-localstack.yml`, última etapa da esteira `pipeline.yml`), o teste roda depois do smoke test. O resumo aparece na página da execução e o HTML fica no artifact `relatorio-e2e`.
 
 ## API (Deployment e Service)
 
@@ -220,7 +220,7 @@ A API não aplica migrations na subida; com o banco inacessível o readiness fal
 
 ### Imagem
 
-As imagens ficam num repositório **privado** do Docker Hub, `thierryiago27/fiap-oficina-image-docker-hub`, separadas por tag: `api-<sha7>` e `migrations-<sha7>` (e `*-latest` na `main`). Quem publica é o workflow [`publish-images.yml`](../.github/workflows/publish-images.yml), a cada push na `main` (ou manualmente, com `workflow_dispatch`).
+As imagens ficam num repositório **privado** do Docker Hub, `thierryiago27/fiap-oficina-image-docker-hub`, separadas por tag: `api-<sha7>` e `migrations-<sha7>` (e `*-latest` na `main`). Quem publica é o workflow [`publish-images.yml`](../.github/workflows/publish-images.yml), como segunda etapa da esteira [`pipeline.yml`](../.github/workflows/pipeline.yml) a cada push na `main`, depois do CI. Também dá para disparar manualmente, com `workflow_dispatch`.
 
 O manifest usa `image: oficina-api` / `oficina-migrations`, e os overlays resolvem nome e tag em `images`. O CD sobrescreve a tag com a do commit. A referência completa também sai do Terraform: `terraform -chdir=infra output app_images` com `-var app_image_tag=<sha7>`.
 
