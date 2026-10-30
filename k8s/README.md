@@ -14,6 +14,7 @@ k8s/
     seed/                Job de seed opcional
     mailpit/             Mailpit (SMTP 1025 e UI 8025)
   loadtest/              teste de carga k6 (script, Job e run-loadtest.ps1)
+  e2e/                   teste de ponta a ponta k6 com relatório HTML (script, Job e run-e2e.ps1)
   overlays/
     localstack/          cluster EKS criado pelo Terraform no LocalStack (único ambiente)
 ```
@@ -176,6 +177,34 @@ Em um terceiro, o teste de carga ([`k8s/loadtest/oficina.js`](loadtest/oficina.j
 
 O k6 roda como Job **dentro do cluster** (`grafana/k6`, imagem puxada do Docker Hub), contra o Service `oficina-api`. Assim a carga se distribui entre as réplicas; um `port-forward` prenderia tudo em um único pod. O script autentica com o token técnico, cria um serviço, uma peça e estoque, e mistura listagens (clientes, veículos, peças, ordens de serviço e métricas) com aberturas de OS (5%, variável `WRITE_RATIO`). Os e-mails dessas OS vão para o Mailpit. O threshold é `http_req_failed < 5%`.
 
+## Teste de ponta a ponta
+
+[`k8s/e2e/oficina-e2e.js`](e2e/oficina-e2e.js) (k6, 1 VU e 1 iteração) percorre de dentro do cluster o fluxo de negócio do `oficina.http`. Ele mostra que banco, migrations, API e SMTP funcionam juntos:
+
+- health check e token técnico;
+- cadastros (cliente, veículo, mecânico, serviço e peça) e entrada de estoque;
+- OS de `Created` a `Delivered`, com o orçamento criado na aprovação;
+- histórico da OS e acompanhamento público pelo documento;
+- OS aberta com itens;
+- métricas;
+- e-mails do cliente no Mailpit.
+
+Cada passo valida o status HTTP e, nas transições, o status da OS. Os dados são únicos por execução (CPF válido gerado, placa e código aleatórios), então dá para rodar de novo no mesmo banco.
+
+```powershell
+.\k8s\e2e\run-e2e.ps1                     # relatório em %TEMP%\oficina-e2e\relatorio-e2e.html
+.\k8s\e2e\run-e2e.ps1 -OutDir .\relatorio
+```
+
+O script grava dois arquivos e sai com código diferente de 0 se algum passo falhar, sempre depois de gravar o relatório:
+
+- `relatorio-e2e.html`: cada chamada com requisição, resposta, status e tempo; o token aparece mascarado;
+- `resumo-e2e.md`.
+
+Como o pod do Job termina e o sistema de arquivos dele some, o k6 imprime o relatório no stdout, em base64, entre os marcadores `@@OFICINA-E2E-BEGIN@@`/`@@OFICINA-E2E-END@@`. O script extrai esse trecho dos logs.
+
+No CD (`.github/workflows/cd-localstack.yml`, última etapa da esteira `pipeline.yml`), o teste roda depois do smoke test. O resumo aparece na página da execução e o HTML fica no artifact `relatorio-e2e`.
+
 ## API (Deployment e Service)
 
 `base/api/` define o Deployment e o Service `oficina-api` (ClusterIP, porta 80 → 8080). Pré-requisito: o Secret `oficina-secrets` (veja acima); sem ele os pods ficam em `CreateContainerConfigError`.
@@ -191,7 +220,7 @@ A API não aplica migrations na subida; com o banco inacessível o readiness fal
 
 ### Imagem
 
-As imagens ficam num repositório **privado** do Docker Hub, `thierryiago27/fiap-oficina-image-docker-hub`, separadas por tag: `api-<sha7>` e `migrations-<sha7>` (e `*-latest` na `main`). Quem publica é o workflow [`publish-images.yml`](../.github/workflows/publish-images.yml), a cada push na `main` (ou manualmente, com `workflow_dispatch`).
+As imagens ficam num repositório **privado** do Docker Hub, `thierryiago27/fiap-oficina-image-docker-hub`, separadas por tag: `api-<sha7>` e `migrations-<sha7>` (e `*-latest` na `main`). Quem publica é o workflow [`publish-images.yml`](../.github/workflows/publish-images.yml), como segunda etapa da esteira [`pipeline.yml`](../.github/workflows/pipeline.yml) a cada push na `main`, depois do CI. Também dá para disparar manualmente, com `workflow_dispatch`.
 
 O manifest usa `image: oficina-api` / `oficina-migrations`, e os overlays resolvem nome e tag em `images`. O CD sobrescreve a tag com a do commit. A referência completa também sai do Terraform: `terraform -chdir=infra output app_images` com `-var app_image_tag=<sha7>`.
 

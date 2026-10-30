@@ -2,6 +2,7 @@
 # de /k8s com as imagens já publicadas no Docker Hub (publish-images.yml) e roda um smoke test.
 # O ambiente é efêmero: nasce e morre com o job. Serve para validar o deploy de ponta a ponta, não como
 # ambiente persistente. A tag padrão (sha7 do commit) só existe se o publish-images já rodou para ele.
+# Na main, roda como última etapa da esteira (pipeline.yml), via workflow_call, depois do publish.
 name: CD LocalStack
 
 on:
@@ -9,6 +10,12 @@ on:
     inputs:
       image_tag:
         description: 'Tag das imagens no Docker Hub, sem o prefixo (ex.: latest ou o sha7). Padrão: sha7 do commit.'
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      image_tag:
+        description: 'Tag das imagens no Docker Hub, sem o prefixo. Padrão: sha7 do commit.'
         required: false
         type: string
 
@@ -132,6 +139,22 @@ jobs:
           $env:KUBECONFIG = $out
           kubectl get nodes -o wide
 
+      - name: Conectar o LocalStack à rede do k3d
+        # O setup-localstack publica as portas só em 127.0.0.1, então host.k3d.internal (gateway da rede do k3d)
+        # não alcança o RDS. Na rede do cluster (o LocalStack costuma já se ligar a ela ao criar o EKS),
+        # o container do LocalStack é acessado pelo IP dele nela.
+        run: |
+          set -euo pipefail
+          networks() { docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{println $k}}{{end}}' "$1"; }
+          server=$(docker ps --format '{{.Names}}' | grep -E 'k3d-oficina-local-.*server-0' | head -1)
+          net=$(networks "$server" | grep '^k3d-' | head -1)
+          if ! networks localstack-main | grep -qx "$net"; then
+            docker network connect "$net" localstack-main
+          fi
+          ip=$(docker inspect -f "{{(index .NetworkSettings.Networks \"$net\").IPAddress}}" localstack-main)
+          echo "Rede $net, LocalStack em $ip"
+          echo "LOCALSTACK_CLUSTER_IP=$ip" >> "$GITHUB_ENV"
+
       - name: Secrets, migrations e deploy
         shell: pwsh
         env:
@@ -139,7 +162,7 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           $ErrorActionPreference = "Stop"
-          ./k8s/scripts/create-secrets.ps1
+          ./k8s/scripts/create-secrets.ps1 -DbHost $env:LOCALSTACK_CLUSTER_IP
           ./k8s/scripts/create-pull-secret.ps1
           ./k8s/scripts/run-migrations.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -160,13 +183,28 @@ jobs:
           echo
           kubectl -n oficina get pods,svc,hpa
 
+      - name: Teste de ponta a ponta na API
+        # Fluxo de negócio completo de dentro do cluster (banco, migrations, API e SMTP); o resumo vai para
+        # a página da execução e o relatório HTML para o artifact relatorio-e2e.
+        shell: pwsh
+        run: ./k8s/e2e/run-e2e.ps1 -OutDir (Join-Path $env:RUNNER_TEMP "e2e")
+
+      - name: Publicar relatório de ponta a ponta
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-e2e
+          path: ${{ runner.temp }}/e2e
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Coletar diagnósticos
         if: failure()
         run: |
           d="$RUNNER_TEMP/diagnosticos"; mkdir -p "$d"
           docker ps -a > "$d/docker-ps.txt" 2>&1 || true
-          docker logs localstack > "$d/localstack.log" 2>&1 || true
-          docker exec localstack sh -c 'ss -ltn' > "$d/localstack-portas.txt" 2>&1 || true
+          docker logs localstack-main > "$d/localstack.log" 2>&1 || true
+          docker exec localstack-main sh -c 'ss -ltn' > "$d/localstack-portas.txt" 2>&1 || true
           curl -s localhost:4566/_localstack/health > "$d/localstack-health.json" 2>&1 || true
           if [ -n "${KUBECONFIG:-}" ]; then
             kubectl get pods -A -o wide > "$d/pods.txt" 2>&1 || true

@@ -1,0 +1,60 @@
+# Teste de ponta a ponta (k6) dentro do cluster, contra o Service da API e do Mailpit. O script vem do
+# ConfigMap oficina-e2e e o relatório sai pelo stdout; os dois são tratados por run-e2e.ps1.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: oficina-e2e
+  namespace: oficina
+  labels:
+    app.kubernetes.io/name: oficina-e2e
+    app.kubernetes.io/part-of: oficina
+    app.kubernetes.io/component: e2e
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 1800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: oficina-e2e
+        app.kubernetes.io/part-of: oficina
+        app.kubernetes.io/component: e2e
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 12345
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: k6
+          image: grafana/k6:1.0.0
+          imagePullPolicy: IfNotPresent
+          args: ["run", "--quiet", "--no-color", "/scripts/oficina-e2e.js"]
+          env:
+            - name: BASE_URL
+              value: "http://oficina-api.oficina.svc.cluster.local"
+            - name: MAILPIT_URL
+              value: "http://mailpit.oficina.svc.cluster.local:8025"
+            - name: API_IMAGE
+              value: ""
+            - name: RUN_URL
+              value: ""
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: scripts
+          configMap:
+            name: oficina-e2e

@@ -1,11 +1,11 @@
 name: CI
 
+# Na main, roda como primeira etapa da esteira (pipeline.yml), via workflow_call.
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
