@@ -1,15 +1,20 @@
 # Publica as imagens da aplicação no Docker Hub (repositório privado único, imagens separadas por tag):
 #   api-<sha7>, migrations-<sha7> e, na main, api-latest e migrations-latest.
 # Nunca roda em pull_request: forks não recebem secrets e não se publica código não revisado.
+# Na main, roda como segunda etapa da esteira (pipeline.yml), via workflow_call, depois do CI.
 name: Publish images
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
         description: 'Tag extra (ex.: 1.0.0), publicada como api-<tag> e migrations-<tag>'
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Tag extra, publicada como api-<tag> e migrations-<tag>'
         required: false
         type: string
 

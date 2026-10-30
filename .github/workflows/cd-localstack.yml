@@ -2,6 +2,7 @@
 # de /k8s com as imagens já publicadas no Docker Hub (publish-images.yml) e roda um smoke test.
 # O ambiente é efêmero: nasce e morre com o job. Serve para validar o deploy de ponta a ponta, não como
 # ambiente persistente. A tag padrão (sha7 do commit) só existe se o publish-images já rodou para ele.
+# Na main, roda como última etapa da esteira (pipeline.yml), via workflow_call, depois do publish.
 name: CD LocalStack
 
 on:
@@ -9,6 +10,12 @@ on:
     inputs:
       image_tag:
         description: 'Tag das imagens no Docker Hub, sem o prefixo (ex.: latest ou o sha7). Padrão: sha7 do commit.'
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      image_tag:
+        description: 'Tag das imagens no Docker Hub, sem o prefixo. Padrão: sha7 do commit.'
         required: false
         type: string
 
