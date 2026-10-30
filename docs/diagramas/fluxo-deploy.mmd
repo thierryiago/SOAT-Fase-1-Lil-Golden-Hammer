@@ -1,0 +1,38 @@
+flowchart TB
+    pr(["Pull request para a main"])
+    subgraph ci_pr["CI no PR (ci.yml)"]
+        bt["build-and-test<br/>restore, build, testes de arquitetura, unitários e contrato"]
+        db_build["docker-build<br/>imagens runtime e migrations, sem push"]
+        tfv["terraform-validate<br/>fmt -check, init -backend=false, validate"]
+    end
+    merge(["Merge na main"])
+
+    subgraph pipe["Esteira pipeline.yml (push na main)"]
+        direction TB
+        ci["1. CI<br/>build-and-test e terraform-validate"]
+        pub["2. Publish (publish-images.yml)<br/>build e push de api-&lt;sha7&gt; e migrations-&lt;sha7&gt;"]
+        subgraph cd["3. CD (cd-localstack.yml): LocalStack dentro do job"]
+            direction TB
+            up["Sobe o LocalStack<br/>LOCALSTACK_AUTH_TOKEN, sem credenciais AWS reais"]
+            boot["terraform apply bootstrap<br/>bucket S3 do state"]
+            apply["terraform apply<br/>VPC, IAM, EKS, node group e RDS"]
+            tags["Fixa as tags &lt;sha7&gt; nos overlays"]
+            sec["Kubeconfig, Secrets e pull secret"]
+            mig["Job de migrations no RDS"]
+            k8s["kubectl apply -k k8s/overlays/localstack"]
+            roll["rollout status da API e do Mailpit"]
+            smoke["Smoke test /health/ready"]
+            e2e["Teste de ponta a ponta k6<br/>relatório HTML no artifact relatorio-e2e"]
+            up --> boot --> apply --> tags --> sec --> mig --> k8s --> roll --> smoke --> e2e
+        end
+        ci --> pub --> cd
+    end
+
+    hub[("Docker Hub (privado)")]
+
+    pr --> ci_pr --> merge --> pipe
+    pub -- "push" --> hub
+    hub -- "pull no cluster" --> k8s
+
+    classDef emulado fill:#fff4e5,stroke:#e8a33d,color:#333;
+    class up,boot,apply emulado;

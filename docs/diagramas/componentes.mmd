@@ -1,0 +1,21 @@
+flowchart LR
+    usuario(["Atendente / mecânico<br/>Postman, Swagger, oficina.http"])
+    cliente(["Cliente da oficina<br/>caixa de e-mail"])
+    externo(["Sistema externo de aprovação<br/>webhook autenticado<br/>planejado (#108)"])
+
+    api["<b>Oficina API</b><br/>.NET 10, ASP.NET Core<br/>Api → Application → Domain<br/>Infrastructure: EF Core e SMTP<br/>JWT, Swagger, /health/live e /health/ready"]
+
+    db[("PostgreSQL 16<br/>RDS no LocalStack<br/>container no Compose")]
+    smtp["SMTP<br/>Mailpit"]
+    migr["Migrations<br/>imagem efbundle<br/>Job no k8s, serviço migrate no Compose"]
+
+    usuario -- "REST /api/v1 + Bearer JWT" --> api
+    cliente -- "links aprovar / recusar orçamento" --> api
+    externo -. "aprovação / recusa" .-> api
+    api -- "Npgsql" --> db
+    api -- "e-mail a cada mudança de status" --> smtp
+    smtp -. "entrega ao cliente" .-> cliente
+    migr -- "aplica migrations pendentes" --> db
+
+    classDef planejado stroke-dasharray: 5 5,fill:#f5f5f5,color:#666;
+    class externo planejado;

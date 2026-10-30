@@ -54,6 +54,7 @@ coverage.xml
 RelatorioHTML
 /docs/*
 !/docs/Oficina-API.postman_collection.json
+!/docs/diagramas/
 /Claude outputs
 *.sh
 /estoque-arch-8.http
