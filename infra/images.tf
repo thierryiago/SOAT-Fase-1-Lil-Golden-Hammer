@@ -2,13 +2,13 @@
 # ele só guarda o repositório e expõe as referências completas para os scripts e o CD.
 variable "container_image_repository" {
   description = "Repositório (privado) do Docker Hub com as imagens da API e de migrations, separadas por tag"
-  type        = string
+  type = string
   default     = "docker.io/thierryiago27/fiap-oficina-image-docker-hub"
 }
 
 variable "app_image_tag" {
   description = "Tag publicada pelo workflow publish-images (ex.: o SHA curto do commit); informada pelo CD"
-  type        = string
+  type = string
   default     = null
   nullable    = true
 }
