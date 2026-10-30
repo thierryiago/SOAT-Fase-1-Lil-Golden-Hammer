@@ -1,0 +1,35 @@
+# Esteira da main: CI -> publicação das imagens no Docker Hub -> deploy no LocalStack com teste de ponta a ponta.
+# Cada etapa é um workflow próprio (ci.yml, publish-images.yml, cd-localstack.yml), chamado via workflow_call
+# e ainda disparável sozinho pelo Run workflow. Uma etapa só começa se a anterior passou.
+name: Pipeline
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Sem cancelar: um deploy interrompido no meio deixaria a execução sem resultado conclusivo.
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Publish
+    needs: ci
+    uses: ./.github/workflows/publish-images.yml
+    secrets: inherit
+
+  # Sem image_tag: o publish gera *-<sha7> deste commit e o CD usa o mesmo sha7 por padrão.
+  cd:
+    name: CD
+    needs: publish
+    uses: ./.github/workflows/cd-localstack.yml
+    secrets: inherit
