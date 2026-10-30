@@ -1,0 +1,49 @@
+flowchart TB
+    dev(["Desenvolvedor ou runner do GitHub Actions"])
+    hub[("Docker Hub (privado)<br/>api-&lt;sha7&gt;, migrations-&lt;sha7&gt;")]
+
+    subgraph ls["LocalStack: AWS emulada, container no host Docker (localhost:4566)"]
+        direction LR
+        subgraph vpc["VPC 10.0.0.0/16 + internet gateway"]
+            direction LR
+            subgraph pub["Subnets públicas"]
+                eks["EKS oficina-local<br/>Kubernetes 1.31 + node group"]
+            end
+            subgraph priv["Subnets privadas"]
+                rds[("RDS PostgreSQL 16<br/>db.t3.micro")]
+            end
+        end
+        subgraph regionais["Serviços da conta"]
+            direction TB
+            s3[("S3<br/>state do Terraform")]
+            iam["IAM roles<br/>cluster e nodes"]
+            ecr[("ECR<br/>opcional, desligado")]
+        end
+    end
+
+    subgraph k3d["k3d: cluster real que o LocalStack cria para o EKS (namespace oficina)"]
+        direction LR
+        svc["Service oficina-api<br/>LoadBalancer, EXTERNAL-IP pending"]
+        hpa["HPA<br/>1 a 3 réplicas<br/>CPU 70%, memória 75%"]
+        cfg["ConfigMap oficina-config<br/>Secrets oficina-secrets, dockerhub-pull"]
+        deploy["Deployment oficina-api"]
+        job["Job oficina-migrations"]
+        mail["Mailpit<br/>SMTP 1025, UI 8025"]
+        svc --> deploy
+        hpa --> deploy
+        cfg --> deploy
+        deploy -- "SMTP" --> mail
+    end
+
+    dev -- "terraform apply" --> ls
+    dev -- "kubectl apply -k, port-forward 8080 e 8025" --> k3d
+    eks -. "materializado como" .-> k3d
+    deploy -- "5432" --> rds
+    job -- "5432" --> rds
+    hub -- "pull" --> k3d
+
+    classDef emulado fill:#fff4e5,stroke:#e8a33d,color:#333;
+    classDef opcional stroke-dasharray: 5 5,fill:#f5f5f5,color:#666;
+    class s3,iam,eks,rds emulado;
+    class ecr opcional;
+    style ls fill:#fffaf2,stroke:#e8a33d,stroke-width:2px

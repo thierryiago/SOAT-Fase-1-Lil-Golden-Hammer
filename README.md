@@ -7,25 +7,35 @@ API REST em .NET 10 para gestão operacional de uma oficina mecânica, cobrindo 
 ## Sumário
 
 - [Objetivo do projeto](#objetivo-do-projeto)
+  - [Objetivos da Fase 2](#objetivos-da-fase-2)
 - [Arquitetura](#arquitetura)
+- [Desenho da arquitetura](#desenho-da-arquitetura)
+  - [Componentes da aplicação](#componentes-da-aplicação)
+  - [Infraestrutura provisionada](#infraestrutura-provisionada)
+  - [Fluxo de deploy](#fluxo-de-deploy)
 - [Stack tecnológica](#stack-tecnológica)
 - [Estrutura do repositório](#estrutura-do-repositório)
 - [Requisitos mínimos](#requisitos-mínimos)
-- [Como rodar a aplicação](#como-rodar-a-aplicação)
+- [Como rodar a aplicação](#como-rodar-a-aplicação) (execução local com Docker Compose)
   - [Configuração inicial](#passo-2-configure-a-aplicação)
   - [Docker Compose](#passo-3-inicialize-os-serviços-com-docker)
   - [Validação da aplicação](#passo-4-verifique-se-a-api-subiu)
   - [Teste da API](#passo-5-teste-a-api)
 - [Health checks, imagem Docker e HTTPS](#health-checks-imagem-docker-e-https)
 - [Executando direto com .NET](#executando-direto-com-net)
+- [Provisionamento da infraestrutura com Terraform](#provisionamento-da-infraestrutura-com-terraform)
+- [Deploy em Kubernetes](#deploy-em-kubernetes)
 - [Autenticação e autorização](#autenticação-e-autorização)
 - [Endpoints principais](#endpoints-principais)
 - [Fluxo de ordens de serviço](#fluxo-de-ordens-de-serviço)
 - [Banco de dados](#banco-de-dados)
 - [Migrations](#migrations)
 - [Testes](#testes)
+- [CI/CD](#cicd)
+- [LocalStack: decisão e limitações](#localstack-decisão-e-limitações)
 - [Mailpit para desenvolvimento](#mailpit-para-desenvolvimento)
 - [Arquivo de chamadas HTTP](#arquivo-de-chamadas-http)
+- [Entregáveis](#entregáveis)
 - [Resumo](#resumo)
 
 ## 🧭 Objetivo do projeto
@@ -42,6 +52,27 @@ O sistema foi concebido para centralizar e automatizar os processos da oficina, 
 - envio de notificações por e-mail.
 
 A solução segue princípios de Clean Architecture, separando domínio, aplicação, infraestrutura e API.
+
+### Objetivos da Fase 2
+
+Com o sistema da Fase 1 em uso, a oficina passou a ter mais demanda e planeja novas unidades. A Fase 2 evolui a aplicação para garantir qualidade, resiliência e escalabilidade, com práticas modernas de infraestrutura e automação:
+
+| Objetivo da fase | Como foi atendido |
+|---|---|
+| Reduzir riscos operacionais com infraestrutura escalável | API em Kubernetes ([`k8s/`](k8s/)), com probes de liveness e readiness e banco gerenciado (RDS) |
+| Automatizar o provisionamento e o deploy | Terraform ([`infra/`](infra/)) e esteira de [CI/CD](#cicd) que provisiona, migra o banco e faz o deploy a cada merge na `main` |
+| Melhorar a qualidade e a organização do código | Refatoração para [Clean Architecture](#arquitetura) com use cases e ports, testes de domínio, aplicação, contrato e arquitetura |
+| Suportar picos de ordens de serviço | HPA por CPU e memória (1 a 3 réplicas), validado com teste de carga k6 ([`k8s/loadtest/`](k8s/loadtest/)) |
+
+APIs criadas ou alteradas na fase:
+
+- **Abertura de OS completa:** `POST /api/v1/service-orders`, com cliente, veículo, serviços e peças, devolvendo o identificador da OS.
+- **Consulta de status da OS:** `GET /api/v1/service-orders/{id}/track?document=...` (pública, pelo documento do cliente) e `GET /api/v1/service-orders/{id}`.
+- **Listagem priorizada:** `GET /api/v1/service-orders/status`, ordenada por `InExecution` > `AwaitingApproval` > `InDiagnosis` > `Received` e da OS mais antiga para a mais nova, sem as finalizadas e entregues (exclusão lógica, só na consulta).
+- **Atualização de status por e-mail:** o cliente recebe um e-mail a cada mudança de status. O e-mail de orçamento traz links para aprovar ou recusar (`GET /api/v1/notifications/approveBudget` e `rejectBudget`).
+- **Aprovação de orçamento por notificação externa:** o webhook autenticado para sistemas externos ainda está em aberto ([#108](https://github.com/thierryiago/SOAT-Fase-1-Lil-Golden-Hammer/issues/108)).
+
+A infraestrutura de nuvem (VPC, EKS, RDS, IAM e S3) é **emulada pelo [LocalStack](https://www.localstack.cloud/)**: nenhum recurso da AWS real é usado. A justificativa está em [LocalStack: decisão e limitações](#localstack-decisão-e-limitações).
 
 ---
 
@@ -69,6 +100,149 @@ permanecem iguais.
 
 ---
 
+## 🗺️ Desenho da arquitetura
+
+> **A nuvem é emulada pelo LocalStack.** Os blocos em laranja (VPC, subnets, EKS, RDS, IAM e S3) são criados pelo Terraform no LocalStack, sem conta na AWS real. O EKS é materializado pelo LocalStack como um cluster Kubernetes real (k3d), onde os manifestos de `k8s/` são aplicados. Itens tracejados são opcionais ou ainda planejados.
+
+As fontes ficam em [`docs/diagramas/`](docs/diagramas/) (`.mmd`), junto com as versões em SVG e PNG para o PDF de entrega. Para regerar as imagens, rode `docs/diagramas/exportar.ps1`. Ao alterar um diagrama, atualize também o bloco correspondente abaixo.
+
+### Componentes da aplicação
+
+A API conversa com o PostgreSQL e com o servidor SMTP. As migrations rodam numa imagem própria, antes da API ([ADR 0002](docs/adr/0002-migrations-via-bundle.md)). O cliente acompanha a OS por e-mail e aprova ou recusa o orçamento pelos links da mensagem.
+
+```mermaid
+flowchart LR
+    usuario(["Atendente / mecânico<br/>Postman, Swagger, oficina.http"])
+    cliente(["Cliente da oficina<br/>caixa de e-mail"])
+    externo(["Sistema externo de aprovação<br/>webhook autenticado<br/>planejado (#108)"])
+
+    api["<b>Oficina API</b><br/>.NET 10, ASP.NET Core<br/>Api → Application → Domain<br/>Infrastructure: EF Core e SMTP<br/>JWT, Swagger, /health/live e /health/ready"]
+
+    db[("PostgreSQL 16<br/>RDS no LocalStack<br/>container no Compose")]
+    smtp["SMTP<br/>Mailpit"]
+    migr["Migrations<br/>imagem efbundle<br/>Job no k8s, serviço migrate no Compose"]
+
+    usuario -- "REST /api/v1 + Bearer JWT" --> api
+    cliente -- "links aprovar / recusar orçamento" --> api
+    externo -. "aprovação / recusa" .-> api
+    api -- "Npgsql" --> db
+    api -- "e-mail a cada mudança de status" --> smtp
+    smtp -. "entrega ao cliente" .-> cliente
+    migr -- "aplica migrations pendentes" --> db
+
+    classDef planejado stroke-dasharray: 5 5,fill:#f5f5f5,color:#666;
+    class externo planejado;
+```
+
+Imagens: [SVG](docs/diagramas/componentes.svg) · [PNG](docs/diagramas/componentes.png)
+
+### Infraestrutura provisionada
+
+O Terraform cria a rede, as IAM roles, o cluster EKS com node group e o RDS no LocalStack. O Kustomize aplica no cluster o Deployment da API com HPA, o Service, o ConfigMap, o Mailpit e o Job de migrations. As imagens vêm de um repositório privado do Docker Hub.
+
+```mermaid
+flowchart TB
+    dev(["Desenvolvedor ou runner do GitHub Actions"])
+    hub[("Docker Hub (privado)<br/>api-&lt;sha7&gt;, migrations-&lt;sha7&gt;")]
+
+    subgraph ls["LocalStack: AWS emulada, container no host Docker (localhost:4566)"]
+        direction LR
+        subgraph vpc["VPC 10.0.0.0/16 + internet gateway"]
+            direction LR
+            subgraph pub["Subnets públicas"]
+                eks["EKS oficina-local<br/>Kubernetes 1.31 + node group"]
+            end
+            subgraph priv["Subnets privadas"]
+                rds[("RDS PostgreSQL 16<br/>db.t3.micro")]
+            end
+        end
+        subgraph regionais["Serviços da conta"]
+            direction TB
+            s3[("S3<br/>state do Terraform")]
+            iam["IAM roles<br/>cluster e nodes"]
+            ecr[("ECR<br/>opcional, desligado")]
+        end
+    end
+
+    subgraph k3d["k3d: cluster real que o LocalStack cria para o EKS (namespace oficina)"]
+        direction LR
+        svc["Service oficina-api<br/>LoadBalancer, EXTERNAL-IP pending"]
+        hpa["HPA<br/>1 a 3 réplicas<br/>CPU 70%, memória 75%"]
+        cfg["ConfigMap oficina-config<br/>Secrets oficina-secrets, dockerhub-pull"]
+        deploy["Deployment oficina-api"]
+        job["Job oficina-migrations"]
+        mail["Mailpit<br/>SMTP 1025, UI 8025"]
+        svc --> deploy
+        hpa --> deploy
+        cfg --> deploy
+        deploy -- "SMTP" --> mail
+    end
+
+    dev -- "terraform apply" --> ls
+    dev -- "kubectl apply -k, port-forward 8080 e 8025" --> k3d
+    eks -. "materializado como" .-> k3d
+    deploy -- "5432" --> rds
+    job -- "5432" --> rds
+    hub -- "pull" --> k3d
+
+    classDef emulado fill:#fff4e5,stroke:#e8a33d,color:#333;
+    classDef opcional stroke-dasharray: 5 5,fill:#f5f5f5,color:#666;
+    class s3,iam,eks,rds emulado;
+    class ecr opcional;
+    style ls fill:#fffaf2,stroke:#e8a33d,stroke-width:2px
+```
+
+Imagens: [SVG](docs/diagramas/infraestrutura.svg) · [PNG](docs/diagramas/infraestrutura.png)
+
+### Fluxo de deploy
+
+O pull request passa pelo CI. Depois do merge, a esteira publica as imagens do commit e o CD sobe um LocalStack dentro do próprio job, provisiona a infraestrutura, migra o banco, aplica os manifestos e valida o deploy. Detalhes em [CI/CD](#cicd).
+
+```mermaid
+flowchart TB
+    pr(["Pull request para a main"])
+    subgraph ci_pr["CI no PR (ci.yml)"]
+        bt["build-and-test<br/>restore, build, testes de arquitetura, unitários e contrato"]
+        db_build["docker-build<br/>imagens runtime e migrations, sem push"]
+        tfv["terraform-validate<br/>fmt -check, init -backend=false, validate"]
+    end
+    merge(["Merge na main"])
+
+    subgraph pipe["Esteira pipeline.yml (push na main)"]
+        direction TB
+        ci["1. CI<br/>build-and-test e terraform-validate"]
+        pub["2. Publish (publish-images.yml)<br/>build e push de api-&lt;sha7&gt; e migrations-&lt;sha7&gt;"]
+        subgraph cd["3. CD (cd-localstack.yml): LocalStack dentro do job"]
+            direction TB
+            up["Sobe o LocalStack<br/>LOCALSTACK_AUTH_TOKEN, sem credenciais AWS reais"]
+            boot["terraform apply bootstrap<br/>bucket S3 do state"]
+            apply["terraform apply<br/>VPC, IAM, EKS, node group e RDS"]
+            tags["Fixa as tags &lt;sha7&gt; nos overlays"]
+            sec["Kubeconfig, Secrets e pull secret"]
+            mig["Job de migrations no RDS"]
+            k8s["kubectl apply -k k8s/overlays/localstack"]
+            roll["rollout status da API e do Mailpit"]
+            smoke["Smoke test /health/ready"]
+            e2e["Teste de ponta a ponta k6<br/>relatório HTML no artifact relatorio-e2e"]
+            up --> boot --> apply --> tags --> sec --> mig --> k8s --> roll --> smoke --> e2e
+        end
+        ci --> pub --> cd
+    end
+
+    hub[("Docker Hub (privado)")]
+
+    pr --> ci_pr --> merge --> pipe
+    pub -- "push" --> hub
+    hub -- "pull no cluster" --> k8s
+
+    classDef emulado fill:#fff4e5,stroke:#e8a33d,color:#333;
+    class up,boot,apply emulado;
+```
+
+Imagens: [SVG](docs/diagramas/fluxo-deploy.svg) · [PNG](docs/diagramas/fluxo-deploy.png)
+
+---
+
 ## 🧰 Stack tecnológica
 
 - .NET 10
@@ -80,8 +254,14 @@ permanecem iguais.
 - JWT Bearer
 - Swagger / OpenAPI
 - Docker / Docker Compose
-- SMTP para e-mail
+- SMTP para e-mail (Mailpit em desenvolvimento e no cluster)
 - xUnit + WebApplicationFactory
+- Kubernetes com Kustomize (Deployment, Service, ConfigMap, Secret, HPA e Jobs)
+- Terraform (VPC, IAM, EKS, RDS e S3 do state)
+- LocalStack (AWS emulada; EKS materializado com k3d)
+- GitHub Actions (CI, publicação das imagens e CD)
+- Docker Hub (repositório privado das imagens)
+- k6 (teste de carga e teste de ponta a ponta)
 
 ---
 
@@ -89,6 +269,7 @@ permanecem iguais.
 
 ```text
 .
+├── .github/workflows/      # pipeline.yml (esteira), ci.yml, publish-images.yml, cd-localstack.yml
 ├── src/
 │   ├── Oficina.Api/
 │   ├── Oficina.Application/
@@ -97,30 +278,40 @@ permanecem iguais.
 ├── tests/
 │   ├── Oficina.Tests/
 │   └── Oficina.Api.ContractTests/
+├── infra/                  # Terraform: bootstrap do state, rede, IAM, EKS, RDS e ECR opcional
+├── k8s/                    # Kustomize: base, overlay localstack, scripts, teste de carga e e2e
 ├── docs/
+│   ├── adr/                # decisões de arquitetura
+│   ├── diagramas/          # diagramas Mermaid e exportações SVG/PNG
+│   ├── Oficina-API.postman_collection.json
 │   └── SYSTEM_CONTEXT.md
 ├── docker-compose.yml
 ├── Dockerfile
 ├── Oficina.sln
 ├── oficina.http
 ├── README.md
-├── seed-data.sql
-├── coverage.xml
-├── RelatorioHTML/
-└── TestResults/
+└── seed-data.sql
 ```
 
 ---
 
 ## ⚙️ Requisitos mínimos
 
-Antes de começar, verifique se você tem:
+Para a execução local (Docker Compose ou `dotnet run`):
 
 - .NET 10 SDK
 - Docker e Docker Compose
 - PostgreSQL (se for rodar sem Docker)
 - VS Code, Rider ou Visual Studio
 - Git
+
+Para provisionar a infraestrutura e fazer o deploy em Kubernetes no LocalStack:
+
+- Terraform ≥ 1.10 e `kubectl`;
+- PowerShell (os scripts de `infra/scripts` e `k8s/scripts` são `.ps1`);
+- conta no LocalStack com `LOCALSTACK_AUTH_TOKEN`, porque o EKS do LocalStack exige um plano com token;
+- container do LocalStack com o socket do Docker montado e as portas `4566` e `4510-4559` publicadas (comando em [Provisionamento da infraestrutura com Terraform](#provisionamento-da-infraestrutura-com-terraform));
+- um Access Token de leitura do Docker Hub com acesso ao repositório das imagens (`DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN`).
 
 ---
 
@@ -273,6 +464,92 @@ dotnet ef database update \
   --project src/Oficina.Infrastructure \
   --startup-project src/Oficina.Api
 ```
+
+---
+
+## 🏗️ Provisionamento da infraestrutura com Terraform
+
+Os scripts ficam em [`infra/`](infra/) e criam toda a infraestrutura no **LocalStack**, sem AWS real. O passo a passo completo, com troubleshooting, está em [`infra/README.md`](infra/README.md).
+
+| Arquivo | Recursos criados |
+|---|---|
+| `infra/bootstrap/` | Bucket S3 do state remoto (configuração separada, com state local) |
+| `network.tf` | VPC `10.0.0.0/16`, subnets públicas e privadas, internet gateway, rotas e security group do cluster |
+| `iam.tf` | IAM roles do cluster EKS e do node group |
+| `eks.tf` | Cluster EKS (Kubernetes 1.31) e node group |
+| `rds.tf` | PostgreSQL 16 (`aws_db_instance`), subnet group, security group e senha gerada (`random_password`) |
+| `ecr.tf` | Repositórios ECR opcionais (`create_ecr`, desligado por padrão) |
+| `images.tf` | Referência das imagens no Docker Hub (output `app_images`) |
+
+**1. Suba o LocalStack** com o socket do Docker e a faixa de portas do RDS e do EKS:
+
+```powershell
+docker run -d --name localstack -p 4566:4566 -p 4510-4559:4510-4559 -e LOCALSTACK_AUTH_TOKEN=$env:LOCALSTACK_AUTH_TOKEN -v /var/run/docker.sock:/var/run/docker.sock -v localstack-data:/var/lib/localstack localstack/localstack
+curl http://localhost:4566/_localstack/health
+```
+
+**2. Crie o bucket do state** (sempre antes da infra; sem ele o `init` falha com `NoSuchBucket`):
+
+```bash
+terraform -chdir=infra/bootstrap init
+terraform -chdir=infra/bootstrap apply
+```
+
+**3. Provisione a rede, o cluster e o banco:**
+
+```bash
+cp infra/terraform.tfvars.example infra/terraform.tfvars   # opcional
+terraform -chdir=infra init
+terraform -chdir=infra plan
+terraform -chdir=infra apply
+```
+
+**4. Gere o kubeconfig** (PowerShell, com o ponto na frente). O arquivo é gravado em `%USERPROFILE%\kubeconfig-oficina`, sem alterar o `~/.kube/config`:
+
+```powershell
+. .\infra\scripts\kubeconfig.ps1
+kubectl get nodes
+```
+
+Para destruir: `terraform -chdir=infra destroy` e, depois, `terraform -chdir=infra/bootstrap destroy`. O LocalStack guarda os dados em memória, então recriar o container apaga o state e exige repetir os passos 2 e 3.
+
+---
+
+## ☸️ Deploy em Kubernetes
+
+Os manifestos ficam em [`k8s/`](k8s/), em Kustomize puro, aplicados com `kubectl`. O único ambiente é o overlay [`k8s/overlays/localstack`](k8s/overlays/localstack/), que mira o cluster EKS criado pelo Terraform. Ele roda na sua máquina, com o LocalStack local, ou no runner do CD. Detalhes em [`k8s/README.md`](k8s/README.md).
+
+| Recurso | Arquivo | Função |
+|---|---|---|
+| Namespace `oficina` | `k8s/base/namespace.yaml` | Isola os recursos da aplicação |
+| Deployment `oficina-api` | `k8s/base/api/deployment.yaml` | API com probes de startup, liveness e readiness, e `requests`/`limits` |
+| Service `oficina-api` | `k8s/base/api/service.yaml` + patch do overlay | `LoadBalancer` por paridade com o EKS |
+| HPA `oficina-api` | `k8s/base/api/hpa.yaml` | 1 a 3 réplicas, alvo de 70% de CPU e 75% de memória |
+| ConfigMap `oficina-config` | `configMapGenerator` da base e do overlay | Configuração não sensível (SMTP, JWT issuer/audience, URL pública) |
+| Secrets `oficina-secrets` e `dockerhub-pull` | `k8s/scripts/create-secrets.ps1` e `create-pull-secret.ps1` | Connection string, chave JWT, token do webhook e credencial de pull; nada é versionado |
+| Job `oficina-migrations` | `k8s/base/migrations/` + `k8s/scripts/run-migrations.ps1` | Aplica as migrations no RDS antes da API |
+| Mailpit | `k8s/base/mailpit/` | SMTP do cluster (1025) e UI (8025) |
+
+Com o Terraform aplicado e o kubeconfig carregado:
+
+```powershell
+$env:DOCKERHUB_USERNAME = "<usuário>"
+$env:DOCKERHUB_TOKEN    = "<access token de leitura>"
+.\k8s\scripts\create-secrets.ps1      # connection string vem do terraform output; chaves geradas se ausentes
+.\k8s\scripts\create-pull-secret.ps1  # Secret de pull do Docker Hub privado
+.\k8s\scripts\run-migrations.ps1      # Job de migrations; para em caso de falha
+kubectl apply -k k8s/overlays/localstack
+kubectl -n oficina rollout status deployment/oficina-api
+```
+
+O `EXTERNAL-IP` do Service fica `<pending>`, porque o k3d do LocalStack não tem balanceador. O acesso é por `port-forward`:
+
+```powershell
+kubectl -n oficina port-forward svc/oficina-api 8080:80   # API e Swagger: http://localhost:8080/swagger
+kubectl -n oficina port-forward svc/mailpit 8025:8025     # Mailpit: http://localhost:8025
+```
+
+Para ver o autoscaling, acompanhe `kubectl -n oficina get hpa oficina-api -w` e, em outro terminal, rode o teste de carga `.\k8s\loadtest\run-loadtest.ps1`. O k6 roda como Job dentro do cluster e distribui a carga entre as réplicas ([detalhes](k8s/README.md#autoscaling-e-teste-de-carga)). O teste de ponta a ponta do fluxo de negócio é o `.\k8s\e2e\run-e2e.ps1`.
 
 ---
 
@@ -630,7 +907,7 @@ docker run --rm \
   oficina-migrations:dev
 ```
 
-No Docker Compose, essa imagem é o serviço `migrate`. No Kubernetes, ela será executada por um Job antes da atualização da API ([#120](https://github.com/thierryiago/SOAT-Fase-1-Lil-Golden-Hammer/issues/120)).
+No Docker Compose, essa imagem é o serviço `migrate`. No Kubernetes, ela é executada pelo Job `oficina-migrations` antes da atualização da API (veja [Deploy em Kubernetes](#deploy-em-kubernetes)).
 
 ---
 
@@ -648,7 +925,11 @@ dotnet test tests/Oficina.Tests/Oficina.Tests.csproj
 dotnet test tests/Oficina.Api.ContractTests/Oficina.Api.ContractTests.csproj
 ```
 
-### Integração e entrega contínuas
+---
+
+## 🔁 CI/CD
+
+A esteira roda no GitHub Actions. O diagrama está em [Fluxo de deploy](#fluxo-de-deploy).
 
 Todo push na `main` dispara a esteira [`.github/workflows/pipeline.yml`](.github/workflows/pipeline.yml), que também pode ser disparada pelo **Run workflow**. Ela tem três etapas, e cada uma só começa se a anterior passou:
 
@@ -666,6 +947,54 @@ O `ci.yml` também roda em todo pull request para a `main`. Nos PRs, além dos t
 Nenhuma das duas checagens usa secrets ou LocalStack.
 
 A versão do SDK é fixada em [`global.json`](global.json).
+
+### Etapas exigidas e onde acontecem
+
+| Etapa | Workflow e passo |
+|---|---|
+| Build da aplicação | `ci.yml`, job `build-and-test` (`dotnet build -c Release`) |
+| Testes automatizados | `ci.yml`, job `build-and-test` (arquitetura, unitários com coverage e contrato) |
+| Build da imagem Docker | `ci.yml`, job `docker-build` (PR, sem push) e `publish-images.yml` (esteira, com push para o Docker Hub) |
+| Deploy do banco de dados | `cd-localstack.yml`: `Terraform apply (EKS, RDS)` provisiona o RDS, e `Secrets, migrations e deploy` roda o Job de migrations |
+| Deploy no cluster Kubernetes | `cd-localstack.yml`: `Terraform apply` cria o cluster e `Secrets, migrations e deploy` faz o rollout da API e do Mailpit |
+| Aplicação dos manifestos YAML | `cd-localstack.yml`: `kubectl apply -k k8s/overlays/localstack`, com as tags do commit fixadas nos overlays |
+
+### LocalStack no job, sem credenciais AWS
+
+O CD não usa uma conta da AWS. A cada execução, ele sobe um LocalStack dentro do próprio runner (`LocalStack/setup-localstack`) e aplica nele o Terraform e os manifestos, do zero. O provider usa as credenciais fictícias `test`/`test`. Depois do deploy, o job valida o ambiente com um smoke test em `/health/ready` e um teste de ponta a ponta k6. No fim, o LocalStack é descartado junto com o runner.
+
+Secrets do repositório usados pela esteira:
+
+| Secret | Uso |
+|---|---|
+| `LOCALSTACK_AUTH_TOKEN` | Ativa o EKS no LocalStack do job de CD |
+| `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN` | Push das imagens no Publish e pull no cluster (Secret `dockerhub-pull`) |
+
+Artifacts gerados: `test-results` (`.trx` e coverage do CI), `relatorio-e2e` (relatório HTML do teste de ponta a ponta) e `diagnosticos-cd-localstack` (estado do cluster e logs, para investigar falhas no CD).
+
+---
+
+## ☁️ LocalStack: decisão e limitações
+
+A infraestrutura de nuvem do projeto é **emulada pelo LocalStack**. O Terraform cria no LocalStack os mesmos recursos que criaria na AWS (VPC, IAM, EKS e RDS), e o EKS vira um cluster Kubernetes real com k3d. A decisão está registrada no [ADR 0003](docs/adr/0003-infra-emulada-no-localstack.md). Em resumo:
+
+- as credenciais da AWS Academy expiram em poucas horas e não aceitam OIDC, o que inviabiliza uma esteira automática ([#129](https://github.com/thierryiago/SOAT-Fase-1-Lil-Golden-Hammer/issues/129));
+- EKS e RDS teriam custo por hora, enquanto no LocalStack o custo na AWS é zero;
+- qualquer pessoa reproduz o ambiente com Docker e um token do LocalStack, e o CD recria tudo a cada execução.
+
+Limitações conhecidas:
+
+| Limitação | Efeito no projeto |
+|---|---|
+| EKS só com `LOCALSTACK_AUTH_TOKEN` | Sem token, o cluster não é criado. O token é pré-requisito local e secret do CD |
+| Security groups não são aplicados ao tráfego | As regras do RDS e do cluster existem por paridade com a AWS, mas não bloqueiam conexões |
+| Estado em memória | Recriar o container do LocalStack apaga o bucket do state e os recursos; é preciso repetir bootstrap e `apply` |
+| k3d sem `servicelb` | O Service `LoadBalancer` fica com `EXTERNAL-IP` pendente; o acesso é por `kubectl port-forward` |
+| ECR inacessível pelo kubelet do k3d | As imagens ficam num repositório privado do Docker Hub; o ECR ficou opcional (`create_ecr = false`) |
+| Porta da API do Kubernetes sorteada | Ao recriar o cluster, rode `infra/scripts/kubeconfig.ps1` de novo |
+| RDS na faixa `4510-4559` do host | Dentro do cluster o banco é acessado por `host.k3d.internal` (local) ou pelo IP do LocalStack na rede do k3d (CD) |
+
+Mais detalhes e troubleshooting: [`infra/README.md`](infra/README.md) e [`k8s/README.md`](k8s/README.md).
 
 ---
 
@@ -727,6 +1056,20 @@ Recomendação de uso:
 
 ---
 
+## 📦 Entregáveis
+
+| Entregável | Onde está |
+|---|---|
+| Collection completa das APIs | Postman: [`docs/Oficina-API.postman_collection.json`](docs/Oficina-API.postman_collection.json). Swagger: `/swagger` na API em execução |
+| Desenho da arquitetura | [Desenho da arquitetura](#desenho-da-arquitetura) e imagens em [`docs/diagramas/`](docs/diagramas/) |
+| Dockerfile e docker-compose | [`Dockerfile`](Dockerfile) e [`docker-compose.yml`](docker-compose.yml) |
+| Manifestos Kubernetes | [`k8s/`](k8s/) |
+| Scripts Terraform | [`infra/`](infra/) |
+| Pipeline de CI/CD | [`.github/workflows/`](.github/workflows/) |
+| Decisões de arquitetura | [`docs/adr/`](docs/adr/) |
+
+---
+
 ## 📌 Resumo
 
-A Oficina API é uma solução de back-end para gestão de oficina mecânica, com foco em domínio, rastreabilidade e fluxo operacional de ordem de serviço. O projeto já inclui autenticação JWT, controle de estoque, orçamentos, métricas e notificações, além de uma suíte de testes para garantir a qualidade do comportamento da aplicação.
+A Oficina API é uma solução de back-end para gestão de oficina mecânica, com foco em domínio, rastreabilidade e fluxo operacional de ordem de serviço. O projeto já inclui autenticação JWT, controle de estoque, orçamentos, métricas e notificações, além de uma suíte de testes para garantir a qualidade do comportamento da aplicação. Na Fase 2, a aplicação passou a rodar em Kubernetes com autoscaling, sobre infraestrutura provisionada por Terraform no LocalStack, com deploy automatizado por uma esteira de CI/CD.
