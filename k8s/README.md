@@ -222,7 +222,7 @@ A API não aplica migrations na subida; com o banco inacessível o readiness fal
 
 As imagens ficam num repositório **privado** do Docker Hub, `thierryiago27/fiap-oficina-image-docker-hub`, separadas por tag: `api-<sha7>` e `migrations-<sha7>` (e `*-latest` na `main`). Quem publica é o workflow [`publish-images.yml`](../.github/workflows/publish-images.yml), como segunda etapa da esteira [`pipeline.yml`](../.github/workflows/pipeline.yml) a cada push na `main`, depois do CI. Também dá para disparar manualmente, com `workflow_dispatch`.
 
-O manifest usa `image: oficina-api` / `oficina-migrations`, e os overlays resolvem nome e tag em `images`. O CD sobrescreve a tag com a do commit. A referência completa também sai do Terraform: `terraform -chdir=infra output app_images` com `-var app_image_tag=<sha7>`.
+O manifest usa `image: oficina-api` / `oficina-migrations`, e os overlays resolvem nome e tag em `images`. Por padrão, a tag é `api-latest` / `migrations-latest`, ou seja, a última imagem que a esteira publicou a partir da `main`. Como essa tag é mutável, os overlays forçam `imagePullPolicy: Always`, para o nó não reaproveitar uma cópia antiga do cache. O CD troca a tag pela do commit (`*-<sha7>`). Os scripts `run-migrations.ps1` e `deploy-api.ps1` aceitam `-ImageTag <sha7>` para fixar uma versão sem alterar os arquivos versionados. A referência completa também sai do Terraform: `terraform -chdir=infra output app_images` com `-var app_image_tag=<sha7>`.
 
 Como o repositório é privado, o cluster puxa com o Secret `dockerhub-pull` (tipo `dockerconfigjson`), referenciado em `imagePullSecrets` na API e no Job de migrations. Ele é criado pelo script, com um Access Token de **leitura** do Docker Hub:
 
@@ -238,17 +238,27 @@ Sem o Secret, o pod fica em `ErrImagePull` com `pull access denied`.
 
 #### Testar uma imagem local sem publicar
 
-Para iterar sem passar pelo CI, importe a imagem nos nós com o **mesmo nome** que o overlay usa (o `imagePullPolicy: IfNotPresent` faz o nó usar a cópia local):
+Para iterar sem passar pelo CI, importe a imagem nos nós com o **mesmo nome** que o overlay usa. Depois, troque a imagem e volte o `imagePullPolicy` para `IfNotPresent`, para o nó usar a cópia local. Com o `Always` do overlay, o nó tentaria buscar `api-local` no Docker Hub:
 
 ```powershell
 $repo = "docker.io/thierryiago27/fiap-oficina-image-docker-hub"
 docker build -t "${repo}:api-local" .
 $nodes = docker ps --format "{{.Names}}" | Select-String "k3d-oficina-local-.*(agent|server-0)"
 foreach ($n in $nodes) { cmd /c "docker save ${repo}:api-local | docker exec -i $n ctr -n k8s.io images import -" }
-kubectl -n oficina set image deployment/oficina-api api="${repo}:api-local"
+$patch = Join-Path $env:TEMP "api-local-patch.yaml"
+@"
+spec:
+  template:
+    spec:
+      containers:
+        - name: api
+          image: ${repo}:api-local
+          imagePullPolicy: IfNotPresent
+"@ | Set-Content -Encoding ascii $patch
+kubectl -n oficina patch deployment oficina-api --patch-file $patch
 ```
 
-O `cmd /c` é necessário: no Windows PowerShell 5.1 o pipe nativo converte os bytes e o `ctr` falha com `invalid tar header`.
+O próximo `deploy-api.ps1` ou `kubectl apply -k` volta para a imagem do Docker Hub com `Always`. O `cmd /c` é necessário: no Windows PowerShell 5.1 o pipe nativo converte os bytes e o `ctr` falha com `invalid tar header`.
 
 ### Verificar
 

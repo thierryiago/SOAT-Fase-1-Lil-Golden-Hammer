@@ -10,8 +10,12 @@ labels:
       app.kubernetes.io/environment: localstack
     includeSelectors: false
 
+patches:
+  - path: pull-policy-patch.yaml
+
 images:
-  # Mesmo repositório privado do Docker Hub, tag migrations-<sha7>; o CD sobrescreve a tag.
+  # Mesmo repositório privado do Docker Hub, tag migrations-latest (a última da main). O CD troca pela
+  # migrations-<sha7> do commit e o run-migrations.ps1 aceita -ImageTag.
   - name: oficina-migrations
     newName: docker.io/thierryiago27/fiap-oficina-image-docker-hub
-    newTag: migrations-cb55fa1
+    newTag: migrations-latest

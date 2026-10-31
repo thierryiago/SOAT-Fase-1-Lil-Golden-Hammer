@@ -1,0 +1,11 @@
+# A tag padrão (migrations-latest) é mutável: com IfNotPresent o nó reaproveitaria a cópia antiga do cache.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: oficina-migrations
+spec:
+  template:
+    spec:
+      containers:
+        - name: migrations
+          imagePullPolicy: Always

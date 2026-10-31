@@ -70,3 +70,6 @@ k8s/**/secret.yaml
 k8s/**/*.secret.yaml
 k8s/**/secret.local.yaml
 k8s/**/*.env
+
+# Overlays temporários dos scripts de deploy (k8s/scripts/deploy-common.ps1)
+k8s/.image-override-*/

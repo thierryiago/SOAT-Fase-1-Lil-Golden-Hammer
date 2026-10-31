@@ -1,0 +1,11 @@
+# A tag padrão (api-latest) é mutável: com IfNotPresent o nó reaproveitaria a cópia antiga do cache.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oficina-api
+spec:
+  template:
+    spec:
+      containers:
+        - name: api
+          imagePullPolicy: Always

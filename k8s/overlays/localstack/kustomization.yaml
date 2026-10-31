@@ -12,6 +12,7 @@ labels:
 
 patches:
   - path: service-lb-patch.yaml
+  - path: api-pull-policy-patch.yaml
 
 configMapGenerator:
   - name: oficina-config
@@ -23,8 +24,9 @@ configMapGenerator:
       - App__PublicBaseUrl=http://localhost:8080
 
 images:
-  # Repositório privado do Docker Hub (publish-images.yml), imagens separadas por tag: api-<sha7>.
-  # O pull usa o Secret dockerhub-pull (k8s/scripts/create-pull-secret.ps1); o CD sobrescreve a tag.
+  # Repositório privado do Docker Hub (publish-images.yml), imagens separadas por tag: api-<sha7> e, na main,
+  # api-latest, a última que a esteira publicou. O pull usa o Secret dockerhub-pull
+  # (k8s/scripts/create-pull-secret.ps1). O CD troca pela api-<sha7> do commit e o deploy-api.ps1 aceita -ImageTag.
   - name: oficina-api
     newName: docker.io/thierryiago27/fiap-oficina-image-docker-hub
-    newTag: api-cb55fa1
+    newTag: api-latest
