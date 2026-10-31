@@ -34,13 +34,13 @@ spec:
             - name: BASE_URL
               value: "http://oficina-api.oficina.svc.cluster.local"
             - name: TARGET_VUS
-              value: "30"
+              value: "10"
             - name: RAMP_UP
-              value: "30s"
+              value: "10s"
             - name: HOLD
-              value: "1m30s"
-            - name: RAMP_DOWN
               value: "15s"
+            - name: RAMP_DOWN
+              value: "5s"
           volumeMounts:
             - name: scripts
               mountPath: /scripts

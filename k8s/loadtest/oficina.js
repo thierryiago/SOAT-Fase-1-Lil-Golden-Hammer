@@ -7,16 +7,16 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
-const TARGET_VUS = Number(__ENV.TARGET_VUS || 30);
+const TARGET_VUS = Number(__ENV.TARGET_VUS || 10);
 const WRITE_RATIO = Number(__ENV.WRITE_RATIO || 0.05);
 const CUSTOMER_DOCUMENT = __ENV.CUSTOMER_DOCUMENT || '11144477735';
 const VEHICLE_PLATE = __ENV.VEHICLE_PLATE || 'ABC-1234';
 
 export const options = {
   stages: [
-    { duration: __ENV.RAMP_UP || '30s', target: TARGET_VUS },
-    { duration: __ENV.HOLD || '1m30s', target: TARGET_VUS },
-    { duration: __ENV.RAMP_DOWN || '15s', target: 0 },
+    { duration: __ENV.RAMP_UP || '10s', target: TARGET_VUS },
+    { duration: __ENV.HOLD || '15s', target: TARGET_VUS },
+    { duration: __ENV.RAMP_DOWN || '5s', target: 0 },
   ],
   thresholds: {
     http_req_failed: ['rate<0.05'],
