@@ -35,6 +35,7 @@ API REST em .NET 10 para gestão operacional de uma oficina mecânica, cobrindo 
 - [LocalStack: decisão e limitações](#localstack-decisão-e-limitações)
 - [Mailpit para desenvolvimento](#mailpit-para-desenvolvimento)
 - [Arquivo de chamadas HTTP](#arquivo-de-chamadas-http)
+- [Collection das APIs](#collection-das-apis)
 - [Entregáveis](#entregáveis)
 - [Resumo](#resumo)
 
@@ -66,7 +67,7 @@ Com o sistema da Fase 1 em uso, a oficina passou a ter mais demanda e planeja no
 
 APIs criadas ou alteradas na fase:
 
-- **Abertura de OS completa:** `POST /api/v1/service-orders`, com cliente, veículo, serviços e peças, devolvendo o identificador da OS.
+- **Abertura de OS completa:** `POST /api/v1/service-orders/with-items`, com cliente, veículo, serviços e peças, devolvendo o identificador da OS.
 - **Consulta de status da OS:** `GET /api/v1/service-orders/{id}/track?document=...` (pública, pelo documento do cliente) e `GET /api/v1/service-orders/{id}`.
 - **Listagem priorizada:** `GET /api/v1/service-orders/status`, ordenada por `InExecution` > `AwaitingApproval` > `InDiagnosis` > `Received` e da OS mais antiga para a mais nova, sem as finalizadas e entregues (exclusão lógica, só na consulta).
 - **Atualização de status por e-mail:** o cliente recebe um e-mail a cada mudança de status. O e-mail de orçamento traz links para aprovar ou recusar (`GET /api/v1/notifications/approveBudget` e `rejectBudget`).
@@ -81,7 +82,7 @@ A infraestrutura de nuvem (VPC, EKS, RDS, IAM e S3) é **emulada pelo [LocalStac
 A estrutura do projeto está organizada em camadas:
 
 - `src/Oficina.Domain` — entidades, regras de negócio e enums;
-- `src/Oficina.Application` — serviços de aplicação, DTOs e contratos de repositório;
+- `src/Oficina.Application` — casos de uso, DTOs e contratos de repositório e integrações;
 - `src/Oficina.Infrastructure` — EF Core, repositórios, SMTP, DI e persistência;
 - `src/Oficina.Api` — controllers, autenticação, Swagger e bootstrap da API;
 - `tests/Oficina.Tests` — testes unitários e de aplicação;
@@ -563,6 +564,11 @@ A API usa autenticação JWT Bearer com token técnico único.
 - `GET /health` (compatibilidade; equivale a `/health/live`)
 - `GET /health/live`
 - `GET /health/ready`
+- `GET /api/v1/service-orders/{id}/track`
+- `GET /api/v1/service-orders/track`
+- `POST /api/v1/notifications/email`
+- `GET /api/v1/notifications/approveBudget`
+- `GET /api/v1/notifications/rejectBudget`
 
 ### Endpoints protegidos
 
@@ -644,7 +650,10 @@ As respostas dos endpoints de ordens de serviço apresentam `status` pelo nome d
 - `GET /api/v1/service-orders`
 - `GET /api/v1/service-orders/status` — lista autenticada por prioridade: `InExecution` > `AwaitingApproval` > `InDiagnosis` > `Received`. Dentro de cada status, retorna as OS mais antigas por `CreatedAt`, com desempate por `Id`. Exclui `Created`, `Rejected`, `Finalized`, `Delivered` e status nulo apenas desta consulta, preservando registros e históricos. Retorna `200` com uma lista (vazia quando não houver OS elegíveis) ou `401` sem autenticação. A listagem geral continua disponível sem esse filtro.
 - `GET /api/v1/service-orders/{id}`
+- `GET /api/v1/service-orders/{id}/track?document=...` — consulta pública do status, validada pelo documento do cliente.
+- `GET /api/v1/service-orders/track?document=...` — lista pública das OS do cliente.
 - `POST /api/v1/service-orders`
+- `POST /api/v1/service-orders/with-items` — abre a OS com cliente, veículo, serviços e peças. Retorna `201` com o ID da OS e o header `Location`, com a OS em `AwaitingApproval`.
 - `PUT /api/v1/service-orders`
 - `POST /api/v1/service-orders/{id}/approve`
 - `POST /api/v1/service-orders/{id}/cancel`
@@ -665,9 +674,16 @@ As respostas dos endpoints de ordens de serviço apresentam `status` pelo nome d
 
 - `GET /api/v1/metrics/workshop-service/execution-time`
 
+### Agendamentos
+
+- `GET /api/v1/schedules`
+- `GET /api/v1/schedules?date=...`
+
 ### Notificações
 
 - `POST /api/v1/notifications/email`
+- `GET /api/v1/notifications/approveBudget?budgetId=...` — link do e-mail para aprovar o orçamento.
+- `GET /api/v1/notifications/rejectBudget?budgetId=...` — link do e-mail para recusar o orçamento.
 
 ---
 
@@ -1056,11 +1072,37 @@ Recomendação de uso:
 
 ---
 
+## 📮 Collection das APIs
+
+A collection completa do Postman está em [`docs/Oficina-API.postman_collection.json`](docs/Oficina-API.postman_collection.json). Ela cobre todas as rotas do Swagger e os health checks, organizadas por recurso e pelos fluxos da ordem de serviço.
+
+Para usar:
+
+1. suba a API (ver [Como rodar a aplicação](#como-rodar-a-aplicação));
+2. no Postman, clique em **Import** e selecione o arquivo;
+3. confira a variável `baseUrl` da collection (padrão: `http://localhost:8080`);
+4. execute as pastas em ordem ou use **Run collection**.
+
+O token JWT é renovado automaticamente, e os IDs retornados são salvos nas variáveis da collection. Documento, placa e demais campos únicos são gerados a cada execução, o que permite repetir o fluxo.
+
+Para executar pela linha de comando:
+
+```bash
+npx newman@6.2.1 run docs/Oficina-API.postman_collection.json --env-var baseUrl=http://localhost:8080
+```
+
+> Atenção: a execução grava dados no banco, movimenta o estoque e envia e-mails ao SMTP configurado. Use somente em ambiente de desenvolvimento.
+
+Com a API em execução, a documentação também fica disponível no Swagger (`http://localhost:8080/swagger`).
+
+---
+
 ## 📦 Entregáveis
 
 | Entregável | Onde está |
 |---|---|
-| Collection completa das APIs | Postman: [`docs/Oficina-API.postman_collection.json`](docs/Oficina-API.postman_collection.json). Swagger: `/swagger` na API em execução |
+| Collection completa das APIs | Postman: [`docs/Oficina-API.postman_collection.json`](docs/Oficina-API.postman_collection.json) ([como usar](#collection-das-apis)). Swagger: `/swagger` na API em execução |
+| Vídeo demonstrativo | [YouTube](https://www.youtube.com/watch?v=9Wa6jf6c30o) |
 | Desenho da arquitetura | [Desenho da arquitetura](#desenho-da-arquitetura) e imagens em [`docs/diagramas/`](docs/diagramas/) |
 | Dockerfile e docker-compose | [`Dockerfile`](Dockerfile) e [`docker-compose.yml`](docker-compose.yml) |
 | Manifestos Kubernetes | [`k8s/`](k8s/) |
